@@ -42,7 +42,7 @@ local SCORE_TIERS_SIMPLE = ns.scoreTiersSimple
 local DUNGEONS = ns.dungeons
 for i = 1, #DUNGEONS, 1 do
 	local dgn = DUNGEONS[i]
-	dgn[i].shortName = L["DUNGEON_SHORT_NAME_" .. dgn[i].shortName] or dgn[i].shortName
+	dgn.shortName = L["DUNGEON_SHORT_NAME_" .. dgn.shortName] or dgn.shortName
 end
 
 local MAX_LEVEL = MAX_PLAYER_LEVEL_TABLE[LE_EXPANSION_LEGION]
