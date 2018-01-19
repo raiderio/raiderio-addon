@@ -59,6 +59,22 @@ local REGIONS = {
 	"tw",
 	"cn"
 }
+local MAPAREAID_TO_ZONEID = {
+	[1065] = 1, -- NL
+	[1041] = 2, -- HOV
+	[1067] = 3, -- DHT
+	[1045] = 4, -- VOTW
+	[1081] = 5, -- BRH
+	[1042] = 6, -- MOS
+	[1079] = 7, -- ARC
+	[1046] = 8, -- EOA
+	[1087] = 9, -- COS
+	[1146] = 10, -- CATH
+	[1178] = 11, -- SEAT
+	-- Specific development for Karazhan
+	--[471] = 12, -- LOWER
+	--[473] = 13, -- UPPER
+}
 local LFD_ACTIVITYID_TO_ZONEID = {
 	-- Mythic Keystone
 	[462] = 1, -- NL    -- 1|7546
@@ -1028,6 +1044,8 @@ local function AppendGameTooltip(tooltip, arg1, forceNoPadding, forceAddName, fo
 		-- if not, then are we queued for, or hosting a group for a keystone run?
 		if not focusOnDungeonIndex then
 			local queued, isHosting = GetLFDStatus()
+			-- If queued or hosting a group, return the score of the dungeon
+			-- Else return the score of the dungeon we're in (if we're in one)
 			if queued and isHosting ~= nil then
 				if isHosting then
 					-- we are hosting, so this is the only keystone we are interested in showing
@@ -1053,6 +1071,43 @@ local function AppendGameTooltip(tooltip, arg1, forceNoPadding, forceAddName, fo
 								qHighlightStr2 = "+" .. l
 							end
 							break
+						end
+					end
+				end
+			else
+				local zoneIAm = GetCurrentMapAreaID()
+
+				-- If karazhan, get highest key from upper & lower
+				-- Else get dungeon index from array
+				if zoneIAm == 1115 then
+					local lowerScore = profile.dungeons[12]
+					local upperScore = profile.dungeons[13]
+
+					if lowerScore > 0 or upperScore > 0 then
+						local d = {}
+						local l = 0
+						if upperScore > lowerScore then
+							d = DUNGEONS[13]
+							l = upperScore
+						else
+							d = DUNGEONS[12]
+							l = lowerScore
+						end
+
+						qHighlightStrSameAsBest = profile.maxDungeonName == d.shortName
+						qHighlightStr1 = d.shortName
+						qHighlightStr2 = "+" .. l
+					end
+				else
+					local dungeonIndex = MAPAREAID_TO_ZONEID[zoneIAm]
+
+					if dungeonIndex then
+						local d = DUNGEONS[dungeonIndex]
+						local l = profile.dungeons[dungeonIndex]
+						if l > 0 then
+							qHighlightStrSameAsBest = profile.maxDungeonName == d.shortName
+							qHighlightStr1 = d.shortName
+							qHighlightStr2 = "+" .. l
 						end
 					end
 				end

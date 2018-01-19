@@ -40,3 +40,6 @@ sample-data
 
 # Node
 node_modules
+
+# IDE
+.idea/
