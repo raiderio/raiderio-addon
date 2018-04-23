@@ -28,6 +28,7 @@ local addonConfig = {
 	showScoreInCombat = true,
 	disableScoreColors = false,
 	alwaysExtendTooltip = false,
+	showAverageScore = true,
 }
 
 -- session
@@ -57,6 +58,7 @@ local CONST_REGION_IDS = ns.regionIDs
 local CONST_SCORE_TIER = ns.scoreTiers
 local CONST_SCORE_TIER_SIMPLE = ns.scoreTiersSimple
 local CONST_DUNGEONS = ns.dungeons
+local CONST_AVERAGE_SCORE = ns.averageScore
 local L = ns.L
 
 -- enum dungeons
@@ -274,6 +276,7 @@ local GetRealmSlug
 local GetNameAndRealm
 local GetFaction
 local GetWeeklyAffix
+local GetAverageScore
 do
 	-- get timezone offset between local and UTC+0 time
 	function GetTimezoneOffset(ts)
@@ -324,7 +327,7 @@ do
 		if id then
 			if activityID then
 				local index = LFD_ACTIVITYID_TO_DUNGEONID[activityID]
-					if index then
+				if index then
 					temp.index = index
 					temp.dungeon = CONST_DUNGEONS[index]
 					temp.level = GetKeystoneLevel(name) or GetKeystoneLevel(comment) or 0
@@ -425,6 +428,13 @@ do
 		local diff = difftime(timestamp, timestampWeeklyReset)
 		local index = floor(diff / 604800) % #KEYSTONE_AFFIX_SCHEDULE + 1
 		return KEYSTONE_AFFIX_SCHEDULE[index]
+	end
+
+	function GetAverageScore(affix, level)
+		if CONST_AVERAGE_SCORE[affix] and CONST_AVERAGE_SCORE[affix][level] then
+			return CONST_AVERAGE_SCORE[affix][level]
+		end
+		return nil
 	end
 end
 
@@ -752,7 +762,8 @@ do
 			config:CreateOptionToggle(L.ALWAYS_SHOW_EXTENDED_INFO, L.ALWAYS_SHOW_EXTENDED_INFO_DESC, "alwaysExtendTooltip")
 			config:CreateOptionToggle(L.SHOW_SCORE_IN_COMBAT, L.SHOW_SCORE_IN_COMBAT_DESC, "showScoreInCombat")
 			config:CreateOptionToggle(L.SHOW_KEYSTONE_INFO, L.SHOW_KEYSTONE_INFO_DESC, "enableKeystoneTooltips")
-	
+			config:CreateOptionToggle(L.SHOW_AVERAGE_PLAYER_SCORE_INFO, L.SHOW_AVERAGE_PLAYER_SCORE_INFO_DESC, "showAverageScore")
+
 			config:CreatePadding()
 			config:CreateHeadline(L.COPY_RAIDERIO_PROFILE_URL)
 			config:CreateOptionToggle(L.ALLOW_ON_PLAYER_UNITS, L.ALLOW_ON_PLAYER_UNITS_DESC, "showDropDownCopyURL")
@@ -2083,6 +2094,14 @@ do
 			end
 			tooltip:AddLine(" ")
 			tooltip:AddDoubleLine(L.RAIDERIO_MP_BASE_SCORE, baseScore, 1, 0.85, 0, 1, 1, 1)
+
+			if addonConfig.showAverageScore then
+				local averageScore = GetAverageScore(GetWeeklyAffix(), lvl)
+				if averageScore then
+					tooltip:AddDoubleLine(format(L.RAIDERIO_AVERAGE_PLAYER_SCORE, lvl), averageScore, 1, 0.85, 0, 1, 1, 1)
+				end
+			end
+
 			inst = tonumber(inst)
 			if inst then
 				local index = KEYSTONE_INST_TO_DUNGEONID[inst]
