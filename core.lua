@@ -58,7 +58,7 @@ local CONST_REGION_IDS = ns.regionIDs
 local CONST_SCORE_TIER = ns.scoreTiers
 local CONST_SCORE_TIER_SIMPLE = ns.scoreTiersSimple
 local CONST_DUNGEONS = ns.dungeons
-local CONST_AVERAGE_SCORE = ns.averageScore
+local CONST_AVERAGE_SCORE = ns.scoreLevelStats
 local L = ns.L
 
 -- enum dungeons
@@ -310,11 +310,22 @@ do
 		if type(raw) ~= "string" then
 			return
 		end
-		local level = raw:match("%+%s*(%d+)")
-		if not level then
+		local regexesFindLevel = { "%+%s*(%d+)", "(%d+)%s*%+", "(%d+)" }
+
+		local level = 0;
+		for i, regex in ipairs(regexesFindLevel) do
+			level = raw:match(regex);
+			level = tonumber(level)
+			if level and level < 32 then
+				break
+			end
+		end
+
+		if not level or level < 2 then
 			return
 		end
-		return tonumber(level)
+
+		return level
 	end
 
 	-- detect LFD queue status
@@ -430,9 +441,9 @@ do
 		return KEYSTONE_AFFIX_SCHEDULE[index]
 	end
 
-	function GetAverageScore(affix, level)
-		if CONST_AVERAGE_SCORE[affix] and CONST_AVERAGE_SCORE[affix][level] then
-			return CONST_AVERAGE_SCORE[affix][level]
+	function GetAverageScore(level)
+		if CONST_AVERAGE_SCORE and CONST_AVERAGE_SCORE[level] then
+			return CONST_AVERAGE_SCORE[level]
 		end
 		return nil
 	end
@@ -1253,10 +1264,7 @@ do
 				end
 			end
 
-			if focusOnKeystoneLevel then
-				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel)
-			end
-
+			local searchLevel = 0
 
 			-- if not, then are we queued for, or hosting a group for a keystone run?
 			if not focusOnDungeonIndex then
@@ -1278,6 +1286,7 @@ do
 							qHighlightStrSameAsBest = profile.maxDungeonName == queued.dungeon.shortName
 							qHighlightStr1 = queued.dungeon.shortName
 							qHighlightStr2 = "+" .. profile.dungeons[queued.index]
+							searchLevel = queued.level
 						end
 					else
 						-- at the moment we pick the first queued dungeon and hope the player only queues for one dungeon at a time, not multiple different keys
@@ -1294,6 +1303,7 @@ do
 									qHighlightStrSameAsBest = true
 									qHighlightStr1 = q.dungeon.shortName
 									qHighlightStr2 = "+" .. l
+									searchLevel = l.level
 								end
 								break
 							end
@@ -1353,6 +1363,10 @@ do
 				tooltip:AddDoubleLine(L.MAINS_SCORE, profile.mainScore, 1, 1, 1, GetScoreColor(profile.mainScore))
 			end
 
+			if focusOnKeystoneLevel or searchLevel then
+				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel or searchLevel)
+			end
+
 			if IS_DB_OUTDATED then
 				tooltip:AddLine(format(L.OUTDATED_DATABASE, OUTDATED_DAYS), 1, 1, 1, false)
 			end
@@ -1371,6 +1385,13 @@ do
 			tooltip:Show()
 
 			return 1
+		else
+			if focusOnKeystoneLevel then
+				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel, not forceNoPadding)
+
+				tooltip:Show()
+				return 1
+			end
 		end
 	end
 
@@ -1421,11 +1442,14 @@ do
 		AppendGameTooltip(tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex)
 	end
 
-	function AppendAveragePlayerScore(tooltip, keystoneLevel)
+	function AppendAveragePlayerScore(tooltip, keystoneLevel, addBlankLine)
 		if addonConfig.showAverageScore then
-			local averageScore = GetAverageScore(GetWeeklyAffix(), keystoneLevel)
+			local averageScore = GetAverageScore(keystoneLevel)
 			if averageScore then
-				tooltip:AddDoubleLine(format(L.RAIDERIO_AVERAGE_PLAYER_SCORE, keystoneLevel), averageScore, 1, 1, 1, 1, 1, GetScoreColor(averageScore))
+				if addBlankLine then
+					tooltip:AddLine(" ")
+				end
+				tooltip:AddDoubleLine(format(L.RAIDERIO_AVERAGE_PLAYER_SCORE, keystoneLevel), averageScore, 1, 1, 1, GetScoreColor(averageScore))
 			end
 		end
 	end
@@ -1641,7 +1665,10 @@ do
 						if not hasOwner then
 							GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT", 0, 0)
 						end
-						AppendGameTooltip(GameTooltip, fullName, not hasOwner, true, PLAYER_FACTION, nil)
+
+						local _, activityID, _, title, description = C_LFGList.GetActiveEntryInfo();
+						local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
+						AppendGameTooltip(GameTooltip, fullName, not hasOwner, true, PLAYER_FACTION, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
 					end
 				end
 			end
