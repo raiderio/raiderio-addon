@@ -321,7 +321,7 @@ do
 			end
 		end
 
-		if not level or level < 1 then
+		if not level or level < 2 then
 			return
 		end
 
