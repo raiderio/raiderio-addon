@@ -81,8 +81,8 @@ L.DUNGEON_SHORT_NAME_COEN = "COEN"
 L.DUNGEON_SHORT_NAME_SEAT = "SEAT"
 L.DUNGEON_SHORT_NAME_LOWR = "LOWR"
 L.DUNGEON_SHORT_NAME_UPPR = "UPPR"
-L.RAIDERIO_AVERAGE_PLAYER_SCORE = "Avg. +%s Player Score"
-L.SHOW_AVERAGE_PLAYER_SCORE_INFO = "Show Avg. Player Score for M+ Level"
-L.SHOW_AVERAGE_PLAYER_SCORE_INFO_DESC = "Shows average Raider.IO Player Score for a Mythic+ level on Keystones and in LFG system."
+L.RAIDERIO_AVERAGE_PLAYER_SCORE = "Timed +%s Player Score"
+L.SHOW_AVERAGE_PLAYER_SCORE_INFO = "Show Avg. Player Score for Timed M+ Level"
+L.SHOW_AVERAGE_PLAYER_SCORE_INFO_DESC = "Shows average Raider.IO Player Score for a Timed Mythic+ level on Keystones and in LFG system."
 
 ns.L = L
