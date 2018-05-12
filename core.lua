@@ -1449,7 +1449,7 @@ do
 				if addBlankLine then
 					tooltip:AddLine(" ")
 				end
-				tooltip:AddDoubleLine(format(L.RAIDERIO_AVERAGE_PLAYER_SCORE, keystoneLevel), "~" .. averageScore, 1, 1, 1, GetScoreColor(averageScore))
+				tooltip:AddDoubleLine(format(L.RAIDERIO_AVERAGE_PLAYER_SCORE, keystoneLevel), averageScore, 1, 1, 1, GetScoreColor(averageScore))
 			end
 		end
 	end
