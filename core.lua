@@ -1264,9 +1264,7 @@ do
 				end
 			end
 
-			if focusOnKeystoneLevel then
-				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel)
-			end
+			local searchLevel = 0
 
 			-- if not, then are we queued for, or hosting a group for a keystone run?
 			if not focusOnDungeonIndex then
@@ -1288,6 +1286,7 @@ do
 							qHighlightStrSameAsBest = profile.maxDungeonName == queued.dungeon.shortName
 							qHighlightStr1 = queued.dungeon.shortName
 							qHighlightStr2 = "+" .. profile.dungeons[queued.index]
+							searchLevel = queued.level
 						end
 					else
 						-- at the moment we pick the first queued dungeon and hope the player only queues for one dungeon at a time, not multiple different keys
@@ -1304,12 +1303,17 @@ do
 									qHighlightStrSameAsBest = true
 									qHighlightStr1 = q.dungeon.shortName
 									qHighlightStr2 = "+" .. l
+									searchLevel = l.level
 								end
 								break
 							end
 						end
 					end
 				end
+			end
+
+			if focusOnKeystoneLevel or searchLevel then
+				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel or searchLevel)
 			end
 
 			if highlightStr then
@@ -1383,7 +1387,7 @@ do
 			return 1
 		else
 			if focusOnKeystoneLevel then
-				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel)
+				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel, not forceNoPadding)
 
 				tooltip:Show()
 				return 1
@@ -1438,10 +1442,13 @@ do
 		AppendGameTooltip(tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex)
 	end
 
-	function AppendAveragePlayerScore(tooltip, keystoneLevel)
+	function AppendAveragePlayerScore(tooltip, keystoneLevel, addBlankLine)
 		if addonConfig.showAverageScore then
 			local averageScore = GetAverageScore(keystoneLevel)
 			if averageScore then
+				if addBlankLine then
+					tooltip:AddLine(" ")
+				end
 				tooltip:AddDoubleLine(format(L.RAIDERIO_AVERAGE_PLAYER_SCORE, keystoneLevel), averageScore, 1, 1, 1, 1, 1, GetScoreColor(averageScore))
 			end
 		end
@@ -1658,7 +1665,10 @@ do
 						if not hasOwner then
 							GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT", 0, 0)
 						end
-						AppendGameTooltip(GameTooltip, fullName, not hasOwner, true, PLAYER_FACTION, nil)
+
+						local _, activityID, _, title, description = C_LFGList.GetActiveEntryInfo();
+						local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
+						AppendGameTooltip(GameTooltip, fullName, not hasOwner, true, PLAYER_FACTION, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
 					end
 				end
 			end
