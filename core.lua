@@ -310,11 +310,22 @@ do
 		if type(raw) ~= "string" then
 			return
 		end
-		local level = raw:match("%+%s*(%d+)")
-		if not level then
+		local regexesFindLevel = { "%+%s*(%d+)", "(%d+)%s*%+", "(%d+)" }
+
+		local level = 0;
+		for i, regex in ipairs(regexesFindLevel) do
+			level = raw:match(regex);
+			level = tonumber(level)
+			if level and level < 32 then
+				break
+			end
+		end
+
+		if not level or level < 1 then
 			return
 		end
-		return tonumber(level)
+
+		return level
 	end
 
 	-- detect LFD queue status
@@ -1257,7 +1268,6 @@ do
 				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel)
 			end
 
-
 			-- if not, then are we queued for, or hosting a group for a keystone run?
 			if not focusOnDungeonIndex then
 				local queued, isHosting = GetLFDStatus()
@@ -1371,6 +1381,13 @@ do
 			tooltip:Show()
 
 			return 1
+		else
+			if focusOnKeystoneLevel then
+				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel)
+
+				tooltip:Show()
+				return 1
+			end
 		end
 	end
 
