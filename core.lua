@@ -58,7 +58,7 @@ local CONST_REGION_IDS = ns.regionIDs
 local CONST_SCORE_TIER = ns.scoreTiers
 local CONST_SCORE_TIER_SIMPLE = ns.scoreTiersSimple
 local CONST_DUNGEONS = ns.dungeons
-local CONST_AVERAGE_SCORE = ns.averageScore
+local CONST_AVERAGE_SCORE = ns.scoreLevelStats
 local L = ns.L
 
 -- enum dungeons
@@ -430,9 +430,9 @@ do
 		return KEYSTONE_AFFIX_SCHEDULE[index]
 	end
 
-	function GetAverageScore(affix, level)
-		if CONST_AVERAGE_SCORE[affix] and CONST_AVERAGE_SCORE[affix][level] then
-			return CONST_AVERAGE_SCORE[affix][level]
+	function GetAverageScore(level)
+		if CONST_AVERAGE_SCORE and CONST_AVERAGE_SCORE[level] then
+			return CONST_AVERAGE_SCORE[level]
 		end
 		return nil
 	end
@@ -1423,7 +1423,7 @@ do
 
 	function AppendAveragePlayerScore(tooltip, keystoneLevel)
 		if addonConfig.showAverageScore then
-			local averageScore = GetAverageScore(GetWeeklyAffix(), keystoneLevel)
+			local averageScore = GetAverageScore(keystoneLevel)
 			if averageScore then
 				tooltip:AddDoubleLine(format(L.RAIDERIO_AVERAGE_PLAYER_SCORE, keystoneLevel), averageScore, 1, 1, 1, 1, 1, GetScoreColor(averageScore))
 			end
