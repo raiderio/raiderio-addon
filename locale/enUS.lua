@@ -83,6 +83,6 @@ L.DUNGEON_SHORT_NAME_LOWR = "LOWR"
 L.DUNGEON_SHORT_NAME_UPPR = "UPPR"
 L.RAIDERIO_AVERAGE_PLAYER_SCORE = "Avg. +%s Player Score"
 L.SHOW_AVERAGE_PLAYER_SCORE_INFO = "Show average player score"
-L.SHOW_AVERAGE_PLAYER_SCORE_INFO_DESC = "Adds average Raider.IO score for this keystone level on the tooltip."
+L.SHOW_AVERAGE_PLAYER_SCORE_INFO_DESC = "Adds average Raider.IO score for this keystone level on the tooltip.
 
 ns.L = L
