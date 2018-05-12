@@ -1312,10 +1312,6 @@ do
 				end
 			end
 
-			if focusOnKeystoneLevel or searchLevel then
-				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel or searchLevel)
-			end
-
 			if highlightStr then
 				-- if highlight is same as what we are queued for (best key) then show it as green color to make it stand out
 				if qHighlightStrSameAsBest then
@@ -1328,6 +1324,10 @@ do
 						tooltip:AddDoubleLine(L.BEST_FOR_DUNGEON, qHighlightStr2 .. " " .. qHighlightStr1, 1, 1, 1, GetScoreColor(profile.allScore))
 					end
 				end
+			end
+
+			if focusOnKeystoneLevel or searchLevel then
+				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel or searchLevel)
 			end
 
 			if profile.keystoneFifteenPlus > 0 then
