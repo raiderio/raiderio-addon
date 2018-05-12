@@ -1326,10 +1326,6 @@ do
 				end
 			end
 
-			if focusOnKeystoneLevel or searchLevel then
-				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel or searchLevel)
-			end
-
 			if profile.keystoneFifteenPlus > 0 then
 				tooltip:AddDoubleLine(L.TIMED_15_RUNS, GetFormattedRunCount(profile.keystoneFifteenPlus), 1, 1, 1, GetScoreColor(profile.allScore))
 			end
@@ -1380,6 +1376,10 @@ do
 						tooltip:AddLine(t, 0.9, 0.8, 0.5, false)
 					end
 				end
+			end
+
+			if focusOnKeystoneLevel or searchLevel then
+				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel or searchLevel)
 			end
 
 			tooltip:Show()
