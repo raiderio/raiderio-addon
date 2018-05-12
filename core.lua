@@ -1363,6 +1363,10 @@ do
 				tooltip:AddDoubleLine(L.MAINS_SCORE, profile.mainScore, 1, 1, 1, GetScoreColor(profile.mainScore))
 			end
 
+			if focusOnKeystoneLevel or searchLevel then
+				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel or searchLevel)
+			end
+
 			if IS_DB_OUTDATED then
 				tooltip:AddLine(format(L.OUTDATED_DATABASE, OUTDATED_DAYS), 1, 1, 1, false)
 			end
@@ -1376,10 +1380,6 @@ do
 						tooltip:AddLine(t, 0.9, 0.8, 0.5, false)
 					end
 				end
-			end
-
-			if focusOnKeystoneLevel or searchLevel then
-				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel or searchLevel)
 			end
 
 			tooltip:Show()
