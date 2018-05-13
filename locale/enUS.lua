@@ -82,7 +82,7 @@ L.DUNGEON_SHORT_NAME_SEAT = "SEAT"
 L.DUNGEON_SHORT_NAME_LOWR = "LOWR"
 L.DUNGEON_SHORT_NAME_UPPR = "UPPR"
 L.RAIDERIO_AVERAGE_PLAYER_SCORE = "Avg. Timed +%s Player Score"
-L.SHOW_AVERAGE_PLAYER_SCORE_INFO = "Show Avg. Player Score for Timed M+ Level"
-L.SHOW_AVERAGE_PLAYER_SCORE_INFO_DESC = "Shows average Raider.IO Player Score for a Timed Mythic+ level on Keystones and in LFG system."
+L.SHOW_AVERAGE_PLAYER_SCORE_INFO = "Show Avg. Player Score for Timed Runs"
+L.SHOW_AVERAGE_PLAYER_SCORE_INFO_DESC = "Shows the average Raider.IO score seen on members of in-time runs. This is visible on Keystone Tooltips and Player Tooltips in the Dungeon Finder."
 
 ns.L = L
