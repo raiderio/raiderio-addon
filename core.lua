@@ -1493,7 +1493,7 @@ do
 		tooltip:AddDoubleLine(profile.name, GetFormattedScore(profile.allScore, profile.isPrevAllScore), 1, 1, 1, GetScoreColor(profile.allScore))
 
 		tooltip:AddLine(" ")
-		tooltip:AddLine("Best Scores by Dungeon", 1, 0.85, 0, false)
+		tooltip:AddLine("Best Runs by Dungeon", 1, 0.85, 0, false)
 
 
 		local dungeons = {}
@@ -2236,8 +2236,9 @@ do
 	-- Keystone Info
 	uiHooks[#uiHooks + 1] = function()
 
-		local DetailedTooltip = CreateFrame("GameTooltip","myFrame",UIParent,"GameTooltipTemplate")
+		local DetailedTooltip = CreateFrame("GameTooltip","detailedTooltip",UIParent,"GameTooltipTemplate")
 		local _, PveFrameHeight = PVEFrame:GetSize()
+		DetailedTooltip:SetFrameStrata("BACKGROUND")
 
 		local function ShowTooltipRaiderIO()
 			DetailedTooltip:SetOwner(PVEFrame, "ANCHOR_BOTTOMRIGHT", 0, PveFrameHeight)
@@ -2253,7 +2254,6 @@ do
 		local hooked = false
 
 		local function TryHooking()
-			print('Try hooking')
 			if ChallengesFrame and not hooked then
 				hooked = true
 				ShowTooltipRaiderIO()
