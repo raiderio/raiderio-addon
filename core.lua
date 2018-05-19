@@ -267,6 +267,7 @@ local EGG = {
 local addon = CreateFrame("Frame")
 
 -- utility functions
+local CompareDungeon
 local GetTimezoneOffset
 local GetRegion
 local GetKeystoneLevel
@@ -278,6 +279,30 @@ local GetFaction
 local GetWeeklyAffix
 local GetAverageScore
 do
+	function CompareDungeon(a, b)
+		if not a then
+			return false
+		end
+
+		if not b then
+			return true
+		end
+
+		if a.keyLevel > b.keyLevel then
+			return true
+		elseif a.keyLevel < b.keyLevel then
+			return false
+		end
+
+		if a.shortName > b.shortName then
+			return false
+		elseif a.shortName < b.shortName then
+			return true
+		end
+
+		return true
+	end
+
 	-- get timezone offset between local and UTC+0 time
 	function GetTimezoneOffset(ts)
 		local u = date("!*t", ts)
@@ -505,12 +530,12 @@ do
 			OnAccept = ReloadUI,
 			OnCancel = nil
 		}
-	
+
 		configFrame = CreateFrame("Frame", addonName .. "ConfigFrame", UIParent)
 		configFrame:Hide()
-	
+
 		local config
-	
+
 		local function WidgetHelp_OnEnter(self)
 			if self.tooltip then
 				GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT", 0, 0)
@@ -518,21 +543,21 @@ do
 				GameTooltip:Show()
 			end
 		end
-	
+
 		local function WidgetButton_OnEnter(self)
 			self:SetBackdropColor(0.3, 0.3, 0.3, 1)
 			self:SetBackdropBorderColor(1, 1, 1, 1)
 		end
-	
+
 		local function WidgetButton_OnLeave(self)
 			self:SetBackdropColor(0, 0, 0, 1)
 			self:SetBackdropBorderColor(1, 1, 1, 0.3)
 		end
-	
+
 		local function Close_OnClick()
 			configFrame:SetShown(not configFrame:IsShown())
 		end
-	
+
 		local function Save_OnClick()
 			Close_OnClick()
 			local reload
@@ -576,7 +601,7 @@ do
 				StaticPopup_Show("RAIDERIO_RELOADUI_CONFIRM")
 			end
 		end
-	
+
 		config = {
 			modules = {},
 			options = {},
@@ -694,7 +719,7 @@ do
 			self.options[#self.options + 1] = frame
 			return frame
 		end
-	
+
 		-- customize the look and feel
 		do
 			local function ConfigFrame_OnShow(self)
@@ -733,17 +758,17 @@ do
 			configFrame:SetPoint("CENTER")
 			configFrame:SetFrameStrata("DIALOG")
 			configFrame:SetFrameLevel(255)
-	
+
 			configFrame:EnableMouse(true)
 			configFrame:SetClampedToScreen(true)
 			configFrame:SetDontSavePosition(true)
 			configFrame:SetMovable(true)
 			configFrame:RegisterForDrag("LeftButton")
-	
+
 			configFrame:SetBackdrop(config.backdrop)
 			configFrame:SetBackdropColor(0, 0, 0, 0.8)
 			configFrame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8)
-	
+
 			configFrame:SetScript("OnShow", ConfigFrame_OnShow)
 			configFrame:SetScript("OnDragStart", ConfigFrame_OnDragStart)
 			configFrame:SetScript("OnDragStop", ConfigFrame_OnDragStop)
@@ -755,7 +780,7 @@ do
 			-- add widgets
 			local header = config:CreateHeadline(L.RAIDERIO_MYTHIC_OPTIONS .. "\nVersion: " .. tostring(GetAddOnMetadata(addonName, "Version")))
 			header.text:SetFont(header.text:GetFont(), 16, "OUTLINE")
-	
+
 			config:CreatePadding()
 			config:CreateHeadline(L.MYTHIC_PLUS_SCORES)
 			config:CreateOptionToggle(L.SHOW_ON_PLAYER_UNITS, L.SHOW_ON_PLAYER_UNITS_DESC, "enableUnitTooltips")
@@ -764,7 +789,7 @@ do
 			config:CreateOptionToggle(L.SHOW_ON_GUILD_ROSTER, L.SHOW_ON_GUILD_ROSTER_DESC, "enableGuildTooltips")
 			config:CreateOptionToggle(L.SHOW_IN_WHO_UI, L.SHOW_IN_WHO_UI_DESC, "enableWhoTooltips")
 			config:CreateOptionToggle(L.SHOW_IN_SLASH_WHO_RESULTS, L.SHOW_IN_SLASH_WHO_RESULTS_DESC, "enableWhoMessages")
-	
+
 			config:CreatePadding()
 			config:CreateHeadline(L.TOOLTIP_CUSTOMIZATION)
 			config:CreateOptionToggle(L.SHOW_MAINS_SCORE, L.SHOW_MAINS_SCORE_DESC, "showMainsScore")
@@ -779,14 +804,14 @@ do
 			config:CreateHeadline(L.COPY_RAIDERIO_PROFILE_URL)
 			config:CreateOptionToggle(L.ALLOW_ON_PLAYER_UNITS, L.ALLOW_ON_PLAYER_UNITS_DESC, "showDropDownCopyURL")
 			config:CreateOptionToggle(L.ALLOW_IN_LFD, L.ALLOW_IN_LFD_DESC, "enableLFGDropdown")
-	
+
 			config:CreatePadding()
 			config:CreateHeadline(L.MYTHIC_PLUS_DB_MODULES)
 			local module1 = config:CreateModuleToggle(L.MODULE_AMERICAS, "RaiderIO_DB_US_A", "RaiderIO_DB_US_H")
 			config:CreateModuleToggle(L.MODULE_EUROPE, "RaiderIO_DB_EU_A", "RaiderIO_DB_EU_H")
 			config:CreateModuleToggle(L.MODULE_KOREA, "RaiderIO_DB_KR_A", "RaiderIO_DB_KR_H")
 			config:CreateModuleToggle(L.MODULE_TAIWAN, "RaiderIO_DB_TW_A", "RaiderIO_DB_TW_H")
-	
+
 			-- add save button and cancel buttons
 			local buttons = config:CreateWidget("Frame", 4)
 			buttons:Hide()
@@ -804,7 +829,7 @@ do
 			cancel.text:SetText(CANCEL)
 			cancel.text:SetJustifyH("CENTER")
 			cancel:SetScript("OnClick", Close_OnClick)
-	
+
 			-- adjust frame height dynamically
 			local children = {configFrame:GetChildren()}
 			local height = 32 + 4
@@ -812,7 +837,7 @@ do
 				height = height + children[i]:GetHeight() + 2
 			end
 			configFrame:SetHeight(height)
-	
+
 			-- adjust frame width dynamically (add padding based on the largest option label string)
 			local maxWidth = 0
 			for i = 1, #config.options do
@@ -822,7 +847,7 @@ do
 				end
 			end
 			configFrame:SetWidth(160 + maxWidth)
-	
+
 			-- add faction headers over the first module
 			local af = config:CreateHeadline("|TInterface\\Icons\\inv_bannerpvp_02:0:0:0:0:16:16:4:12:4:12|t")
 			af:ClearAllPoints()
@@ -833,7 +858,7 @@ do
 			hf:SetPoint("BOTTOM", module1.checkButton, "TOP", 2, -5)
 			hf:SetSize(32, 32)
 		end
-	
+
 		-- add the category and a shortcut button in the interface panel options
 		do
 			local function Button_OnClick()
@@ -845,21 +870,21 @@ do
 			local panel = CreateFrame("Frame", configFrame:GetName() .. "Panel", InterfaceOptionsFramePanelContainer)
 			panel.name = addonName
 			panel:Hide()
-	
+
 			local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 			button:SetText(L.OPEN_CONFIG)
 			button:SetWidth(button:GetTextWidth() + 18)
 			button:SetPoint("TOPLEFT", 16, -16)
 			button:SetScript("OnClick", Button_OnClick)
-	
+
 			InterfaceOptions_AddCategory(panel, true)
 		end
-	
+
 		-- create slash command to toggle the config frame
 		do
 			_G["SLASH_" .. addonName .. "1"] = "/raiderio"
 			_G["SLASH_" .. addonName .. "2"] = "/rio"
-	
+
 			local function handler(text)
 
 				-- if the keyword "debug" is present in the command we show the query dialog
@@ -937,11 +962,11 @@ do
 	-- assumed that lo contains 32 bits and hi contains 20 bits
 	local function ReadBits(lo, hi, offset, bits)
 		if offset < 32 and (offset + bits) > 32 then
-		-- reading across boundary
-		local mask = lshift(1, (offset + bits) - 32) - 1
-		local p1 = rshift(lo, offset)
-		local p2 = lshift(band(hi, mask), 32 - offset)
-		return p1 + p2
+			-- reading across boundary
+			local mask = lshift(1, (offset + bits) - 32) - 1
+			local p1 = rshift(lo, offset)
+			local p2 = lshift(band(hi, mask), 32 - offset)
+			return p1 + p2
 		else
 			local mask = lshift(1, bits) - 1
 			if offset < 32 then
@@ -1171,6 +1196,7 @@ local GetFormattedRunCount
 local AppendGameTooltip
 local UpdateAppendedGameTooltip
 local AppendAveragePlayerScore
+local CreateDetailedTooltip
 do
 	local function sortRoleScores(a, b)
 		return a[2] > b[2]
@@ -1452,6 +1478,45 @@ do
 				tooltip:AddDoubleLine(format(L.RAIDERIO_AVERAGE_PLAYER_SCORE, keystoneLevel), averageScore, 1, 1, 1, GetScoreColor(averageScore))
 			end
 		end
+	end
+
+	function CreateDetailedTooltip(tooltip, arg1, forceFaction)
+		local profile = GetScore(arg1, nil, forceFaction)
+
+		-- sanity check that the profile exists
+		if not profile then
+			return 0
+		end
+
+		tooltip:AddLine("Raider.IO M+ Profile", 1, 0.85, 0, false)
+
+		tooltip:AddDoubleLine(profile.name, GetFormattedScore(profile.allScore, profile.isPrevAllScore), 1, 1, 1, GetScoreColor(profile.allScore))
+
+		tooltip:AddLine(" ")
+		tooltip:AddLine("Best Scores by Dungeon", 1, 0.85, 0, false)
+
+
+		local dungeons = {}
+
+		for dungeonKey, keyLevel in ipairs(profile.dungeons) do
+			table.insert(dungeons, {shortName = CONST_DUNGEONS[dungeonKey].shortNameLocale, keyLevel = keyLevel})
+		end
+
+		table.sort(dungeons, CompareDungeon)
+
+		for i, dungeon in ipairs(dungeons) do
+			local keyLevel = dungeon.keyLevel
+			if keyLevel ~= 0 then
+				keyLevel = "+" .. keyLevel
+			else
+				keyLevel = "-"
+			end
+
+			tooltip:AddDoubleLine(dungeon.shortName, keyLevel, 1, 1, 1, 1, 1, 1)
+		end
+
+		tooltip:AddLine(" ")
+		tooltip:AddLine(format(L.OUTDATED_DATABASE, OUTDATED_DAYS), 0.8, 0.8, 0.8, false)
 	end
 end
 
@@ -2165,6 +2230,41 @@ do
 		end
 		GameTooltip:HookScript("OnTooltipSetItem", OnSetItem)
 		ItemRefTooltip:HookScript("OnTooltipSetItem", OnSetItem)
+		return 1
+	end
+
+	-- Keystone Info
+	uiHooks[#uiHooks + 1] = function()
+
+		local DetailedTooltip = CreateFrame("GameTooltip","myFrame",UIParent,"GameTooltipTemplate")
+		local _, PveFrameHeight = PVEFrame:GetSize()
+
+		local function ShowTooltipRaiderIO()
+			DetailedTooltip:SetOwner(PVEFrame, "ANCHOR_BOTTOMRIGHT", 0, PveFrameHeight)
+			CreateDetailedTooltip(DetailedTooltip, "player")
+
+			DetailedTooltip:Show() --Show the tooltip
+		end
+
+		local function HideTooltip()
+			DetailedTooltip:Hide()
+		end
+
+		local hooked = false
+
+		local function TryHooking()
+			print('Try hooking')
+			if ChallengesFrame and not hooked then
+				hooked = true
+				ShowTooltipRaiderIO()
+				ChallengesFrame:HookScript("OnShow", ShowTooltipRaiderIO)
+				ChallengesFrame:HookScript("OnHide", HideTooltip)
+			end
+		end
+
+		--hooksecurefunc(PVEFrame, "Show", PVEFrame_ToggleFrame)
+		hooksecurefunc("PVEFrame_ShowFrame", TryHooking)
+		--hooksecurefunc(PVEFrame, "Hide", HideTooltip)
 		return 1
 	end
 end
