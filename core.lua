@@ -46,6 +46,8 @@ local tooltipHooks = {
 	end
 }
 
+local detailedTooltip = CreateFrame("GameTooltip","detailedTooltip",UIParent,"GameTooltipTemplate")
+
 -- player
 local PLAYER_FACTION
 local PLAYER_REGION
@@ -1197,6 +1199,7 @@ local AppendGameTooltip
 local UpdateAppendedGameTooltip
 local AppendAveragePlayerScore
 local CreateDetailedTooltip
+local HightlightDetailedTooltip
 do
 	local function sortRoleScores(a, b)
 		return a[2] > b[2]
@@ -1480,7 +1483,7 @@ do
 		end
 	end
 
-	function CreateDetailedTooltip(tooltip, arg1, forceFaction)
+	function CreateDetailedTooltip(tooltip, arg1, forceFaction, focusOnDungeonIndex)
 		local profile = GetScore(arg1, nil, forceFaction)
 
 		-- sanity check that the profile exists
@@ -1498,8 +1501,8 @@ do
 
 		local dungeons = {}
 
-		for dungeonKey, keyLevel in ipairs(profile.dungeons) do
-			table.insert(dungeons, {shortName = CONST_DUNGEONS[dungeonKey].shortNameLocale, keyLevel = keyLevel})
+		for dungeonIndex, keyLevel in ipairs(profile.dungeons) do
+			table.insert(dungeons, {index = dungeonIndex, shortName = CONST_DUNGEONS[dungeonIndex].shortNameLocale, keyLevel = keyLevel})
 		end
 
 		table.sort(dungeons, CompareDungeon)
@@ -1512,11 +1515,33 @@ do
 				keyLevel = "-"
 			end
 
-			tooltip:AddDoubleLine(dungeon.shortName, keyLevel, 1, 1, 1, 1, 1, 1)
+			local colorDungeon = {r= 1, g=1, b=1}
+
+			if focusOnDungeonIndex and focusOnDungeonIndex == dungeon.index then
+				colorDungeon = {r=0,g=1,b=0}
+			end
+			tooltip:AddDoubleLine(dungeon.shortName, keyLevel, colorDungeon.r, colorDungeon.g, colorDungeon.b, colorDungeon.r, colorDungeon.g, colorDungeon.b)
 		end
 
 		tooltip:AddLine(" ")
 		tooltip:AddLine(format(L.OUTDATED_DATABASE, OUTDATED_DAYS), 0.8, 0.8, 0.8, false)
+	end
+
+	function HightlightDetailedTooltip(tooltip, focusOnDungeonIndex)
+		local numLine = tooltip:NumLines()
+
+		for i = 5, numLine - 1, 1 do
+			local leftText = _G[tooltip:GetName().."TextLeft"..i]
+			local rightText = _G[tooltip:GetName().."TextRight"..i]
+
+			if CONST_DUNGEONS[focusOnDungeonIndex] and leftText:GetText() == CONST_DUNGEONS[focusOnDungeonIndex].shortNameLocale then
+				leftText:SetTextColor(0, 1, 0)
+				rightText:SetTextColor(0, 1, 0)
+			else
+				leftText:SetTextColor(1, 1, 1)
+				rightText:SetTextColor(1, 1, 1)
+			end
+		end
 	end
 end
 
@@ -1748,6 +1773,7 @@ do
 				if leaderName then
 					local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
 					AppendGameTooltip(tooltip, leaderName, false, true, PLAYER_FACTION, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
+					HightlightDetailedTooltip(detailedTooltip, LFD_ACTIVITYID_TO_DUNGEONID[activityID])
 				end
 			end
 			hooksecurefunc("LFGListUtil_SetSearchEntryTooltip", SetSearchEntryTooltip)
@@ -2233,22 +2259,29 @@ do
 		return 1
 	end
 
-	-- Keystone Info
+	-- My Profile
 	uiHooks[#uiHooks + 1] = function()
 
-		local DetailedTooltip = CreateFrame("GameTooltip","detailedTooltip",UIParent,"GameTooltipTemplate")
 		local _, PveFrameHeight = PVEFrame:GetSize()
-		DetailedTooltip:SetFrameStrata("BACKGROUND")
+		detailedTooltip:SetFrameStrata("BACKGROUND")
+
+		detailedTooltip:SetMovable(true)
+		detailedTooltip:EnableMouse(true)
+		detailedTooltip:RegisterForDrag("LeftButton")
+		detailedTooltip:SetScript("OnDragStart", detailedTooltip.StartMoving)
+		detailedTooltip:SetScript("OnDragStop", detailedTooltip.StopMovingOrSizing)
 
 		local function ShowTooltipRaiderIO()
-			DetailedTooltip:SetOwner(PVEFrame, "ANCHOR_BOTTOMRIGHT", 0, PveFrameHeight)
-			CreateDetailedTooltip(DetailedTooltip, "player")
+			if not detailedTooltip:IsShown() then
+				detailedTooltip:SetOwner(PVEFrame, "ANCHOR_BOTTOMRIGHT", 0, PveFrameHeight)
+				CreateDetailedTooltip(detailedTooltip, "player")
 
-			DetailedTooltip:Show() --Show the tooltip
+				detailedTooltip:Show() --Show the tooltip
+			end
 		end
 
 		local function HideTooltip()
-			DetailedTooltip:Hide()
+			detailedTooltip:Hide()
 		end
 
 		local hooked = false
@@ -2262,9 +2295,9 @@ do
 			end
 		end
 
-		--hooksecurefunc(PVEFrame, "Show", PVEFrame_ToggleFrame)
-		hooksecurefunc("PVEFrame_ShowFrame", TryHooking)
-		--hooksecurefunc(PVEFrame, "Hide", HideTooltip)
+		hooksecurefunc(PVEFrame, "Show", ShowTooltipRaiderIO)
+		hooksecurefunc(PVEFrame, "Hide", HideTooltip)
+		--hooksecurefunc("PVEFrame_ShowFrame", TryHooking)
 		return 1
 	end
 end
