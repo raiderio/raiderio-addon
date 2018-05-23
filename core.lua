@@ -282,6 +282,7 @@ local GetFaction
 local GetWeeklyAffix
 local GetAverageScore
 do
+	-- Compare two dungeon first by the keyLevel, then by their short name
 	function CompareDungeon(a, b)
 		if not a then
 			return false
@@ -1499,9 +1500,7 @@ do
 		tooltip:AddLine(" ")
 		tooltip:AddLine("Best Runs by Dungeon", 1, 0.85, 0, false)
 
-
 		local dungeons = {}
-
 		for dungeonIndex, keyLevel in ipairs(profile.dungeons) do
 			table.insert(dungeons, {index = dungeonIndex, shortName = CONST_DUNGEONS[dungeonIndex].shortNameLocale, keyLevel = keyLevel})
 		end
@@ -1521,6 +1520,7 @@ do
 			if focusOnDungeonIndex and focusOnDungeonIndex == dungeon.index then
 				colorDungeon = {r=0,g=1,b=0}
 			end
+
 			tooltip:AddDoubleLine(dungeon.shortName, keyLevel, colorDungeon.r, colorDungeon.g, colorDungeon.b, colorDungeon.r, colorDungeon.g, colorDungeon.b)
 		end
 
@@ -1533,6 +1533,7 @@ do
 		end
 	end
 
+	-- Highlight corresponding dungeon in the detailed tooltip
 	function HightlightDetailedTooltip(tooltip, focusOnDungeonIndex)
 		local numLine = tooltip:NumLines()
 
@@ -2268,7 +2269,6 @@ do
 
 	-- My Profile
 	uiHooks[#uiHooks + 1] = function()
-
 		local _, PveFrameHeight = PVEFrame:GetSize()
 		detailedTooltip:SetFrameStrata("BACKGROUND")
 
