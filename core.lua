@@ -303,7 +303,7 @@ do
 			return true
 		end
 
-		return true
+		return false
 	end
 
 	-- get timezone offset between local and UTC+0 time
