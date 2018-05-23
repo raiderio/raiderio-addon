@@ -2291,20 +2291,8 @@ do
 			detailedTooltip:Hide()
 		end
 
-		local hooked = false
-
-		local function TryHooking()
-			if ChallengesFrame and not hooked then
-				hooked = true
-				ShowTooltipRaiderIO()
-				ChallengesFrame:HookScript("OnShow", ShowTooltipRaiderIO)
-				ChallengesFrame:HookScript("OnHide", HideTooltip)
-			end
-		end
-
 		hooksecurefunc(PVEFrame, "Show", ShowTooltipRaiderIO)
 		hooksecurefunc(PVEFrame, "Hide", HideTooltip)
-		--hooksecurefunc("PVEFrame_ShowFrame", TryHooking)
 		return 1
 	end
 end
