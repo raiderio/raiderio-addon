@@ -53,6 +53,7 @@ local PLAYER_FACTION
 local PLAYER_REGION
 local IS_DB_OUTDATED
 local OUTDATED_DAYS
+local OUTDATED_HOURS;
 
 -- constants
 local CONST_REALM_SLUGS = ns.realmSlugs
@@ -1523,8 +1524,13 @@ do
 			tooltip:AddDoubleLine(dungeon.shortName, keyLevel, colorDungeon.r, colorDungeon.g, colorDungeon.b, colorDungeon.r, colorDungeon.g, colorDungeon.b)
 		end
 
-		tooltip:AddLine(" ")
-		tooltip:AddLine(format(L.OUTDATED_DATABASE, OUTDATED_DAYS), 0.8, 0.8, 0.8, false)
+		if OUTDATED_DAYS > 1 then
+			tooltip:AddLine(" ")
+			tooltip:AddLine(format(L.OUTDATED_DATABASE, OUTDATED_DAYS), 0.8, 0.8, 0.8, false)
+		elseif OUTDATED_HOURS > 12 then
+			tooltip:AddLine(" ")
+			tooltip:AddLine(format(L.OUTDATED_DATABASE_HOURS, OUTDATED_HOURS), 0.8, 0.8, 0.8, false)
+		end
 	end
 
 	function HightlightDetailedTooltip(tooltip, focusOnDungeonIndex)
@@ -1620,6 +1626,7 @@ do
 			local diff = time() - ts - offset
 			-- figure out of the DB is outdated or not by comparing to our threshold
 			IS_DB_OUTDATED = diff >= OUTDATED_SECONDS
+			OUTDATED_HOURS = floor(diff/ 3600 + 0.5);
 			OUTDATED_DAYS = floor(diff / 86400 + 0.5)
 			if IS_DB_OUTDATED then
 				DEFAULT_CHAT_FRAME:AddMessage(format(L.OUTDATED_DATABASE_S, addonName, OUTDATED_DAYS), 1, 1, 0)
