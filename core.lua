@@ -2151,7 +2151,7 @@ do
 					b:SetScript("OnLeave", CustomButtonOnLeave)
 					b:SetScript("OnEnable", nil)
 					b:SetScript("OnDisable", nil)
-					b:SetPoint("TOPLEFT", custom, "TOPLEFT", 16 * i, -16)
+					b:SetPoint("TOPLEFT", custom, "TOPLEFT", 16, -16 * i)
 					local t = _G[b:GetName() .. "NormalText"]
 					t:ClearAllPoints()
 					t:SetPoint("TOPLEFT", b, "TOPLEFT", 0, 0)
