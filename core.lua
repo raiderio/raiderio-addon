@@ -1494,7 +1494,7 @@ do
 			return 0
 		end
 
-		tooltip:AddLine("Raider.IO M+ Profile", 1, 0.85, 0, false)
+		tooltip:AddLine(L.PROFILE_TITLE, 1, 0.85, 0, false)
 
 		tooltip:AddDoubleLine(profile.name, GetFormattedScore(profile.allScore, profile.isPrevAllScore), 1, 1, 1, GetScoreColor(profile.allScore))
 
@@ -1503,7 +1503,7 @@ do
 		end
 
 		tooltip:AddLine(" ")
-		tooltip:AddLine("Best Runs by Dungeon", 1, 0.85, 0, false)
+		tooltip:AddLine(L.PROFILE_BEST_RUNS, 1, 0.85, 0, false)
 
 		local dungeons = {}
 		for dungeonIndex, keyLevel in ipairs(profile.dungeons) do
