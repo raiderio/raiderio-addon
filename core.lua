@@ -1497,6 +1497,10 @@ do
 
 		tooltip:AddDoubleLine(profile.name, GetFormattedScore(profile.allScore, profile.isPrevAllScore), 1, 1, 1, GetScoreColor(profile.allScore))
 
+		if profile.mainScore > profile.allScore then
+			tooltip:AddDoubleLine(L.MAINS_SCORE, profile.mainScore, 1, 1, 1, GetScoreColor(profile.mainScore))
+		end
+
 		tooltip:AddLine(" ")
 		tooltip:AddLine("Best Runs by Dungeon", 1, 0.85, 0, false)
 
