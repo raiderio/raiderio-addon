@@ -90,5 +90,9 @@ L.PROFILE_BEST_RUNS = "Best Runs by Dungeon"
 L.TOOLTIP_PROFILE = "Raider.IO Tooltip"
 L.SHOW_RAIDERIO_PROFILE = "Show Raider.IO Profile"
 L.SHOW_RAIDERIO_PROFILE_DESC = "Show the Raider.IO Profile Tooltip in the Dungeon Finder"
+L.SHOW_LEADER_PROFILE = "Show Leader's Profile"
+L.SHOW_LEADER_PROFILE_DESC = "Holding a modifier (alt/shift/ctrl) will show the Raider.IO profile of the leader"
+L.INVERSE_PROFILE_MODIFIER = "Show by default leader's profile instead of player"
+L.INVERSE_PROFILE_MODIFIER_DESC = "Show by default leader's profile instead of player. The modifier will then show player's profile."
 
 ns.L = L

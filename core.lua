@@ -28,7 +28,9 @@ local addonConfig = {
 	showScoreInCombat = true,
 	disableScoreColors = false,
 	alwaysExtendTooltip = false,
-	showAverageScore = true,
+	showRaiderIOProfile = true,
+	enableProfileModifier = true,
+	inverseProfileModifier = false
 }
 
 -- session
@@ -813,6 +815,8 @@ do
 			config:CreatePadding()
 			config:CreateHeadline(L.TOOLTIP_PROFILE)
 			config:CreateOptionToggle(L.SHOW_RAIDERIO_PROFILE, L.SHOW_RAIDERIO_PROFILE_DESC, "showRaiderIOProfile", true)
+			config:CreateOptionToggle(L.SHOW_LEADER_PROFILE, L.SHOW_LEADER_PROFILE_DESC, "enableProfileModifier")
+			config:CreateOptionToggle(L.INVERSE_PROFILE_MODIFIER, L.INVERSE_PROFILE_MODIFIER_DESC, "inverseProfileModifier")
 
 			config:CreatePadding()
 			config:CreateHeadline(L.MYTHIC_PLUS_DB_MODULES)
@@ -1661,8 +1665,12 @@ do
 
 		detailedTooltip:SetFrameStrata(forceFrameStrata or frame:GetFrameStrata())
 
-		if not addon.modKey then
+		if not addonConfig.enableProfileModifier then
 			player = "player"
+		else
+			if (not addonConfig.inverseProfileModifier and not addon.modKey) or (addonConfig.inverseProfileModifier and addon.modKey) then
+				player = "player"
+			end
 		end
 
 		CreateDetailedTooltip(detailedTooltip, player, nil, focusOnDungeonIndex)
