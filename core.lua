@@ -1666,6 +1666,16 @@ end
 
 -- ui hooks
 do
+	local function SetProfileTooltipNearFrame(frame, forceFrameStrata)
+		local FrameWidth, FrameHeight = detailedTooltip:GetSize()
+		detailedTooltip:SetOwner(frame, "ANCHOR_TOPRIGHT", FrameWidth, -FrameHeight)
+
+		detailedTooltip:SetFrameStrata(forceFrameStrata or frame:GetFrameStrata())
+
+		CreateDetailedTooltip(detailedTooltip, "player")
+
+		detailedTooltip:Show() --Show the tooltip
+	end
 	-- extract character name and realm from BNet friend
 	local function GetNameAndRealmForBNetFriend(bnetIDAccount)
 		local index = BNGetFriendIndex(bnetIDAccount)
@@ -1786,7 +1796,12 @@ do
 				if leaderName then
 					local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
 					AppendGameTooltip(tooltip, leaderName, false, true, PLAYER_FACTION, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
-					HightlightDetailedTooltip(detailedTooltip, LFD_ACTIVITYID_TO_DUNGEONID[activityID])
+
+					SetProfileTooltipNearFrame(tooltip)
+
+					tooltip:SetScript("OnHide", function()
+						SetProfileTooltipNearFrame(PVEFrame, "BACKGROUND")
+					end)
 				end
 			end
 			hooksecurefunc("LFGListUtil_SetSearchEntryTooltip", SetSearchEntryTooltip)
