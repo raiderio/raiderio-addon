@@ -1494,7 +1494,7 @@ do
 		end
 	end
 
-	function CreateDetailedTooltip(tooltip, arg1, forceFaction, focusOnDungeonIndex)
+	function CreateDetailedTooltip(tooltip, arg1, forceFaction, focusOnDungeonIndex, focusOnKeystoneLevel)
 		local profile = GetScore(arg1, nil, forceFaction)
 
 		-- sanity check that the profile exists
@@ -1537,8 +1537,24 @@ do
 			end
 
 			if focusOnDungeonIndex and focusOnDungeonIndex == dungeon.index then
-				colorDungeonName = { r = 0, g = 1, b = 0 }
-				colorDungeonLevel = { r = 0, g = 1, b = 0 }
+				if focusOnKeystoneLevel then
+					if dungeon.keyLevel < focusOnKeystoneLevel  then
+						-- green
+						colorDungeonName = { r = 0.12, g = 1, b = 0 }
+						colorDungeonLevel = { r = 0.12, g = 1, b = 0 }
+					elseif dungeon.keyLevel > focusOnKeystoneLevel then
+						-- purple
+						colorDungeonName = { r = 0.78, g = 0, b = 1 }
+						colorDungeonLevel = { r = 0.78, g = 0, b = 1 }
+					else
+						-- blue
+						colorDungeonName = { r = 0, g = 0.51, b = 1 }
+						colorDungeonLevel = { r = 0, g = 0.51, b = 1 }
+					end
+				else
+					colorDungeonName = { r = 0, g = 1, b = 0 }
+					colorDungeonLevel = { r = 0, g = 1, b = 0 }
+				end
 			end
 
 			tooltip:AddDoubleLine(dungeon.shortName, keyLevel, colorDungeonName.r, colorDungeonName.g, colorDungeonName.b, colorDungeonLevel.r, colorDungeonLevel.g, colorDungeonLevel.b)
@@ -1663,7 +1679,7 @@ end
 
 -- ui hooks
 do
-	local function SetProfileTooltipNearFrame(frame, player, focusOnDungeonIndex, forceFrameStrata)
+	local function SetProfileTooltipNearFrame(frame, player, focusOnDungeonIndex, focusOnKeystoneLevel, forceFrameStrata)
 		local FrameWidth, FrameHeight = detailedTooltip:GetSize()
 		detailedTooltip:SetOwner(frame, "ANCHOR_TOPRIGHT", FrameWidth, -FrameHeight)
 
@@ -1677,7 +1693,7 @@ do
 			end
 		end
 
-		CreateDetailedTooltip(detailedTooltip, player, nil, focusOnDungeonIndex)
+		CreateDetailedTooltip(detailedTooltip, player, nil, focusOnDungeonIndex, focusOnKeystoneLevel)
 
 		detailedTooltip:Show() --Show the tooltip
 	end
@@ -1809,11 +1825,12 @@ do
 			local function DisplayProfileTooltip(tooltip, resultID)
 				local _, activityID, title, description, _, _, _, _, _, _, _, _, leaderName = C_LFGList.GetSearchResultInfo(resultID)
 				if leaderName then
-					SetProfileTooltipNearFrame(tooltip, leaderName, LFD_ACTIVITYID_TO_DUNGEONID[activityID])
+					local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
+					SetProfileTooltipNearFrame(tooltip, leaderName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
 
 					tooltip:SetScript("OnHide", function()
 						if PVEFrame:IsShown() then
-							SetProfileTooltipNearFrame(PVEFrame, "player", nil, "BACKGROUND")
+							SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
 						end
 					end)
 				end
