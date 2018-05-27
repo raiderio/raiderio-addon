@@ -1207,7 +1207,6 @@ local AppendGameTooltip
 local UpdateAppendedGameTooltip
 local AppendAveragePlayerScore
 local CreateDetailedTooltip
-local HightlightDetailedTooltip
 do
 	local function sortRoleScores(a, b)
 		return a[2] > b[2]
@@ -1543,24 +1542,6 @@ do
 		elseif OUTDATED_HOURS > 12 then
 			tooltip:AddLine(" ")
 			tooltip:AddLine(format(L.OUTDATED_DATABASE_HOURS, OUTDATED_HOURS), 0.8, 0.8, 0.8, false)
-		end
-	end
-
-	-- Highlight corresponding dungeon in the detailed tooltip
-	function HightlightDetailedTooltip(tooltip, focusOnDungeonIndex)
-		local numLine = tooltip:NumLines()
-
-		for i = 5, numLine - 1, 1 do
-			local leftText = _G[tooltip:GetName().."TextLeft"..i]
-			local rightText = _G[tooltip:GetName().."TextRight"..i]
-
-			if CONST_DUNGEONS[focusOnDungeonIndex] and leftText:GetText() == CONST_DUNGEONS[focusOnDungeonIndex].shortNameLocale then
-				leftText:SetTextColor(0, 1, 0)
-				rightText:SetTextColor(0, 1, 0)
-			else
-				leftText:SetTextColor(1, 1, 1)
-				rightText:SetTextColor(1, 1, 1)
-			end
 		end
 	end
 end
