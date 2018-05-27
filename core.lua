@@ -1513,20 +1513,23 @@ do
 		table.sort(dungeons, CompareDungeon)
 
 		for i, dungeon in ipairs(dungeons) do
+			local colorDungeonName = { r = 1, g = 1, b = 1 }
+			local colorDungeonLevel = { r = 1, g = 1, b = 1 }
+
 			local keyLevel = dungeon.keyLevel
 			if keyLevel ~= 0 then
 				keyLevel = "+" .. keyLevel
 			else
 				keyLevel = "-"
+				colorDungeonLevel = { r = 0.62, g = 0.62, b = 0.62 }
 			end
-
-			local colorDungeon = {r= 1, g=1, b=1}
 
 			if focusOnDungeonIndex and focusOnDungeonIndex == dungeon.index then
-				colorDungeon = {r=0,g=1,b=0}
+				colorDungeonName = { r = 0, g = 1, b = 0 }
+				colorDungeonLevel = { r = 0, g = 1, b = 0 }
 			end
 
-			tooltip:AddDoubleLine(dungeon.shortName, keyLevel, colorDungeon.r, colorDungeon.g, colorDungeon.b, colorDungeon.r, colorDungeon.g, colorDungeon.b)
+			tooltip:AddDoubleLine(dungeon.shortName, keyLevel, colorDungeonName.r, colorDungeonName.g, colorDungeonName.b, colorDungeonLevel.r, colorDungeonLevel.g, colorDungeonLevel.b)
 		end
 
 		if OUTDATED_DAYS > 1 then
