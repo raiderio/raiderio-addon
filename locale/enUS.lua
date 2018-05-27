@@ -87,5 +87,6 @@ L.SHOW_AVERAGE_PLAYER_SCORE_INFO = "Show Avg. Scores for Timed Runs"
 L.SHOW_AVERAGE_PLAYER_SCORE_INFO_DESC = "Shows the average Raider.IO score seen on members of in-time runs. This is visible on Keystone Tooltips and Player Tooltips in the Dungeon Finder."
 L.PROFILE_TITLE = "Raider.IO M+ Profile"
 L.PROFILE_BEST_RUNS = "Best Runs by Dungeon"
+L.TOOLTIP_PROFILE = "Raider.IO Tooltip"
 
 ns.L = L

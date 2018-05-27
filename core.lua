@@ -593,12 +593,12 @@ do
 			for i = 1, #config.options do
 				local f = config.options[i]
 				local checked = f.checkButton:GetChecked()
-				--[=[ -- TODO: OBSCOLETE?
 				local enabled = addonConfig[f.cvar]
-				if f.cvar == "showDropDownCopyURL" and ((not enabled and checked) or (enabled and not checked)) then
+
+				if f.needReload and ((not enabled and checked) or (enabled and not checked)) then
 					reload = 1
 				end
-				--]=]
+
 				addonConfig[f.cvar] = not not checked
 			end
 			if reload then
@@ -712,11 +712,12 @@ do
 			return frame
 		end
 
-		function config.CreateOptionToggle(self, label, description, cvar)
+		function config.CreateOptionToggle(self, label, description, cvar, needReload)
 			local frame = self:CreateWidget("Frame")
 			frame.text:SetText(label)
 			frame.tooltip = description
 			frame.cvar = cvar
+			frame.needReload = needReload
 			frame.help.tooltip = description
 			frame.help:Show()
 			frame.checkButton:Show()
@@ -808,6 +809,10 @@ do
 			config:CreateHeadline(L.COPY_RAIDERIO_PROFILE_URL)
 			config:CreateOptionToggle(L.ALLOW_ON_PLAYER_UNITS, L.ALLOW_ON_PLAYER_UNITS_DESC, "showDropDownCopyURL")
 			config:CreateOptionToggle(L.ALLOW_IN_LFD, L.ALLOW_IN_LFD_DESC, "enableLFGDropdown")
+
+			config:CreatePadding()
+			config:CreateHeadline(L.TOOLTIP_PROFILE)
+			config:CreateOptionToggle(L.SHOW_RAIDERIO_PROFILE, L.SHOW_RAIDERIO_PROFILE_DESC, "showRaiderIOProfile", true)
 
 			config:CreatePadding()
 			config:CreateHeadline(L.MYTHIC_PLUS_DB_MODULES)
@@ -1799,15 +1804,27 @@ do
 				if leaderName then
 					local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
 					AppendGameTooltip(tooltip, leaderName, false, true, PLAYER_FACTION, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
-
-					SetProfileTooltipNearFrame(tooltip, LFD_ACTIVITYID_TO_DUNGEONID[activityID])
-
-					tooltip:SetScript("OnHide", function()
-						SetProfileTooltipNearFrame(PVEFrame, nil, "BACKGROUND")
-					end)
 				end
 			end
 			hooksecurefunc("LFGListUtil_SetSearchEntryTooltip", SetSearchEntryTooltip)
+
+			local function DisplayProfileTooltip(tooltip, resultID)
+				local _, activityID, title, description, _, _, _, _, _, _, _, _, leaderName = C_LFGList.GetSearchResultInfo(resultID)
+				if leaderName then
+					SetProfileTooltipNearFrame(tooltip, LFD_ACTIVITYID_TO_DUNGEONID[activityID])
+
+					tooltip:SetScript("OnHide", function()
+						if PVEFrame:IsShown() then
+							SetProfileTooltipNearFrame(PVEFrame, nil, "BACKGROUND")
+						end
+					end)
+				end
+			end
+
+			if addonConfig.showRaiderIOProfile then
+				hooksecurefunc("LFGListUtil_SetSearchEntryTooltip", DisplayProfileTooltip)
+			end
+
 			-- execute delayed hooks
 			for i = 1, 14 do
 				local b = _G["LFGListApplicationViewerScrollFrameButton" .. i]
@@ -2292,8 +2309,11 @@ do
 
 	-- My Profile
 	uiHooks[#uiHooks + 1] = function()
+		if not addonConfig.showRaiderIOProfile then
+			return 1
+		end
+
 		local _, PveFrameHeight = PVEFrame:GetSize()
-		detailedTooltip:SetFrameStrata("BACKGROUND")
 
 		detailedTooltip:SetMovable(true)
 		detailedTooltip:EnableMouse(true)
@@ -2303,6 +2323,7 @@ do
 
 		local function ShowTooltipRaiderIO()
 			if not detailedTooltip:IsShown() then
+				detailedTooltip:SetFrameStrata("BACKGROUND")
 				detailedTooltip:SetOwner(PVEFrame, "ANCHOR_BOTTOMRIGHT", 0, PveFrameHeight)
 				CreateDetailedTooltip(detailedTooltip, "player")
 
