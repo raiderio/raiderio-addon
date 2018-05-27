@@ -1666,13 +1666,13 @@ end
 
 -- ui hooks
 do
-	local function SetProfileTooltipNearFrame(frame, forceFrameStrata)
+	local function SetProfileTooltipNearFrame(frame, focusOnDungeonIndex, forceFrameStrata)
 		local FrameWidth, FrameHeight = detailedTooltip:GetSize()
 		detailedTooltip:SetOwner(frame, "ANCHOR_TOPRIGHT", FrameWidth, -FrameHeight)
 
 		detailedTooltip:SetFrameStrata(forceFrameStrata or frame:GetFrameStrata())
 
-		CreateDetailedTooltip(detailedTooltip, "player")
+		CreateDetailedTooltip(detailedTooltip, "player", nil, focusOnDungeonIndex)
 
 		detailedTooltip:Show() --Show the tooltip
 	end
@@ -1797,10 +1797,10 @@ do
 					local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
 					AppendGameTooltip(tooltip, leaderName, false, true, PLAYER_FACTION, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
 
-					SetProfileTooltipNearFrame(tooltip)
+					SetProfileTooltipNearFrame(tooltip, LFD_ACTIVITYID_TO_DUNGEONID[activityID])
 
 					tooltip:SetScript("OnHide", function()
-						SetProfileTooltipNearFrame(PVEFrame, "BACKGROUND")
+						SetProfileTooltipNearFrame(PVEFrame, nil, "BACKGROUND")
 					end)
 				end
 			end
