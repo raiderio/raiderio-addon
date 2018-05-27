@@ -1251,7 +1251,7 @@ do
 			end
 
 			-- assign the current function args for later use
-			tooltipArgs[1], tooltipArgs[2], tooltipArgs[3], tooltipArgs[4], tooltipArgs[5], tooltipArgs[6] = tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex
+			tooltipArgs[1], tooltipArgs[2], tooltipArgs[3], tooltipArgs[4], tooltipArgs[5], tooltipArgs[6], tooltipArgs[7] = tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex, focusOnKeystoneLevel
 
 			-- should we show the extended version of the data?
 			local showExtendedTooltip = addon.modKey or addonConfig.alwaysExtendTooltip
@@ -1440,7 +1440,7 @@ do
 		-- sanity check that the args exist
 		if not tooltipArgs[1] or not tooltipArgs[1]:GetOwner() then return end
 		-- unpack the args
-		local tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex = tooltipArgs[1], tooltipArgs[2], tooltipArgs[3], tooltipArgs[4], tooltipArgs[5], tooltipArgs[6]
+		local tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex, focusOnKeystoneLevel = tooltipArgs[1], tooltipArgs[2], tooltipArgs[3], tooltipArgs[4], tooltipArgs[5], tooltipArgs[6], tooltipArgs[7]
 		-- units only need to SetUnit to re-draw the tooltip properly
 		local _, unit = tooltip:GetUnit()
 		if unit then
@@ -1479,7 +1479,7 @@ do
 			tooltip:SetAnchorType(a1, a2, a3)
 		end
 		-- finalize by appending our tooltip on the bottom
-		AppendGameTooltip(tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex)
+		AppendGameTooltip(tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex, focusOnKeystoneLevel)
 	end
 
 	function AppendAveragePlayerScore(tooltip, keystoneLevel, addBlankLine)
