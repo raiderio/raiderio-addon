@@ -1502,7 +1502,11 @@ do
 			return 0
 		end
 
-		tooltip:AddLine(L.PROFILE_TITLE, 1, 0.85, 0, false)
+		if arg1 == "player" then
+			tooltip:AddLine(L.MY_PROFILE_TITLE, 1, 0.85, 0, false)
+		else
+			tooltip:AddLine(L.LEADER_PROFILE_TITLE, 1, 0.85, 0, false)
+		end
 
 		tooltip:AddDoubleLine(profile.name, GetFormattedScore(profile.allScore, profile.isPrevAllScore), 1, 1, 1, GetScoreColor(profile.allScore))
 
