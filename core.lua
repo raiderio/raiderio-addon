@@ -1505,7 +1505,7 @@ do
 		if arg1 == "player" then
 			tooltip:AddLine(L.MY_PROFILE_TITLE, 1, 0.85, 0, false)
 		else
-			tooltip:AddLine(L.LEADER_PROFILE_TITLE, 1, 0.85, 0, false)
+			tooltip:AddLine(L.PLAYER_PROFILE_TITLE, 1, 0.85, 0, false)
 		end
 
 		tooltip:AddDoubleLine(profile.name, GetFormattedScore(profile.allScore, profile.isPrevAllScore), 1, 1, 1, GetScoreColor(profile.allScore))
@@ -1804,6 +1804,14 @@ do
 						local _, activityID, _, title, description = C_LFGList.GetActiveEntryInfo();
 						local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
 						AppendGameTooltip(GameTooltip, fullName, not hasOwner, true, PLAYER_FACTION, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
+
+						SetProfileTooltipNearFrame(GameTooltip, fullName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
+
+						GameTooltip:SetScript("OnHide", function()
+							if PVEFrame:IsShown() then
+								SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
+							end
+						end)
 					end
 				end
 			end
