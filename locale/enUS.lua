@@ -88,5 +88,7 @@ L.SHOW_AVERAGE_PLAYER_SCORE_INFO_DESC = "Shows the average Raider.IO score seen 
 L.PROFILE_TITLE = "Raider.IO M+ Profile"
 L.PROFILE_BEST_RUNS = "Best Runs by Dungeon"
 L.TOOLTIP_PROFILE = "Raider.IO Tooltip"
+L.SHOW_RAIDERIO_PROFILE = "Show Raider.IO Profile"
+L.SHOW_RAIDERIO_PROFILE_DESC = "Show the Raider.IO Profile Tooltip in the Dungeon Finder"
 
 ns.L = L
