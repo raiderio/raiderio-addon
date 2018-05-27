@@ -1674,16 +1674,21 @@ end
 
 -- ui hooks
 do
-	local function SetProfileTooltipNearFrame(frame, focusOnDungeonIndex, forceFrameStrata)
+	local function SetProfileTooltipNearFrame(frame, player, focusOnDungeonIndex, forceFrameStrata)
 		local FrameWidth, FrameHeight = detailedTooltip:GetSize()
 		detailedTooltip:SetOwner(frame, "ANCHOR_TOPRIGHT", FrameWidth, -FrameHeight)
 
 		detailedTooltip:SetFrameStrata(forceFrameStrata or frame:GetFrameStrata())
 
-		CreateDetailedTooltip(detailedTooltip, "player", nil, focusOnDungeonIndex)
+		if not addon.modKey then
+			player = "player"
+		end
+
+		CreateDetailedTooltip(detailedTooltip, player, nil, focusOnDungeonIndex)
 
 		detailedTooltip:Show() --Show the tooltip
 	end
+
 	-- extract character name and realm from BNet friend
 	local function GetNameAndRealmForBNetFriend(bnetIDAccount)
 		local index = BNGetFriendIndex(bnetIDAccount)
@@ -1811,11 +1816,11 @@ do
 			local function DisplayProfileTooltip(tooltip, resultID)
 				local _, activityID, title, description, _, _, _, _, _, _, _, _, leaderName = C_LFGList.GetSearchResultInfo(resultID)
 				if leaderName then
-					SetProfileTooltipNearFrame(tooltip, LFD_ACTIVITYID_TO_DUNGEONID[activityID])
+					SetProfileTooltipNearFrame(tooltip, leaderName, LFD_ACTIVITYID_TO_DUNGEONID[activityID])
 
 					tooltip:SetScript("OnHide", function()
 						if PVEFrame:IsShown() then
-							SetProfileTooltipNearFrame(PVEFrame, nil, "BACKGROUND")
+							SetProfileTooltipNearFrame(PVEFrame, "player", nil, "BACKGROUND")
 						end
 					end)
 				end
