@@ -1238,21 +1238,20 @@ do
 	function AppendGameTooltip(tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex, focusOnKeystoneLevel)
 		local profile = GetScore(arg1, nil, forceFaction)
 
-		-- HOTFIX: ALT-TAB stickyness
-		addon:MODIFIER_STATE_CHANGED(true)
-
-		-- setup tooltip hook
-		if not tooltipHooks[tooltip] then
-			tooltipHooks[tooltip] = true
-			tooltip:HookScript("OnTooltipCleared", tooltipHooks.Wipe)
-			tooltip:HookScript("OnHide", tooltipHooks.Wipe)
-		end
-
-		-- assign the current function args for later use
-		tooltipArgs[1], tooltipArgs[2], tooltipArgs[3], tooltipArgs[4], tooltipArgs[5], tooltipArgs[6], tooltipArgs[7] = tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex, focusOnKeystoneLevel
-
 		-- sanity check that the profile exists
 		if profile then
+			-- HOTFIX: ALT-TAB stickyness
+			addon:MODIFIER_STATE_CHANGED(true)
+
+			-- setup tooltip hook
+			if not tooltipHooks[tooltip] then
+				tooltipHooks[tooltip] = true
+				tooltip:HookScript("OnTooltipCleared", tooltipHooks.Wipe)
+				tooltip:HookScript("OnHide", tooltipHooks.Wipe)
+			end
+
+			-- assign the current function args for later use
+			tooltipArgs[1], tooltipArgs[2], tooltipArgs[3], tooltipArgs[4], tooltipArgs[5], tooltipArgs[6], tooltipArgs[7] = tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex, focusOnKeystoneLevel
 
 			-- should we show the extended version of the data?
 			local showExtendedTooltip = addon.modKey or addonConfig.alwaysExtendTooltip
