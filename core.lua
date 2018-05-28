@@ -1543,24 +1543,25 @@ do
 			end
 
 			if focusOnDungeonIndex and focusOnDungeonIndex == dungeon.index then
-				if focusOnKeystoneLevel then
-					if dungeon.keyLevel < focusOnKeystoneLevel  then
-						-- green
-						colorDungeonName = { r = 0.12, g = 1, b = 0 }
-						colorDungeonLevel = { r = 0.12, g = 1, b = 0 }
-					elseif dungeon.keyLevel > focusOnKeystoneLevel then
-						-- purple
-						colorDungeonName = { r = 0.78, g = 0, b = 1 }
-						colorDungeonLevel = { r = 0.78, g = 0, b = 1 }
-					else
-						-- blue
-						colorDungeonName = { r = 0, g = 0.51, b = 1 }
-						colorDungeonLevel = { r = 0, g = 0.51, b = 1 }
-					end
-				else
+--				TODO: Add color depending if it's an upgrade or a downgrade
+--				if focusOnKeystoneLevel then
+--					if dungeon.keyLevel < focusOnKeystoneLevel  then
+--						-- green
+--						colorDungeonName = { r = 0.12, g = 1, b = 0 }
+--						colorDungeonLevel = { r = 0.12, g = 1, b = 0 }
+--					elseif dungeon.keyLevel > focusOnKeystoneLevel then
+--						-- purple
+--						colorDungeonName = { r = 0.78, g = 0, b = 1 }
+--						colorDungeonLevel = { r = 0.78, g = 0, b = 1 }
+--					else
+--						-- blue
+--						colorDungeonName = { r = 0, g = 0.51, b = 1 }
+--						colorDungeonLevel = { r = 0, g = 0.51, b = 1 }
+--					end
+--				else
 					colorDungeonName = { r = 0, g = 1, b = 0 }
 					colorDungeonLevel = { r = 0, g = 1, b = 0 }
-				end
+--				end
 			end
 
 			tooltip:AddDoubleLine(dungeon.shortName, keyLevel, colorDungeonName.r, colorDungeonName.g, colorDungeonName.b, colorDungeonLevel.r, colorDungeonLevel.g, colorDungeonLevel.b)
