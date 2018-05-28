@@ -2344,8 +2344,6 @@ do
 			return 1
 		end
 
-		local _, PveFrameHeight = PVEFrame:GetSize()
-
 		detailedTooltip:SetMovable(true)
 		detailedTooltip:EnableMouse(true)
 		detailedTooltip:RegisterForDrag("LeftButton")
@@ -2354,11 +2352,7 @@ do
 
 		local function ShowTooltipRaiderIO()
 			if not detailedTooltip:IsShown() then
-				detailedTooltip:SetFrameStrata("BACKGROUND")
-				detailedTooltip:SetOwner(PVEFrame, "ANCHOR_BOTTOMRIGHT", 0, PveFrameHeight)
-				CreateDetailedTooltip(detailedTooltip, "player")
-
-				detailedTooltip:Show() --Show the tooltip
+				SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
 			end
 		end
 
