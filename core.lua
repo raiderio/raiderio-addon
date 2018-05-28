@@ -1211,6 +1211,7 @@ local AppendGameTooltip
 local UpdateAppendedGameTooltip
 local AppendAveragePlayerScore
 local CreateDetailedTooltip
+local SetProfileTooltipNearFrame
 do
 	local function sortRoleScores(a, b)
 		return a[2] > b[2]
@@ -1237,21 +1238,21 @@ do
 	function AppendGameTooltip(tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex, focusOnKeystoneLevel)
 		local profile = GetScore(arg1, nil, forceFaction)
 
+		-- HOTFIX: ALT-TAB stickyness
+		addon:MODIFIER_STATE_CHANGED(true)
+
+		-- setup tooltip hook
+		if not tooltipHooks[tooltip] then
+			tooltipHooks[tooltip] = true
+			tooltip:HookScript("OnTooltipCleared", tooltipHooks.Wipe)
+			tooltip:HookScript("OnHide", tooltipHooks.Wipe)
+		end
+
+		-- assign the current function args for later use
+		tooltipArgs[1], tooltipArgs[2], tooltipArgs[3], tooltipArgs[4], tooltipArgs[5], tooltipArgs[6], tooltipArgs[7] = tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex, focusOnKeystoneLevel
+
 		-- sanity check that the profile exists
 		if profile then
-
-			-- HOTFIX: ALT-TAB stickyness
-			addon:MODIFIER_STATE_CHANGED(true)
-
-			-- setup tooltip hook
-			if not tooltipHooks[tooltip] then
-				tooltipHooks[tooltip] = true
-				tooltip:HookScript("OnTooltipCleared", tooltipHooks.Wipe)
-				tooltip:HookScript("OnHide", tooltipHooks.Wipe)
-			end
-
-			-- assign the current function args for later use
-			tooltipArgs[1], tooltipArgs[2], tooltipArgs[3], tooltipArgs[4], tooltipArgs[5], tooltipArgs[6], tooltipArgs[7] = tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex, focusOnKeystoneLevel
 
 			-- should we show the extended version of the data?
 			local showExtendedTooltip = addon.modKey or addonConfig.alwaysExtendTooltip
@@ -1441,6 +1442,11 @@ do
 		if not tooltipArgs[1] or not tooltipArgs[1]:GetOwner() then return end
 		-- unpack the args
 		local tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex, focusOnKeystoneLevel = tooltipArgs[1], tooltipArgs[2], tooltipArgs[3], tooltipArgs[4], tooltipArgs[5], tooltipArgs[6], tooltipArgs[7]
+
+		if not detailedTooltip:IsShown() then
+			SetProfileTooltipNearFrame(tooltip, arg1, focusOnDungeonIndex, focusOnKeystoneLevel)
+		end
+
 		-- units only need to SetUnit to re-draw the tooltip properly
 		local _, unit = tooltip:GetUnit()
 		if unit then
@@ -1679,7 +1685,7 @@ end
 
 -- ui hooks
 do
-	local function SetProfileTooltipNearFrame(frame, player, focusOnDungeonIndex, focusOnKeystoneLevel, forceFrameStrata)
+	function SetProfileTooltipNearFrame(frame, player, focusOnDungeonIndex, focusOnKeystoneLevel, forceFrameStrata)
 		detailedTooltip:SetOwner(frame, "ANCHOR_NONE")
 		detailedTooltip:ClearAllPoints()
 		detailedTooltip:SetPoint("TOPLEFT", frame, "TOPRIGHT")
