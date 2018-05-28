@@ -2344,12 +2344,6 @@ do
 			return 1
 		end
 
-		detailedTooltip:SetMovable(true)
-		detailedTooltip:EnableMouse(true)
-		detailedTooltip:RegisterForDrag("LeftButton")
-		detailedTooltip:SetScript("OnDragStart", detailedTooltip.StartMoving)
-		detailedTooltip:SetScript("OnDragStop", detailedTooltip.StopMovingOrSizing)
-
 		local function ShowTooltipRaiderIO()
 			if not detailedTooltip:IsShown() then
 				SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
