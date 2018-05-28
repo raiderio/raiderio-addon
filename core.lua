@@ -1806,13 +1806,13 @@ do
 						local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
 						AppendGameTooltip(GameTooltip, fullName, not hasOwner, true, PLAYER_FACTION, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
 
---						SetProfileTooltipNearFrame(GameTooltip, fullName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
---
---						GameTooltip:SetScript("OnHide", function()
---							if PVEFrame:IsShown() then
---								SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
---							end
---						end)
+						SetProfileTooltipNearFrame(GameTooltip, fullName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
+
+						GameTooltip:SetScript("OnHide", function()
+							if PVEFrame:IsShown() then
+								SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
+							end
+						end)
 					end
 				end
 			end
