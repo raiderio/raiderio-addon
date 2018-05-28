@@ -1664,7 +1664,7 @@ do
 	-- modifier key is toggled, update the tooltip if needed
 	function addon:MODIFIER_STATE_CHANGED(skipUpdatingTooltip)
 		-- if we always draw the full tooltip then this part of the code shouldn't be running at all
-		if addonConfig.alwaysExtendTooltip then
+		if addonConfig.alwaysExtendTooltip and not addonConfig.enableProfileModifier then
 			return
 		end
 		-- check if the mod state has changed, and only then run the update function
@@ -1680,8 +1680,9 @@ end
 -- ui hooks
 do
 	local function SetProfileTooltipNearFrame(frame, player, focusOnDungeonIndex, focusOnKeystoneLevel, forceFrameStrata)
-		local FrameWidth, FrameHeight = detailedTooltip:GetSize()
-		detailedTooltip:SetOwner(frame, "ANCHOR_TOPRIGHT", FrameWidth, -FrameHeight)
+		detailedTooltip:SetOwner(frame, "ANCHOR_NONE")
+		detailedTooltip:ClearAllPoints()
+		detailedTooltip:SetPoint("TOPLEFT", frame, "TOPRIGHT")
 
 		detailedTooltip:SetFrameStrata(forceFrameStrata or frame:GetFrameStrata())
 
@@ -1805,13 +1806,13 @@ do
 						local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
 						AppendGameTooltip(GameTooltip, fullName, not hasOwner, true, PLAYER_FACTION, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
 
-						SetProfileTooltipNearFrame(GameTooltip, fullName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
-
-						GameTooltip:SetScript("OnHide", function()
-							if PVEFrame:IsShown() then
-								SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
-							end
-						end)
+--						SetProfileTooltipNearFrame(GameTooltip, fullName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
+--
+--						GameTooltip:SetScript("OnHide", function()
+--							if PVEFrame:IsShown() then
+--								SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
+--							end
+--						end)
 					end
 				end
 			end
