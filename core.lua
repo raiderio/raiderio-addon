@@ -1681,18 +1681,20 @@ end
 
 -- ui hooks
 do
-	function SetProfileTooltipNearFrame(frame, player, focusOnDungeonIndex, focusOnKeystoneLevel, forceFrameStrata)
+	function SetProfileTooltipNearFrame(frame, player, focusOnDungeonIndex, focusOnKeystoneLevel, forceFrameStrata, forcePlayer)
 		detailedTooltip:SetOwner(frame, "ANCHOR_NONE")
 		detailedTooltip:ClearAllPoints()
 		detailedTooltip:SetPoint("TOPLEFT", frame, "TOPRIGHT")
 
 		detailedTooltip:SetFrameStrata(forceFrameStrata or frame:GetFrameStrata())
 
-		if not addonConfig.enableProfileModifier then
-			player = "player"
-		else
-			if (not addonConfig.inverseProfileModifier and not addon.modKey) or (addonConfig.inverseProfileModifier and addon.modKey) then
+		if not forcePlayer then
+			if not addonConfig.enableProfileModifier then
 				player = "player"
+			else
+				if (not addonConfig.inverseProfileModifier and not addon.modKey) or (addonConfig.inverseProfileModifier and addon.modKey) then
+					player = "player"
+				end
 			end
 		end
 
@@ -1808,7 +1810,7 @@ do
 						local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
 						AppendGameTooltip(GameTooltip, fullName, not hasOwner, true, PLAYER_FACTION, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
 
-						SetProfileTooltipNearFrame(GameTooltip, fullName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
+						SetProfileTooltipNearFrame(GameTooltip, fullName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel, nil, true)
 
 						GameTooltip:SetScript("OnHide", function()
 							if PVEFrame:IsShown() then
