@@ -1442,10 +1442,6 @@ do
 		-- unpack the args
 		local tooltip, arg1, forceNoPadding, forceAddName, forceFaction, focusOnDungeonIndex, focusOnKeystoneLevel = tooltipArgs[1], tooltipArgs[2], tooltipArgs[3], tooltipArgs[4], tooltipArgs[5], tooltipArgs[6], tooltipArgs[7]
 
-		if not detailedTooltip:IsShown() then
-			SetProfileTooltipNearFrame(tooltip, arg1, focusOnDungeonIndex, focusOnKeystoneLevel)
-		end
-
 		-- units only need to SetUnit to re-draw the tooltip properly
 		local _, unit = tooltip:GetUnit()
 		if unit then
