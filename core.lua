@@ -845,7 +845,7 @@ do
 
 			-- adjust frame height dynamically
 			local children = {configFrame:GetChildren()}
-			local height = 32 + 4
+			local height = 40 + 4
 			for i = 1, #children do
 				height = height + children[i]:GetHeight() + 2
 			end
