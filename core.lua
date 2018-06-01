@@ -48,7 +48,7 @@ local tooltipHooks = {
 	end
 }
 
-local detailedTooltip = CreateFrame("GameTooltip","detailedTooltip",UIParent,"GameTooltipTemplate")
+local detailedTooltip = CreateFrame("GameTooltip","raiderIODetailedProfile",UIParent,"GameTooltipTemplate")
 
 -- player
 local PLAYER_FACTION
@@ -1812,7 +1812,7 @@ do
 
 						SetProfileTooltipNearFrame(GameTooltip, fullName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel, nil, true)
 
-						GameTooltip:SetScript("OnHide", function()
+						GameTooltip:HookScript("OnHide", function()
 							if PVEFrame:IsShown() then
 								SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
 							end
@@ -1841,7 +1841,7 @@ do
 					local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
 					SetProfileTooltipNearFrame(tooltip, leaderName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
 
-					tooltip:SetScript("OnHide", function()
+					tooltip:HookScript("OnHide", function()
 						if PVEFrame:IsShown() then
 							SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
 						end
