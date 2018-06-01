@@ -48,7 +48,7 @@ local tooltipHooks = {
 	end
 }
 
-local detailedTooltip = CreateFrame("GameTooltip","raiderIODetailedProfile",UIParent,"GameTooltipTemplate")
+local detailedTooltip = CreateFrame("GameTooltip","detailedTooltip",UIParent,"GameTooltipTemplate")
 
 -- player
 local PLAYER_FACTION
