@@ -1783,7 +1783,7 @@ do
 	uiHooks[#uiHooks + 1] = function()
 		if _G.LFGListApplicationViewerScrollFrameButton1 then
 			local hooked = {}
-			local OnEnter, OnLeave
+			local OnEnter, OnLeave, OnHideDetailledTooltip
 			-- application queue
 			function OnEnter(self)
 				if not addonConfig.enableLFGTooltips then
@@ -1812,17 +1812,21 @@ do
 
 						SetProfileTooltipNearFrame(GameTooltip, fullName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel, nil, true)
 
-						GameTooltip:HookScript("OnHide", function()
-							if PVEFrame:IsShown() then
-								SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
-							end
-						end)
+						if not hooked["applicant"] then
+							hooked["applicant"] = 1
+							GameTooltip:HookScript("OnHide", OnHideDetailledTooltip)
+						end
 					end
 				end
 			end
 			function OnLeave(self)
 				if self.applicantID or self.memberIdx then
 					GameTooltip:Hide()
+				end
+			end
+			function OnHideDetailledTooltip(self)
+				if PVEFrame:IsShown() then
+					SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
 				end
 			end
 			-- search results
@@ -1841,11 +1845,10 @@ do
 					local keystoneLevel = GetKeystoneLevel(title) or GetKeystoneLevel(description) or 0
 					SetProfileTooltipNearFrame(tooltip, leaderName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
 
-					tooltip:HookScript("OnHide", function()
-						if PVEFrame:IsShown() then
-							SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
-						end
-					end)
+					if not hooked["applicant"] then
+						hooked["applicant"] = 1
+						GameTooltip:HookScript("OnHide", OnHideDetailledTooltip)
+					end
 				end
 			end
 
