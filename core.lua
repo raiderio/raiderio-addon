@@ -1682,6 +1682,10 @@ end
 -- ui hooks
 do
 	function SetProfileTooltipNearFrame(frame, player, focusOnDungeonIndex, focusOnKeystoneLevel, forceFrameStrata, forcePlayer)
+		if not addonConfig.showRaiderIOProfile then
+			return 1
+		end
+
 		detailedTooltip:SetOwner(frame, "ANCHOR_NONE")
 		detailedTooltip:ClearAllPoints()
 		detailedTooltip:SetPoint("TOPLEFT", frame, "TOPRIGHT")
