@@ -1,10 +1,15 @@
 #!/bin/bash
 
+NEW_VERSION=`date -u +'%Y%m%d%H%M'`
+
+PKGNAME=$1
+if [ "x$PKGNAME" = "x" ]; then
+    PKGNAME=raiderio-addon-${NEW_VERSION}.zip
+fi
+
 mkdir -p package
 
 cd package
-
-NEW_VERSION=`date -u +'%Y%m%d%H%M'`
 
 echo "Downloading latest zip to base off of..."
 wget -O latest.zip https://wow.curseforge.com/projects/raiderio/files/latest
@@ -22,7 +27,6 @@ echo "Setting up as version v$NEW_VERSION"
 find . -name \*.toc -exec perl -pi -e "s/\@project-version\@/v$NEW_VERSION/" {} \;
 
 cd addon
-7z -tzip a ../raiderio-addon-${NEW_VERSION}.zip RaiderIO*
+zip -r9 ../$PKGNAME RaiderIO*
 
-ls -al ../raiderio-addon-${NEW_VERSION}.zip
-
+ls -al ../$PKGNAME
