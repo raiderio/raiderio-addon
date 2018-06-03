@@ -1683,7 +1683,7 @@ end
 do
 	function SetProfileTooltipNearFrame(frame, player, focusOnDungeonIndex, focusOnKeystoneLevel, forceFrameStrata, forcePlayer)
 		if not addonConfig.showRaiderIOProfile then
-			return 1
+			return
 		end
 
 		detailedTooltip:SetOwner(frame, "ANCHOR_NONE")
