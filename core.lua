@@ -1831,6 +1831,8 @@ do
 			function OnHideDetailledTooltip(self)
 				if PVEFrame:IsShown() then
 					SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
+				else
+					detailedTooltip:Hide()
 				end
 			end
 			-- search results
