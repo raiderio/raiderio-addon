@@ -36,6 +36,9 @@ local addonConfig = {
 -- session
 local uiHooks = {}
 local profileCache = {}
+local configParentFrame
+local configScrollFrame
+local configSliderFrame
 local configFrame
 local dataProviderQueue = {}
 local dataProvider
@@ -537,8 +540,36 @@ do
 			OnCancel = nil
 		}
 
-		configFrame = CreateFrame("Frame", addonName .. "ConfigFrame", UIParent)
-		configFrame:Hide()
+		configParentFrame = CreateFrame("Frame", addonName .. "ConfigParentFrame", UIParent)
+		configParentFrame:SetSize(400, 600)
+		configParentFrame:SetPoint("CENTER")
+
+		configScrollFrame = CreateFrame("ScrollFrame", nil, configParentFrame)
+		configScrollFrame:SetPoint("TOPLEFT", 0, -10)
+		configScrollFrame:SetPoint("BOTTOMRIGHT", 0, 10)
+
+		configParentFrame.scrollframe = configScrollFrame
+
+		configSliderFrame = CreateFrame("Slider", nil, configScrollFrame, "UIPanelScrollBarTemplate")
+		configSliderFrame:SetPoint("TOPLEFT", configParentFrame, "TOPRIGHT", 0, -18)
+		configSliderFrame:SetPoint("BOTTOMLEFT", configParentFrame, "BOTTOMRIGHT", 0, 18)
+		configSliderFrame:SetMinMaxValues(1, 1)
+		configSliderFrame:SetValueStep(1)
+		configSliderFrame.scrollStep = 1
+		configSliderFrame:SetValue(0)
+		configSliderFrame:SetWidth(16)
+		configSliderFrame:SetScript("OnValueChanged",
+			function (self, value)
+				self:GetParent():SetVerticalScroll(value)
+			end)
+
+		configParentFrame.scrollbar = configSliderFrame
+
+		configFrame = CreateFrame("Frame", addonName .. "ConfigFrame", configScrollFrame)
+		configFrame:SetSize(400, 600)
+		configScrollFrame.content = configFrame
+		configScrollFrame:SetScrollChild(configFrame)
+		configParentFrame:Hide()
 
 		local config
 
@@ -561,7 +592,7 @@ do
 		end
 
 		local function Close_OnClick()
-			configFrame:SetShown(not configFrame:IsShown())
+			configParentFrame:SetShown(not configParentFrame:IsShown())
 		end
 
 		local function Save_OnClick()
@@ -615,6 +646,11 @@ do
 				bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
 				edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16,
 				insets = { left = 4, right = 4, top = 4, bottom = 4 }
+			},
+			backdropSlider = {
+				bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+				tile = true,
+				tileSize = 16
 			}
 		}
 
@@ -761,28 +797,30 @@ do
 				end
 			end
 
-			configFrame:SetSize(1024, 1024) -- narrowed later in the code
-			configFrame:SetPoint("CENTER")
-			configFrame:SetFrameStrata("DIALOG")
-			configFrame:SetFrameLevel(255)
+			configParentFrame:SetFrameStrata("DIALOG")
+			configParentFrame:SetFrameLevel(255)
 
-			configFrame:EnableMouse(true)
-			configFrame:SetClampedToScreen(true)
-			configFrame:SetDontSavePosition(true)
-			configFrame:SetMovable(true)
-			configFrame:RegisterForDrag("LeftButton")
+			configParentFrame:EnableMouse(true)
+			configParentFrame:SetClampedToScreen(true)
+			configParentFrame:SetDontSavePosition(true)
+			configParentFrame:SetMovable(true)
+			configParentFrame:RegisterForDrag("LeftButton")
 
-			configFrame:SetBackdrop(config.backdrop)
-			configFrame:SetBackdropColor(0, 0, 0, 0.8)
-			configFrame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8)
+			configParentFrame:SetBackdrop(config.backdrop)
+			configParentFrame:SetBackdropColor(0, 0, 0, 0.8)
+			configParentFrame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8)
 
-			configFrame:SetScript("OnShow", ConfigFrame_OnShow)
-			configFrame:SetScript("OnDragStart", ConfigFrame_OnDragStart)
-			configFrame:SetScript("OnDragStop", ConfigFrame_OnDragStop)
-			configFrame:SetScript("OnEvent", ConfigFrame_OnEvent)
+			configSliderFrame:SetBackdrop(config.backdropSlider)
+			configSliderFrame:SetBackdropColor(0, 0, 0, 0.8)
+			configSliderFrame:SetBackdropBorderColor(0, 0, 0, 0.8)
 
-			configFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-			configFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+			configParentFrame:SetScript("OnShow", ConfigFrame_OnShow)
+			configParentFrame:SetScript("OnDragStart", ConfigFrame_OnDragStart)
+			configParentFrame:SetScript("OnDragStop", ConfigFrame_OnDragStop)
+			configParentFrame:SetScript("OnEvent", ConfigFrame_OnEvent)
+
+			configParentFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+			configParentFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 
 			-- add widgets
 			local header = config:CreateHeadline(L.RAIDERIO_MYTHIC_OPTIONS .. "\nVersion: " .. tostring(GetAddOnMetadata(addonName, "Version")))
@@ -845,10 +883,12 @@ do
 
 			-- adjust frame height dynamically
 			local children = {configFrame:GetChildren()}
-			local height = 40 + 4
+			local height = 30
 			for i = 1, #children do
 				height = height + children[i]:GetHeight() + 2
 			end
+
+			configSliderFrame:SetMinMaxValues(1, height - 565)
 			configFrame:SetHeight(height)
 
 			-- adjust frame width dynamically (add padding based on the largest option label string)
@@ -860,6 +900,7 @@ do
 				end
 			end
 			configFrame:SetWidth(160 + maxWidth)
+			configParentFrame:SetWidth(160 + maxWidth)
 
 			-- add faction headers over the first module
 			local af = config:CreateHeadline("|TInterface\\Icons\\inv_bannerpvp_02:0:0:0:0:16:16:4:12:4:12|t")
@@ -876,7 +917,7 @@ do
 		do
 			local function Button_OnClick()
 				if not InCombatLockdown() then
-					configFrame:SetShown(not configFrame:IsShown())
+					configParentFrame:SetShown(not configParentFrame:IsShown())
 				end
 			end
 
@@ -919,7 +960,7 @@ do
 
 				-- resume regular routine
 				if not InCombatLockdown() then
-					configFrame:SetShown(not configFrame:IsShown())
+					configParentFrame:SetShown(not configParentFrame:IsShown())
 				end
 			end
 
@@ -938,7 +979,7 @@ do
 		-- 4294967296 == (1 << 32). Meaning, shift to get the hi-word.
 		-- WoW lua bit operators seem to only work on the lo-word (?)
 		local hiword = data / 4294967296
-		return 
+		return
 			band(data, PAYLOAD_MASK),
 			band(rshift(data, PAYLOAD_BITS), PAYLOAD_MASK),
 			band(hiword, PAYLOAD_MASK),
