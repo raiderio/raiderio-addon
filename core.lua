@@ -37,6 +37,7 @@ local addonConfig = {
 local uiHooks = {}
 local profileCache = {}
 local configParentFrame
+local configButtonFrame
 local configScrollFrame
 local configSliderFrame
 local configFrame
@@ -544,9 +545,15 @@ do
 		configParentFrame:SetSize(400, 600)
 		configParentFrame:SetPoint("CENTER")
 
+		configButtonFrame = CreateFrame("Frame", nil, configParentFrame)
+		configButtonFrame:SetPoint("BOTTOMLEFT", 0, -10)
+		configButtonFrame:SetPoint("BOTTOMRIGHT", 0, 10)
+		configButtonFrame:SetHeight(50)
+
 		configScrollFrame = CreateFrame("ScrollFrame", nil, configParentFrame)
 		configScrollFrame:SetPoint("TOPLEFT", 0, -10)
-		configScrollFrame:SetPoint("BOTTOMRIGHT", 0, 10)
+		configScrollFrame:SetPoint("TOPRIGHT", 0, 10)
+		configScrollFrame:SetHeight(550)
 
 		configParentFrame.scrollframe = configScrollFrame
 
@@ -666,8 +673,8 @@ do
 			end
 		end
 
-		function config.CreateWidget(self, widgetType, height)
-			local widget = CreateFrame(widgetType, nil, configFrame)
+		function config.CreateWidget(self, widgetType, height, parentFrame)
+			local widget = CreateFrame(widgetType, nil, parentFrame or configFrame)
 
 			if self.lastWidget then
 				widget:SetPoint("TOPLEFT", self.lastWidget, "BOTTOMLEFT", 0, -24)
@@ -864,10 +871,13 @@ do
 			config:CreateModuleToggle(L.MODULE_TAIWAN, "RaiderIO_DB_TW_A", "RaiderIO_DB_TW_H")
 
 			-- add save button and cancel buttons
-			local buttons = config:CreateWidget("Frame", 4)
+			local buttons = config:CreateWidget("Frame", 4, configButtonFrame)
+			buttons:ClearAllPoints()
+			buttons:SetPoint("TOPLEFT", configButtonFrame, "TOPLEFT", 16, 0)
+			buttons:SetPoint("BOTTOMRIGHT", configButtonFrame, "TOPRIGHT", -16, -16)
 			buttons:Hide()
-			local save = config:CreateWidget("Button", 4)
-			local cancel = config:CreateWidget("Button", 4)
+			local save = config:CreateWidget("Button", 4, configButtonFrame)
+			local cancel = config:CreateWidget("Button", 4, configButtonFrame)
 			save:ClearAllPoints()
 			save:SetPoint("LEFT", buttons, "LEFT", 0, -12)
 			save:SetSize(96, 28)
@@ -888,7 +898,7 @@ do
 				height = height + children[i]:GetHeight() + 2
 			end
 
-			configSliderFrame:SetMinMaxValues(1, height - 565)
+			configSliderFrame:SetMinMaxValues(1, height - 490)
 			configFrame:SetHeight(height)
 
 			-- adjust frame width dynamically (add padding based on the largest option label string)
