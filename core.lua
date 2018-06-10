@@ -555,6 +555,12 @@ do
 		configScrollFrame:SetPoint("TOPLEFT", configHeaderFrame, "BOTTOMLEFT")
 		configScrollFrame:SetPoint("TOPRIGHT", configHeaderFrame, "BOTTOMRIGHT")
 		configScrollFrame:SetHeight(475)
+		configScrollFrame:EnableMouseWheel(true)
+		configScrollFrame:HookScript("OnMouseWheel", function(self, delta)
+			local currentValue = configSliderFrame:GetValue()
+			local changes = -delta * 20
+			configSliderFrame:SetValue(currentValue + changes)
+		end)
 
 		configButtonFrame = CreateFrame("Frame", nil, configParentFrame)
 		configButtonFrame:SetPoint("TOPLEFT", configScrollFrame, "BOTTOMLEFT", 0, -10)
