@@ -570,8 +570,8 @@ do
 		configParentFrame.scrollframe = configScrollFrame
 
 		configSliderFrame = CreateFrame("Slider", nil, configScrollFrame, "UIPanelScrollBarTemplate")
-		configSliderFrame:SetPoint("TOPLEFT", configScrollFrame, "TOPRIGHT", -22, -18)
-		configSliderFrame:SetPoint("BOTTOMLEFT", configScrollFrame, "BOTTOMRIGHT", -22, 18)
+		configSliderFrame:SetPoint("TOPLEFT", configScrollFrame, "TOPRIGHT", -35, -18)
+		configSliderFrame:SetPoint("BOTTOMLEFT", configScrollFrame, "BOTTOMRIGHT", -35, 18)
 		configSliderFrame:SetMinMaxValues(1, 1)
 		configSliderFrame:SetValueStep(1)
 		configSliderFrame.scrollStep = 1
@@ -585,7 +585,7 @@ do
 		configParentFrame.scrollbar = configSliderFrame
 
 		configFrame = CreateFrame("Frame", addonName .. "ConfigFrame", configScrollFrame)
-		configFrame:SetSize(400, 600)
+		configFrame:SetSize(400, 600) -- resized to proper value below
 		configScrollFrame.content = configFrame
 		configScrollFrame:SetScrollChild(configFrame)
 		configParentFrame:Hide()
