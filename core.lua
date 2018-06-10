@@ -38,6 +38,7 @@ local uiHooks = {}
 local profileCache = {}
 local configParentFrame
 local configButtonFrame
+local configHeaderFrame
 local configScrollFrame
 local configSliderFrame
 local configFrame
@@ -545,21 +546,26 @@ do
 		configParentFrame:SetSize(400, 600)
 		configParentFrame:SetPoint("CENTER")
 
-		configButtonFrame = CreateFrame("Frame", nil, configParentFrame)
-		configButtonFrame:SetPoint("BOTTOMLEFT", 0, -10)
-		configButtonFrame:SetPoint("BOTTOMRIGHT", 0, 10)
-		configButtonFrame:SetHeight(50)
+		configHeaderFrame = CreateFrame("Frame", nil, configParentFrame)
+		configHeaderFrame:SetPoint("TOPLEFT", 00, -30)
+		configHeaderFrame:SetPoint("TOPRIGHT", 00, 30)
+		configHeaderFrame:SetHeight(40)
 
 		configScrollFrame = CreateFrame("ScrollFrame", nil, configParentFrame)
-		configScrollFrame:SetPoint("TOPLEFT", 0, -10)
-		configScrollFrame:SetPoint("TOPRIGHT", 0, 10)
-		configScrollFrame:SetHeight(550)
+		configScrollFrame:SetPoint("TOPLEFT", configHeaderFrame, "BOTTOMLEFT")
+		configScrollFrame:SetPoint("TOPRIGHT", configHeaderFrame, "BOTTOMRIGHT")
+		configScrollFrame:SetHeight(475)
+
+		configButtonFrame = CreateFrame("Frame", nil, configParentFrame)
+		configButtonFrame:SetPoint("TOPLEFT", configScrollFrame, "BOTTOMLEFT", 0, -10)
+		configButtonFrame:SetPoint("TOPRIGHT", configScrollFrame, "BOTTOMRIGHT")
+		configButtonFrame:SetHeight(50)
 
 		configParentFrame.scrollframe = configScrollFrame
 
 		configSliderFrame = CreateFrame("Slider", nil, configScrollFrame, "UIPanelScrollBarTemplate")
-		configSliderFrame:SetPoint("TOPLEFT", configParentFrame, "TOPRIGHT", 0, -18)
-		configSliderFrame:SetPoint("BOTTOMLEFT", configParentFrame, "BOTTOMRIGHT", 0, 18)
+		configSliderFrame:SetPoint("TOPLEFT", configScrollFrame, "TOPRIGHT", -22, -18)
+		configSliderFrame:SetPoint("BOTTOMLEFT", configScrollFrame, "BOTTOMRIGHT", -22, 18)
 		configSliderFrame:SetMinMaxValues(1, 1)
 		configSliderFrame:SetValueStep(1)
 		configSliderFrame.scrollStep = 1
@@ -653,11 +659,6 @@ do
 				bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
 				edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", tile = true, tileSize = 16, edgeSize = 16,
 				insets = { left = 4, right = 4, top = 4, bottom = 4 }
-			},
-			backdropSlider = {
-				bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-				tile = true,
-				tileSize = 16
 			}
 		}
 
@@ -680,8 +681,8 @@ do
 				widget:SetPoint("TOPLEFT", self.lastWidget, "BOTTOMLEFT", 0, -24)
 				widget:SetPoint("BOTTOMRIGHT", self.lastWidget, "BOTTOMRIGHT", 0, -4)
 			else
-				widget:SetPoint("TOPLEFT", configFrame, "TOPLEFT", 16, -38)
-				widget:SetPoint("BOTTOMRIGHT", configFrame, "TOPRIGHT", -16, -16)
+				widget:SetPoint("TOPLEFT", parentFrame or configFrame, "TOPLEFT", 16, 0)
+				widget:SetPoint("BOTTOMRIGHT", parentFrame or configFrame, "TOPRIGHT", -40, -16)
 			end
 
 			widget.bg = widget:CreateTexture()
@@ -725,7 +726,9 @@ do
 				widget:SetScript("OnLeave", WidgetButton_OnLeave)
 			end
 
-			self.lastWidget = widget
+			if not parentFrame then
+				self.lastWidget = widget
+			end
 			return widget
 		end
 
@@ -739,8 +742,8 @@ do
 			return frame
 		end
 
-		function config.CreateHeadline(self, text)
-			local frame = self:CreateWidget("Frame")
+		function config.CreateHeadline(self, text, parentFrame)
+			local frame = self:CreateWidget("Frame", nil, parentFrame)
 			frame.bg:Hide()
 			frame.text:SetText(text)
 			return frame
@@ -817,10 +820,6 @@ do
 			configParentFrame:SetBackdropColor(0, 0, 0, 0.8)
 			configParentFrame:SetBackdropBorderColor(0.5, 0.5, 0.5, 0.8)
 
-			configSliderFrame:SetBackdrop(config.backdropSlider)
-			configSliderFrame:SetBackdropColor(0, 0, 0, 0.8)
-			configSliderFrame:SetBackdropBorderColor(0, 0, 0, 0.8)
-
 			configParentFrame:SetScript("OnShow", ConfigFrame_OnShow)
 			configParentFrame:SetScript("OnDragStart", ConfigFrame_OnDragStart)
 			configParentFrame:SetScript("OnDragStop", ConfigFrame_OnDragStop)
@@ -830,10 +829,9 @@ do
 			configParentFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 
 			-- add widgets
-			local header = config:CreateHeadline(L.RAIDERIO_MYTHIC_OPTIONS .. "\nVersion: " .. tostring(GetAddOnMetadata(addonName, "Version")))
+			local header = config:CreateHeadline(L.RAIDERIO_MYTHIC_OPTIONS .. "\nVersion: " .. tostring(GetAddOnMetadata(addonName, "Version")), configHeaderFrame)
 			header.text:SetFont(header.text:GetFont(), 16, "OUTLINE")
 
-			config:CreatePadding()
 			config:CreateHeadline(L.MYTHIC_PLUS_SCORES)
 			config:CreateOptionToggle(L.SHOW_ON_PLAYER_UNITS, L.SHOW_ON_PLAYER_UNITS_DESC, "enableUnitTooltips")
 			config:CreateOptionToggle(L.SHOW_IN_LFD, L.SHOW_IN_LFD_DESC, "enableLFGTooltips")
@@ -874,7 +872,7 @@ do
 			local buttons = config:CreateWidget("Frame", 4, configButtonFrame)
 			buttons:ClearAllPoints()
 			buttons:SetPoint("TOPLEFT", configButtonFrame, "TOPLEFT", 16, 0)
-			buttons:SetPoint("BOTTOMRIGHT", configButtonFrame, "TOPRIGHT", -16, -16)
+			buttons:SetPoint("BOTTOMRIGHT", configButtonFrame, "TOPRIGHT", -16, -10)
 			buttons:Hide()
 			local save = config:CreateWidget("Button", 4, configButtonFrame)
 			local cancel = config:CreateWidget("Button", 4, configButtonFrame)
@@ -898,7 +896,7 @@ do
 				height = height + children[i]:GetHeight() + 2
 			end
 
-			configSliderFrame:SetMinMaxValues(1, height - 490)
+			configSliderFrame:SetMinMaxValues(1, height - 440)
 			configFrame:SetHeight(height)
 
 			-- adjust frame width dynamically (add padding based on the largest option label string)
