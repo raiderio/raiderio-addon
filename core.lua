@@ -1657,6 +1657,9 @@ do
 		-- store our faction for later use
 		PLAYER_FACTION = GetFaction("player")
 		PLAYER_REGION = GetRegion()
+
+		local firstDataProvider = {}
+
 		-- pick the data provider that suits the players region
 		for i = #dataProviderQueue, 1, -1 do
 			local data = dataProviderQueue[i]
@@ -1664,6 +1667,9 @@ do
 			if data.region == PLAYER_REGION then
 				-- append provider to the table
 				if dataProvider then
+					if (firstDataProvider.region ~= data.region or firstDataProvider.faction ~= data.faction) and firstDataProvider.date ~= data.date then
+						DEFAULT_CHAT_FRAME:AddMessage(format(L.OUT_OF_SYNC_DATABASE_S, addonName), 1, 1, 0)
+					end
 					if not dataProvider.db1 then
 						dataProvider.db1 = data.db1
 					end
@@ -1678,6 +1684,8 @@ do
 					end
 				else
 					dataProvider = data
+					firstDataProvider = {["date"] = data.date, ["region"] = data.region, ["faction"] = data.faction }
+
 					-- debug.lua needs this for querying (also adding the tooltip bit because for now only these two are needed for debug.lua to function...)
 					ns.dataProvider = dataProvider
 					ns.AppendGameTooltip = AppendGameTooltip
