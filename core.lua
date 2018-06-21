@@ -68,9 +68,11 @@ local detailedTooltip = CreateFrame("GameTooltip","detailedTooltip",UIParent,"Ga
 -- player
 local PLAYER_FACTION
 local PLAYER_REGION
-local IS_DB_OUTDATED
-local OUTDATED_DAYS
-local OUTDATED_HOURS;
+
+-- db outdated
+local IS_DB_OUTDATED = {}
+local OUTDATED_DAYS = {}
+local OUTDATED_HOURS = {};
 
 -- constants
 local CONST_REALM_SLUGS = ns.realmSlugs
@@ -567,6 +569,8 @@ do
 		configScrollFrame:SetPoint("TOPRIGHT", configHeaderFrame, "BOTTOMRIGHT")
 		configScrollFrame:SetHeight(475)
 		configScrollFrame:EnableMouseWheel(true)
+		configScrollFrame:SetClampedToScreen(true);
+		configScrollFrame:SetClipsChildren(true);
 		configScrollFrame:HookScript("OnMouseWheel", function(self, delta)
 			local currentValue = configSliderFrame:GetValue()
 			local changes = -delta * 20
@@ -1157,7 +1161,7 @@ do
 	end
 
 	-- caches the profile table and returns one using keys
-	local function CacheProviderData(name, realm, index, data1, data2, data3)
+	local function CacheProviderData(name, realm, faction, index, data1, data2, data3)
 		local cache = profileCache[index]
 
 		-- prefer to re-use cached profiles
@@ -1172,12 +1176,12 @@ do
 		-- build this custom table in order to avoid users tainting the provider database
 		cache = {
 			region = dataProvider.region,
-			faction = dataProvider.faction,
 			date = dataProvider.date,
 			season = dataProvider.season,
 			prevSeason = dataProvider.prevSeason,
 			name = name,
 			realm = realm,
+			faction = faction,
 			-- current and last season overall score
 			allScore = payload.allScore,
 			prevAllScore = payload.allScore,		-- DEPRECATED, will be removed in the future
@@ -1231,7 +1235,7 @@ do
 						bucketID = floor(base / LOOKUP_MAX_SIZE)
 						bucket = lu[bucketID + 1]
 						base = base - bucketID * LOOKUP_MAX_SIZE
-						return CacheProviderData(name, realm, i .. "-" .. bucketID .. "-" .. base, bucket[base], bucket[base + 1], bucket[base + 2])
+						return CacheProviderData(name, realm, i, i .. "-" .. bucketID .. "-" .. base, bucket[base], bucket[base + 1], bucket[base + 2])
 					end
 				end
 			end
@@ -1494,8 +1498,8 @@ do
 				AppendAveragePlayerScore(tooltip, focusOnKeystoneLevel or searchLevel)
 			end
 
-			if IS_DB_OUTDATED then
-				tooltip:AddLine(format(L.OUTDATED_DATABASE, OUTDATED_DAYS), 1, 1, 1, false)
+			if IS_DB_OUTDATED[profile.faction] then
+				tooltip:AddLine(format(L.OUTDATED_DATABASE, OUTDATED_DAYS[profile.faction]), 1, 1, 1, false)
 			end
 
 			local t = EGG[profile.region]
@@ -1677,12 +1681,12 @@ do
 			detailedTooltip:AddDoubleLine(dungeon.shortName, keyLevel, colorDungeonName.r, colorDungeonName.g, colorDungeonName.b, colorDungeonLevel.r, colorDungeonLevel.g, colorDungeonLevel.b)
 		end
 
-		if OUTDATED_DAYS > 1 then
+		if OUTDATED_DAYS[profile.faction] > 1 then
 			detailedTooltip:AddLine(" ")
-			detailedTooltip:AddLine(format(L.OUTDATED_DATABASE, OUTDATED_DAYS), 0.8, 0.8, 0.8, false)
-		elseif OUTDATED_HOURS > 12 then
+			detailedTooltip:AddLine(format(L.OUTDATED_DATABASE, OUTDATED_DAYS[profile.faction]), 0.8, 0.8, 0.8, false)
+		elseif OUTDATED_HOURS[profile.faction] > 12 then
 			detailedTooltip:AddLine(" ")
-			detailedTooltip:AddLine(format(L.OUTDATED_DATABASE_HOURS, OUTDATED_HOURS), 0.8, 0.8, 0.8, false)
+			detailedTooltip:AddLine(format(L.OUTDATED_DATABASE_HOURS, OUTDATED_HOURS[profile.faction]), 0.8, 0.8, 0.8, false)
 		end
 
 		detailedTooltip:Show()
@@ -1752,18 +1756,43 @@ do
 		ApplyHooks()
 	end
 
+	local function updateOutdatedDb(faction, date)
+		local year, month, day, hours, minutes, seconds = date:match("^(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+).*Z$")
+		-- parse the ISO timestamp to unix time
+		local ts = time({ year = year, month = month, day = day, hour = hours, min = minutes, sec = seconds })
+		-- calculate the timezone offset between the user and UTC+0
+		local offset = GetTimezoneOffset(ts)
+		-- find elapsed seconds since database update and account for the timezone offset
+		local diff = time() - ts - offset
+		-- figure out of the DB is outdated or not by comparing to our threshold
+		IS_DB_OUTDATED[faction] = diff >= OUTDATED_SECONDS
+		OUTDATED_HOURS[faction] = floor(diff/ 3600 + 0.5);
+		OUTDATED_DAYS[faction] = floor(diff / 86400 + 0.5);
+	end
+
 	-- we have logged in and character data is available
 	function addon:PLAYER_LOGIN()
 		-- store our faction for later use
 		PLAYER_FACTION = GetFaction("player")
 		PLAYER_REGION = GetRegion()
+
+		local firstDataProvider = {}
+
 		-- pick the data provider that suits the players region
 		for i = #dataProviderQueue, 1, -1 do
 			local data = dataProviderQueue[i]
 			-- is this provider relevant?
 			if data.region == PLAYER_REGION then
+				-- Is the provider up to date ?
+				updateOutdatedDb(data.faction, data.date)
+
 				-- append provider to the table
 				if dataProvider then
+					if (firstDataProvider.region ~= data.region or firstDataProvider.faction ~= data.faction) and firstDataProvider.date ~= data.date then
+						-- Warning if the data is out of sync between faction
+						DEFAULT_CHAT_FRAME:AddMessage(format(L.OUT_OF_SYNC_DATABASE_S, addonName), 1, 1, 0)
+					end
+
 					if not dataProvider.db1 then
 						dataProvider.db1 = data.db1
 					end
@@ -1778,6 +1807,8 @@ do
 					end
 				else
 					dataProvider = data
+					firstDataProvider = {["date"] = data.date, ["region"] = data.region, ["faction"] = data.faction }
+
 					-- debug.lua needs this for querying (also adding the tooltip bit because for now only these two are needed for debug.lua to function...)
 					ns.dataProvider = dataProvider
 					ns.AppendGameTooltip = AppendGameTooltip
@@ -1791,23 +1822,11 @@ do
 			-- remove reference from the queue
 			dataProviderQueue[i] = nil
 		end
-		-- is the provider up to date?
-		if dataProvider then
-			local year, month, day, hours, minutes, seconds = dataProvider.date:match("^(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+).*Z$")
-			-- parse the ISO timestamp to unix time
-			local ts = time({ year = year, month = month, day = day, hour = hours, min = minutes, sec = seconds })
-			-- calculate the timezone offset between the user and UTC+0
-			local offset = GetTimezoneOffset(ts)
-			-- find elapsed seconds since database update and account for the timezone offset
-			local diff = time() - ts - offset
-			-- figure out of the DB is outdated or not by comparing to our threshold
-			IS_DB_OUTDATED = diff >= OUTDATED_SECONDS
-			OUTDATED_HOURS = floor(diff/ 3600 + 0.5);
-			OUTDATED_DAYS = floor(diff / 86400 + 0.5)
-			if IS_DB_OUTDATED then
-				DEFAULT_CHAT_FRAME:AddMessage(format(L.OUTDATED_DATABASE_S, addonName, OUTDATED_DAYS), 1, 1, 0)
-			end
+
+		if IS_DB_OUTDATED[PLAYER_FACTION] then
+			DEFAULT_CHAT_FRAME:AddMessage(format(L.OUTDATED_DATABASE_S, addonName, OUTDATED_DAYS[PLAYER_FACTION]), 1, 1, 0)
 		end
+
 		-- hide the provider function from the public API
 		_G.RaiderIO.AddProvider = nil
 	end
@@ -2411,7 +2430,15 @@ do
 				end
 			elseif dropdown.which and supportedTypes[dropdown.which] then -- UnitPopup
 				if addonConfig.showDropDownCopyURL then
-					ShowCustomDropDown(self, dropdown, dropdown.chatTarget or dropdown.name, dropdown.unit, dropdown.which, dropdown.bnetIDAccount)
+					local dropdownFullName
+					if dropdown.name then
+						if dropdown.server and not dropdown.name:find('-') then
+							dropdownFullName = dropdown.name .. '-' .. dropdown.server
+						else
+							dropdownFullName = dropdown.name
+						end
+					end
+					ShowCustomDropDown(self, dropdown, dropdown.chatTarget or dropdownFullName, dropdown.unit, dropdown.which, dropdown.bnetIDAccount)
 				end
 			end
 		end
