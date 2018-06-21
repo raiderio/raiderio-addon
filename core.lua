@@ -970,22 +970,41 @@ do
 			_G["SLASH_" .. addonName .. "2"] = "/rio"
 
 			local function handler(text)
-
-				-- if the keyword "debug" is present in the command we show the query dialog
-				if type(text) == "string" and text:find("[Dd][Ee][Bb][Uu][Gg]") then
-					if not ns.DEBUG_UI and ns.DEBUG_INIT then
-						if ns.DEBUG_INIT_WARNED then
-							ns.DEBUG_INIT()
-						else
-							ns.DEBUG_INIT_WARNED = 1
-							DEFAULT_CHAT_FRAME:AddMessage("This is an experimental feature. Once you are done using this tool, please |cffFFFFFF/reload|r your interface, or relog, in order to restore AutoCompletion functionality elsewhere in the interface. Type the command again to confirm and load the tool.", 1, 1, 0)
+				if type(text) == "string" then
+					if text:find("[Ll][Oo][Cc][Kk]") then
+						if addonConfig.positionProfileAuto then
+							DEFAULT_CHAT_FRAME:AddMessage("Locking / Unlocking doesn't work if the profile frame has is position set to automatically.", 1, 1, 0)
+							return
 						end
+
+						if addonConfig.lockProfile then
+							addonConfig.lockProfile = false
+							SetProfileFrameDraggability(true)
+							DEFAULT_CHAT_FRAME:AddMessage("Unlocking the profile frame.", 1, 1, 0)
+						else
+							addonConfig.lockProfile = true
+							SetProfileFrameDraggability(false)
+							DEFAULT_CHAT_FRAME:AddMessage("Locking the profile frame.", 1, 1, 0)
+						end
+						return
 					end
-					if ns.DEBUG_UI then
-						ns.DEBUG_UI:SetShown(not ns.DEBUG_UI:IsShown())
+
+					-- if the keyword "debug" is present in the command we show the query dialog
+					if text:find("[Dd][Ee][Bb][Uu][Gg]") then
+						if not ns.DEBUG_UI and ns.DEBUG_INIT then
+							if ns.DEBUG_INIT_WARNED then
+								ns.DEBUG_INIT()
+							else
+								ns.DEBUG_INIT_WARNED = 1
+								DEFAULT_CHAT_FRAME:AddMessage("This is an experimental feature. Once you are done using this tool, please |cffFFFFFF/reload|r your interface, or relog, in order to restore AutoCompletion functionality elsewhere in the interface. Type the command again to confirm and load the tool.", 1, 1, 0)
+							end
+						end
+						if ns.DEBUG_UI then
+							ns.DEBUG_UI:SetShown(not ns.DEBUG_UI:IsShown())
+						end
+						-- we do not wish to show the config dialog at this time
+						return
 					end
-					-- we do not wish to show the config dialog at this time
-					return
 				end
 
 				-- resume regular routine
