@@ -498,6 +498,7 @@ end
 -- addon functions
 local Init
 local InitConfig
+local SetProfileFrameDraggability -- Needs to be set here to be used in the config
 do
 	-- update local reference to the correct savedvariable table
 	local function UpdateGlobalConfigVar()
@@ -666,6 +667,9 @@ do
 			if reload then
 				StaticPopup_Show("RAIDERIO_RELOADUI_CONFIRM")
 			end
+
+			-- Draggability of detailedTooltip frame
+			SetProfileFrameDraggability(not addonConfig.positionProfileAuto and not addonConfig.lockProfile)
 		end
 
 		config = {
@@ -1566,7 +1570,6 @@ end
 -- RaiderIO Profile
 local UpdateDetailledTooltip
 local SetProfileTooltipNearFrame
-local SetProfileFrameDraggability
 do
 	function UpdateDetailledTooltip(forcePlayer)
 		if not detailedTooltip or not detailedTooltip:GetOwner() then
