@@ -978,14 +978,12 @@ do
 						end
 
 						if addonConfig.lockProfile then
-							addonConfig.lockProfile = false
-							SetProfileFrameDraggability(true)
 							DEFAULT_CHAT_FRAME:AddMessage("Unlocking the profile frame.", 1, 1, 0)
 						else
-							addonConfig.lockProfile = true
-							SetProfileFrameDraggability(false)
 							DEFAULT_CHAT_FRAME:AddMessage("Locking the profile frame.", 1, 1, 0)
 						end
+						addonConfig.lockProfile = not addonConfig.lockProfile
+						SetProfileFrameDraggability(not addonConfig.lockProfile)
 						return
 					end
 
