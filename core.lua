@@ -1692,7 +1692,7 @@ do
 		detailedTooltip:Show()
 	end
 
-	function SetProfileTooltipNearFrame(frame, player, focusOnDungeonIndex, focusOnKeystoneLevel, forceFrameStrata, forcePlayer)
+	function SetProfileTooltipNearFrame(frame, forceFrameStrata, forcePlayer)
 		if not addonConfig.showRaiderIOProfile then
 			return
 		end
@@ -1963,7 +1963,7 @@ do
 						AppendGameTooltip(GameTooltip, fullName, not hasOwner, true, PLAYER_FACTION, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
 
 						if addonConfig.positionProfileAuto then
-							SetProfileTooltipNearFrame(GameTooltip, fullName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel, nil, true)
+							SetProfileTooltipNearFrame(GameTooltip, nil, true)
 						else
 							UpdateDetailledTooltip()
 						end
@@ -1983,7 +1983,7 @@ do
 			function OnHideDetailledTooltip(self)
 				if PVEFrame:IsShown() then
 					if addonConfig.positionProfileAuto then
-						SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
+						SetProfileTooltipNearFrame(PVEFrame, "BACKGROUND")
 					else
 						UpdateDetailledTooltip()
 					end
@@ -2002,7 +2002,7 @@ do
 
 					-- RaiderIO Profile
 					if addonConfig.positionProfileAuto then
-						SetProfileTooltipNearFrame(tooltip, leaderName, LFD_ACTIVITYID_TO_DUNGEONID[activityID], keystoneLevel)
+						SetProfileTooltipNearFrame(tooltip)
 					else
 						UpdateDetailledTooltip()
 					end
@@ -2513,7 +2513,7 @@ do
 
 		local function ShowTooltipRaiderIO()
 			if not detailedTooltip:IsShown() then
-				SetProfileTooltipNearFrame(PVEFrame, "player", nil, nil, "BACKGROUND")
+				SetProfileTooltipNearFrame(PVEFrame, "BACKGROUND")
 
 				if not addonConfig.positionProfileAuto then
 					if addonConfig.profilePoint.point ~= nil then
