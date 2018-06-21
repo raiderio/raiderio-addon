@@ -879,8 +879,8 @@ do
 			config:CreateOptionToggle(L.SHOW_RAIDERIO_PROFILE, L.SHOW_RAIDERIO_PROFILE_DESC, "showRaiderIOProfile", true)
 			config:CreateOptionToggle(L.SHOW_LEADER_PROFILE, L.SHOW_LEADER_PROFILE_DESC, "enableProfileModifier")
 			config:CreateOptionToggle(L.INVERSE_PROFILE_MODIFIER, L.INVERSE_PROFILE_MODIFIER_DESC, "inverseProfileModifier")
-			config:CreateOptionToggle("Position My M+ Profile frame automatically", "", "positionProfileAuto")
-			config:CreateOptionToggle("Lock My M+ Profile frame", "Has no effect with auto position", "lockProfile")
+			config:CreateOptionToggle(L.ENABLE_AUTO_FRAME_POSITION, L.ENABLE_AUTO_FRAME_POSITION_DESC, "positionProfileAuto")
+			config:CreateOptionToggle(L.ENABLE_LOCK_PROFILE_FRAME, L.ENABLE_LOCK_PROFILE_FRAME_DESC, "lockProfile")
 
 			config:CreatePadding()
 			config:CreateHeadline(L.COPY_RAIDERIO_PROFILE_URL)
@@ -977,14 +977,14 @@ do
 				if type(text) == "string" then
 					if text:find("[Ll][Oo][Cc][Kk]") then
 						if addonConfig.positionProfileAuto then
-							DEFAULT_CHAT_FRAME:AddMessage("Locking / Unlocking doesn't work if the profile frame has is position set to automatically.", 1, 1, 0)
+							DEFAULT_CHAT_FRAME:AddMessage(L.WARNING_LOCK_POSITION_FRAME_AUTO, 1, 1, 0)
 							return
 						end
 
 						if addonConfig.lockProfile then
-							DEFAULT_CHAT_FRAME:AddMessage("Unlocking the profile frame.", 1, 1, 0)
+							DEFAULT_CHAT_FRAME:AddMessage(L.UNLOCKING_PROFILE_FRAME, 1, 1, 0)
 						else
-							DEFAULT_CHAT_FRAME:AddMessage("Locking the profile frame.", 1, 1, 0)
+							DEFAULT_CHAT_FRAME:AddMessage(L.LOCKING_PROFILE_FRAME, 1, 1, 0)
 						end
 						addonConfig.lockProfile = not addonConfig.lockProfile
 						SetProfileFrameDraggability(not addonConfig.lockProfile)

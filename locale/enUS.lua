@@ -96,5 +96,12 @@ L.SHOW_LEADER_PROFILE = "Allow My M+ Profile Tooltip Modifier"
 L.SHOW_LEADER_PROFILE_DESC = "Hold down a modifier (shift/ctrl/alt) to toggle Profile Tooltip between Personal/Leader Profile."
 L.INVERSE_PROFILE_MODIFIER = "Invert My M+ Profile Tooltip Modifier"
 L.INVERSE_PROFILE_MODIFIER_DESC = "Enabling this will invert the behavior of the My M+ Profile Tooltip modifier (shift/ctrl/alt): hold to toggle the view between Personal/Leader profile or Leader/Personal profile."
+L.ENABLE_AUTO_FRAME_POSITION = "Position My M+ Profile frame automatically"
+L.ENABLE_AUTO_FRAME_POSITION_DESC = "Enabling this will keep the tooltip next to LFG Frame."
+L.ENABLE_LOCK_PROFILE_FRAME = "Lock My M+ Profile frame"
+L.ENABLE_LOCK_PROFILE_FRAME_DESC = "Allow you to drag the Profile Frame. This has no effect if the profile frame is position automatically."
+L.WARNING_LOCK_POSITION_FRAME_AUTO = "Locking / Unlocking doesn't work if the profile frame has is position set to automatically."
+L.LOCKING_PROFILE_FRAME = "Locking the profile frame."
+L.UNLOCKING_PROFILE_FRAME = "Unlocking the profile frame."
 
 ns.L = L
