@@ -680,6 +680,15 @@ do
 
 			-- Draggability of profileTooltip frame
 			ProfileTooltip_SetFrameDraggability(not addonConfig.positionProfileAuto and not addonConfig.lockProfile)
+
+			-- Reset profile position to nil
+			if addonConfig.positionProfileAuto then
+				addonConfig.profilePoint = {
+					["point"] = nil,
+					["x"] = nil,
+					["y"] = nil
+				}
+			end
 		end
 
 		config = {
