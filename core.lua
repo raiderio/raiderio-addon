@@ -1717,9 +1717,9 @@ do
 		self:StopMovingOrSizing()
 		local point, _, _, x, y = self:GetPoint()
 		addonConfig.profilePoint = {
-			[point] = point,
-			[x] = x,
-			[y] = y
+			["point"] = point,
+			["x"] = x,
+			["y"] = y
 		}
 	end
 
