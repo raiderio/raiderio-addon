@@ -1608,9 +1608,10 @@ end
 -- RaiderIO Profile
 local ProfileTooltip_Update
 do
-	-- force can either be "player" or "target"
+	-- force can either be "player", "target" or not defined
 	-- if force == player then always display player's profile
-	-- if force == target then always display target's profile
+	-- if force == target then always display the active player tooltip
+	-- if force is not defined, then the display depends on the modifier and the configuration
 	function ProfileTooltip_Update(force)
 		if not profileTooltip or not profileTooltip:GetOwner() then
 			return
