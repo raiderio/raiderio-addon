@@ -1338,8 +1338,8 @@ do
 	end
 
 	function AddClientCharacters(data)
-		-- make sure the object is what we expect it to be like
-		assert(type(data) == "table" and type(data.profile) == "table" and type(data.mythic_keystone) === "table", "Raider.IO has been requested to load a client database that isn't supported.")
+		-- make sure the object is what we expect it to be like (TODO: check this more deeply?)
+		assert(type(data) == "table", "Raider.IO has been requested to load a client database that isn't supported.")
 		clientCharacters = data
 	end
 
