@@ -55,6 +55,7 @@ local dataProvider
 
 -- client
 local clientCharacters = {}
+local guildBest = {}
 
 -- tooltip related hooks and storage
 local tooltipArgs = {}
@@ -299,6 +300,7 @@ local addon = CreateFrame("Frame")
 
 -- utility functions
 local CompareDungeon
+local GetDungeonWithZoneId
 local GetTimezoneOffset
 local GetRegion
 local GetKeystoneLevel
@@ -311,6 +313,14 @@ local GetWeeklyAffix
 local GetAverageScore
 local GetStarsForUpgrades
 do
+	function GetDungeonWithZoneId(zoneId)
+		for i = 1, #CONST_DUNGEONS do
+			if CONST_DUNGEONS[i]["id"] == zoneId then
+				return CONST_DUNGEONS[i]
+			end
+		end
+	end
+
 	-- Compare two dungeon first by the keyLevel, then by their short name
 	function CompareDungeon(a, b)
 		if not a then
@@ -1077,6 +1087,7 @@ end
 -- provider
 local AddProvider
 local AddClientCharacters
+local AddClientGuild
 local GetScore
 local GetScoreColor
 do
@@ -1351,6 +1362,12 @@ do
 		-- make sure the object is what we expect it to be like (TODO: check this more deeply?)
 		assert(type(data) == "table", "Raider.IO has been requested to load a client database that isn't supported.")
 		clientCharacters = data
+	end
+
+	function AddClientGuild(data)
+		-- make sure the object is what we expect it to be like (TODO: check this more deeply?)
+		assert(type(data) == "table", "Raider.IO has been requested to load a client database that isn't supported.")
+		guildBest = data
 	end
 
 	-- retrieves the profile of a given unit, or name+realm query
@@ -1857,6 +1874,71 @@ do
 			profileTooltip:SetScript("OnDragStart", nil)
 			profileTooltip:SetScript("OnDragStop", nil)
 		end
+	end
+end
+
+-- Guild Best
+GuildBestMixin = {}
+GuildBestRunMixin = {}
+do
+	function GuildBestMixin:SetUp(bestRuns)
+		self.bestRuns = bestRuns;
+
+		for i, run in ipairs(self.bestRuns) do
+			local frame = self.GuildBests[i]
+
+			if (not frame) then
+				frame = CreateFrame("Frame", nil, GuildBestFrame, "GuildBestRunTemplate")
+
+				frame:SetPoint("TOP", self.GuildBests[i-1], "BOTTOM")
+			end
+
+			frame:SetUp(run)
+			frame:Show()
+		end
+	end
+
+	function GuildBestRunMixin:SetUp(runInfo)
+		self.runInfo = runInfo
+
+		self.CharacterName:SetText(GetDungeonWithZoneId(self.runInfo.zone_id).shortNameLocale)
+
+		self.Level:SetTextColor(COLOR_WHITE.r, COLOR_WHITE.g, COLOR_WHITE.b)
+		if self.runInfo.upgrades == 0 then
+			self.Level:SetTextColor(COLOR_GREY.r, COLOR_GREY.g, COLOR_GREY.b)
+		end
+		self.Level:SetText(GetStarsForUpgrades(self.runInfo.upgrades) .. self.runInfo.level)
+	end
+
+	function GuildBestRunMixin:OnEnter()
+		GameTooltip:SetOwner(self, "ANCHOR_LEFT");
+
+		-- TODO: Translation
+		GameTooltip:SetText(GetDungeonWithZoneId(self.runInfo.zone_id).name, 1, 1, 1);
+
+		GameTooltip:AddLine(MYTHIC_PLUS_POWER_LEVEL:format(self.runInfo.level), 1, 1, 1);
+		GameTooltip:AddLine(self.runInfo.runTime, 1, 1, 1);
+
+		GameTooltip:AddLine(" ");
+
+		for i, member in ipairs(self.runInfo.party) do
+			if (member.name) then
+				local classInfo = C_CreatureInfo.GetClassInfo(member.class_id);
+				local color = (classInfo and RAID_CLASS_COLORS[classInfo.classFile]) or NORMAL_FONT_COLOR;
+				local texture;
+				if (member.role == "tank") then
+					texture = CreateAtlasMarkup("roleicon-tiny-tank");
+				elseif (member.role == "dps") then
+					texture = CreateAtlasMarkup("roleicon-tiny-dps");
+				elseif (member.role == "healer") then
+					texture = CreateAtlasMarkup("roleicon-tiny-healer");
+				end
+
+				GameTooltip:AddLine(MYTHIC_PLUS_LEADER_BOARD_NAME_ICON:format(texture, member.name), color.r, color.g, color.b);
+			end
+		end
+
+		GameTooltip:Show();
 	end
 end
 
@@ -2698,6 +2780,48 @@ do
 		hooksecurefunc(PVEFrame, "Hide", ProfileTooltip_Hide)
 		return 1
 	end
+
+	-- Guild Weekly Best
+	uiHooks[#uiHooks + 1] = function()
+		-- Todo: Config
+--		if not addonConfig.showRaiderIOProfile then
+--			return 1
+--		end
+
+		if _G.ChallengesFrame then
+			local function GuildBest_Show()
+				GuildBestFrame:ClearAllPoints()
+				GuildBestFrame:SetFrameStrata("HIGH")
+
+				local guildName, _, _, guildRealm = GetGuildInfo("player")
+
+				if not guildRealm then
+					_, guildRealm = GetNameAndRealm("player")
+				end
+
+				local guildFullname = guildName.."-"..guildRealm
+
+				if not guildBest[guildFullname] then
+					return
+				end
+
+				GuildBestFrame:SetUp(guildBest[guildFullname]["season_best"])
+
+				GuildBestFrame:SetPoint("TOPRIGHT",ChallengesFrame, "RIGHT", -10,0)
+				GuildBestFrame:Show()
+			end
+
+			local function GuildBest_Hide()
+				GuildBestFrame:Hide()
+			end
+
+			hooksecurefunc(ChallengesFrame, "Show", GuildBest_Show)
+			hooksecurefunc(ChallengesFrame, "Hide", GuildBest_Hide)
+			hooksecurefunc(PVEFrame, "Hide", GuildBest_Hide)
+
+			return 1
+		end
+	end
 end
 
 -- API
@@ -2719,6 +2843,7 @@ _G.RaiderIO = {
 -- PLEASE DO NOT USE (we need it public for the sake of the database modules)
 _G.RaiderIO.AddProvider = AddProvider
 _G.RaiderIO.AddClientCharacters = AddClientCharacters
+_G.RaiderIO.AddClientGuild = AddClientGuild
 
 -- register events and wait for the addon load event to fire
 addon:SetScript("OnEvent", function(_, event, ...) addon[event](addon, event, ...) end)

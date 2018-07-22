@@ -24,7 +24,9 @@ locale/ruRU.lua
 locale/zhCN.lua
 locale/zhTW.lua
 
+GuildBest.xml
 core.lua
 debug.lua
 
 db/db_client_characters.lua
+db/db_client_guild.lua
