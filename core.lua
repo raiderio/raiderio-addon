@@ -29,6 +29,7 @@ local addonConfig = {
 	disableScoreColors = false,
 	alwaysExtendTooltip = false,
 	enableClientEnhancements = true,
+	showClientGuildBest = true,
 	showRaiderIOProfile = true,
 	enableProfileModifier = true,
 	inverseProfileModifier = false,
@@ -943,6 +944,7 @@ do
 			config:CreatePadding()
 			config:CreateHeadline(L.RAIDERIO_CLIENT_CUSTOMIZATION)
 			config:CreateOptionToggle(L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS, L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS_DESC, "enableClientEnhancements", true)
+			config:CreateOptionToggle(L.SHOW_CLIENT_GUILD_BEST, L.SHOW_CLIENT_GUILD_BEST_DESC, "showClientGuildBest", true)
 
 			config:CreatePadding()
 			config:CreateHeadline(L.COPY_RAIDERIO_PROFILE_URL)
@@ -979,7 +981,7 @@ do
 
 			-- adjust frame height dynamically
 			local children = {configFrame:GetChildren()}
-			local height = 30
+			local height = 40
 			for i = 1, #children do
 				height = height + children[i]:GetHeight() + 2
 			end
@@ -2783,10 +2785,9 @@ do
 
 	-- Guild Weekly Best
 	uiHooks[#uiHooks + 1] = function()
-		-- Todo: Config
---		if not addonConfig.showRaiderIOProfile then
---			return 1
---		end
+		if not addonConfig.showClientGuildBest then
+			return 1
+		end
 
 		if _G.ChallengesFrame then
 			local function GuildBest_Show()
