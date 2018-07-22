@@ -1830,8 +1830,7 @@ do
 	function GuildBestRunMixin:OnEnter()
 		GameTooltip:SetOwner(self, "ANCHOR_LEFT");
 
-		-- TODO: Translation
-		GameTooltip:SetText(GetDungeonWithZoneId(self.runInfo.zone_id).name, 1, 1, 1);
+		GameTooltip:SetText(C_ChallengeMode.GetMapUIInfo(GetDungeonWithZoneId(self.runInfo.zone_id).keystone_instance), 1, 1, 1);
 
 		GameTooltip:AddLine(MYTHIC_PLUS_POWER_LEVEL:format(self.runInfo.level), 1, 1, 1);
 		GameTooltip:AddLine(self.runInfo.runTime, 1, 1, 1);
