@@ -2623,7 +2623,7 @@ do
 			if type(link) ~= "string" then
 				return
 			end
-			local inst, lvl, a1, a2, a3 = link:match("keystone:(%d+):(%d+):(%d+):(%d+):(%d+)")
+			local inst, lvl, a1, a2, a3 = link:match("keystone:138019:(%d+):(%d+):(%d+):(%d+):(%d+)")
 			if not lvl then
 				inst, lvl, a1, a2, a3 = link:match("item:138019:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:(%d+):(%d+):(%d+):(%d+):(%d+)")
 			end
