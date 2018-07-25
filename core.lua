@@ -216,7 +216,7 @@ local addon = CreateFrame("Frame")
 
 -- utility functions
 local CompareDungeon
-local GetDungeonWithZoneId
+local GetDungeonWithData
 local GetTimezoneOffset
 local GetRegion
 local GetKeystoneLevel
@@ -229,9 +229,10 @@ local GetWeeklyAffix
 local GetAverageScore
 local GetStarsForUpgrades
 do
-	function GetDungeonWithZoneId(zoneId)
+	-- Find the dungeon in CONST_DUNGEONS corresponding to the data in argument
+	function GetDungeonWithData(dataName, dataValue)
 		for i = 1, #CONST_DUNGEONS do
-			if CONST_DUNGEONS[i]["id"] == zoneId then
+			if CONST_DUNGEONS[i][dataName] == dataValue then
 				return CONST_DUNGEONS[i]
 			end
 		end
@@ -1818,7 +1819,7 @@ do
 	function GuildBestRunMixin:SetUp(runInfo)
 		self.runInfo = runInfo
 
-		self.CharacterName:SetText(GetDungeonWithZoneId(self.runInfo.zone_id).shortNameLocale)
+		self.CharacterName:SetText(GetDungeonWithData("id", self.runInfo.zone_id).shortNameLocale)
 
 		self.Level:SetTextColor(COLOR_WHITE.r, COLOR_WHITE.g, COLOR_WHITE.b)
 		if self.runInfo.upgrades == 0 then
@@ -1830,7 +1831,7 @@ do
 	function GuildBestRunMixin:OnEnter()
 		GameTooltip:SetOwner(self, "ANCHOR_LEFT");
 
-		GameTooltip:SetText(C_ChallengeMode.GetMapUIInfo(GetDungeonWithZoneId(self.runInfo.zone_id).keystone_instance), 1, 1, 1);
+		GameTooltip:SetText(C_ChallengeMode.GetMapUIInfo(GetDungeonWithData("id", self.runInfo.zone_id).keystone_instance), 1, 1, 1);
 
 		GameTooltip:AddLine(MYTHIC_PLUS_POWER_LEVEL:format(self.runInfo.level), 1, 1, 1);
 		GameTooltip:AddLine(self.runInfo.runTime, 1, 1, 1);
