@@ -1803,11 +1803,11 @@ GuildBestRunMixin = {}
 do
 	function GuildBestMixin:SetUp(bestRuns)
 		local keyBest = "season_best"
-		local title = L["SEASON"]
+		local title = L["GUILD_BEST_SEASON"]
 
 		if addonConfig.displayWeeklyGuildBest then
 			keyBest = "weekly_best"
-			title = L["WEEKLY"]
+			title = L["GUILD_BEST_WEEKLY"]
 		end
 
 		self.SubTitle:SetText(title)
@@ -2755,7 +2755,7 @@ do
 
 				GuildBestFrame:SetUp(guildBest[guildFullname])
 
-				GuildBestFrame:SetPoint("TOPRIGHT",ChallengesFrame, "RIGHT", -10,15)
+				GuildBestFrame:SetPoint("TOPRIGHT",ChallengesFrame, "RIGHT", -10,0)
 				GuildBestFrame:Show()
 			end
 
