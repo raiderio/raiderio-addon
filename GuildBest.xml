@@ -25,7 +25,7 @@
         </Scripts>
     </Frame>
     <Frame name="GuildBestFrame" parentKey="GuildBest" mixin="GuildBestMixin" hidden="true">
-        <Size x="120" y="110"/>
+        <Size x="120" y="105"/>
         <Layers>
             <Layer level="BACKGROUND">
                 <Texture atlas="ChallengeMode-guild-background" setAllPoints="true" alpha="0.4"/>
@@ -60,7 +60,7 @@
         <Frames>
             <Frame inherits="GuildBestRunTemplate" hidden="true">
                 <Anchors>
-                    <Anchor point="TOPLEFT" relativeKey="$parent.Title" relativePoint="BOTTOMLEFT" y="-20"/>
+                    <Anchor point="TOPLEFT" relativeKey="$parent.Title" relativePoint="BOTTOMLEFT" y="-17"/>
                 </Anchors>
             </Frame>
         </Frames>

@@ -2755,7 +2755,7 @@ do
 
 				GuildBestFrame:SetUp(guildBest[guildFullname])
 
-				GuildBestFrame:SetPoint("TOPRIGHT",ChallengesFrame, "RIGHT", -10,0)
+				GuildBestFrame:SetPoint("TOPRIGHT",ChallengesFrame, "RIGHT", -10,-10)
 				GuildBestFrame:Show()
 			end
 
