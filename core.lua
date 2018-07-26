@@ -30,6 +30,7 @@ local addonConfig = {
 	alwaysExtendTooltip = false,
 	enableClientEnhancements = true,
 	showClientGuildBest = true,
+	displayWeeklyGuildBest = false,
 	showRaiderIOProfile = true,
 	enableProfileModifier = true,
 	inverseProfileModifier = false,
@@ -861,6 +862,7 @@ do
 			config:CreateHeadline(L.RAIDERIO_CLIENT_CUSTOMIZATION)
 			config:CreateOptionToggle(L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS, L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS_DESC, "enableClientEnhancements", true)
 			config:CreateOptionToggle(L.SHOW_CLIENT_GUILD_BEST, L.SHOW_CLIENT_GUILD_BEST_DESC, "showClientGuildBest", true)
+			config:CreateOptionToggle(L.DISPLAY_WEEKLY_GUILD_BEST, L.DISPLAY_WEEKLY_GUILD_BEST_DESC, "displayWeeklyGuildBest", true)
 
 			config:CreatePadding()
 			config:CreateHeadline(L.COPY_RAIDERIO_PROFILE_URL)
@@ -1800,7 +1802,23 @@ GuildBestMixin = {}
 GuildBestRunMixin = {}
 do
 	function GuildBestMixin:SetUp(bestRuns)
-		self.bestRuns = bestRuns;
+		local keyBest = "season_best"
+		local title = L["SEASON"]
+
+		if addonConfig.displayWeeklyGuildBest then
+			keyBest = "weekly_best"
+			title = L["WEEKLY"]
+		end
+
+		self.SubTitle:SetText(title)
+
+		self.bestRuns = bestRuns[keyBest];
+
+		self:Reset()
+
+		if not self.bestRuns then
+			return
+		end
 
 		for i, run in ipairs(self.bestRuns) do
 			local frame = self.GuildBests[i]
@@ -1813,6 +1831,14 @@ do
 
 			frame:SetUp(run)
 			frame:Show()
+		end
+	end
+
+	function GuildBestMixin:Reset()
+		if self.GuildBests then
+			for _, frame in ipairs(self.GuildBests) do
+				frame:Hide()
+			end
 		end
 	end
 
@@ -1836,22 +1862,24 @@ do
 		GameTooltip:AddLine(MYTHIC_PLUS_POWER_LEVEL:format(self.runInfo.level), 1, 1, 1);
 		GameTooltip:AddLine(self.runInfo.runTime, 1, 1, 1);
 
-		GameTooltip:AddLine(" ");
+		if self.runInfo.party then
+			GameTooltip:AddLine(" ");
 
-		for i, member in ipairs(self.runInfo.party) do
-			if (member.name) then
-				local classInfo = C_CreatureInfo.GetClassInfo(member.class_id);
-				local color = (classInfo and RAID_CLASS_COLORS[classInfo.classFile]) or NORMAL_FONT_COLOR;
-				local texture;
-				if (member.role == "tank") then
-					texture = CreateAtlasMarkup("roleicon-tiny-tank");
-				elseif (member.role == "dps") then
-					texture = CreateAtlasMarkup("roleicon-tiny-dps");
-				elseif (member.role == "healer") then
-					texture = CreateAtlasMarkup("roleicon-tiny-healer");
+			for i, member in ipairs(self.runInfo.party) do
+				if (member.name) then
+					local classInfo = C_CreatureInfo.GetClassInfo(member.class_id);
+					local color = (classInfo and RAID_CLASS_COLORS[classInfo.classFile]) or NORMAL_FONT_COLOR;
+					local texture;
+					if (member.role == "tank") then
+						texture = CreateAtlasMarkup("roleicon-tiny-tank");
+					elseif (member.role == "dps") then
+						texture = CreateAtlasMarkup("roleicon-tiny-dps");
+					elseif (member.role == "healer") then
+						texture = CreateAtlasMarkup("roleicon-tiny-healer");
+					end
+
+					GameTooltip:AddLine(MYTHIC_PLUS_LEADER_BOARD_NAME_ICON:format(texture, member.name), color.r, color.g, color.b);
 				end
-
-				GameTooltip:AddLine(MYTHIC_PLUS_LEADER_BOARD_NAME_ICON:format(texture, member.name), color.r, color.g, color.b);
 			end
 		end
 
@@ -2711,6 +2739,10 @@ do
 
 				local guildName, _, _, guildRealm = GetGuildInfo("player")
 
+				if not guildName then
+					return
+				end
+
 				if not guildRealm then
 					_, guildRealm = GetNameAndRealm("player")
 				end
@@ -2721,9 +2753,9 @@ do
 					return
 				end
 
-				GuildBestFrame:SetUp(guildBest[guildFullname]["season_best"])
+				GuildBestFrame:SetUp(guildBest[guildFullname])
 
-				GuildBestFrame:SetPoint("TOPRIGHT",ChallengesFrame, "RIGHT", -10,0)
+				GuildBestFrame:SetPoint("TOPRIGHT",ChallengesFrame, "RIGHT", -10,15)
 				GuildBestFrame:Show()
 			end
 
