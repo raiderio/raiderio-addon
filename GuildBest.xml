@@ -31,7 +31,7 @@
                 <Texture atlas="ChallengeMode-guild-background" setAllPoints="true" alpha="0.4"/>
             </Layer>
             <Layer level="ARTWORK">
-                <FontString parentKey="Title" inherits="GameFontNormalSmall" text="RaiderIO:" justifyH="CENTER">
+                <FontString parentKey="Title" inherits="GameFontNormalSmall" text="RaiderIO" justifyH="CENTER">
                     <Anchors>
                         <Anchor point="TOPLEFT" x="10" y="-7"/>
                     </Anchors>
