@@ -624,11 +624,16 @@ do
 				local checked = f.checkButton:GetChecked()
 				local enabled = addonConfig[f.cvar]
 
-				if f.needReload and ((not enabled and checked) or (enabled and not checked)) then
-					reload = 1
-				end
-
 				addonConfig[f.cvar] = not not checked
+
+				if ((not enabled and checked) or (enabled and not checked)) then
+					if f.needReload then
+						reload = 1
+					end
+					if f.callback then
+						f.callback()
+					end
+				end
 			end
 			if reload then
 				StaticPopup_Show("RAIDERIO_RELOADUI_CONFIRM")
@@ -760,12 +765,13 @@ do
 			return frame
 		end
 
-		function config.CreateOptionToggle(self, label, description, cvar, needReload)
+		function config.CreateOptionToggle(self, label, description, cvar, config)
 			local frame = self:CreateWidget("Frame")
 			frame.text:SetText(label)
 			frame.tooltip = description
 			frame.cvar = cvar
-			frame.needReload = needReload
+			frame.needReload = (config and config.needReload) or false
+			frame.callback = (config and config.callback) or nil
 			frame.help.tooltip = description
 			frame.help:Show()
 			frame.checkButton:Show()
@@ -852,7 +858,7 @@ do
 
 			config:CreatePadding()
 			config:CreateHeadline(L.TOOLTIP_PROFILE)
-			config:CreateOptionToggle(L.SHOW_RAIDERIO_PROFILE, L.SHOW_RAIDERIO_PROFILE_DESC, "showRaiderIOProfile", true)
+			config:CreateOptionToggle(L.SHOW_RAIDERIO_PROFILE, L.SHOW_RAIDERIO_PROFILE_DESC, "showRaiderIOProfile", {["needReload"] = true})
 			config:CreateOptionToggle(L.SHOW_LEADER_PROFILE, L.SHOW_LEADER_PROFILE_DESC, "enableProfileModifier")
 			config:CreateOptionToggle(L.INVERSE_PROFILE_MODIFIER, L.INVERSE_PROFILE_MODIFIER_DESC, "inverseProfileModifier")
 			config:CreateOptionToggle(L.ENABLE_AUTO_FRAME_POSITION, L.ENABLE_AUTO_FRAME_POSITION_DESC, "positionProfileAuto")
@@ -860,9 +866,11 @@ do
 
 			config:CreatePadding()
 			config:CreateHeadline(L.RAIDERIO_CLIENT_CUSTOMIZATION)
-			config:CreateOptionToggle(L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS, L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS_DESC, "enableClientEnhancements", true)
-			config:CreateOptionToggle(L.SHOW_CLIENT_GUILD_BEST, L.SHOW_CLIENT_GUILD_BEST_DESC, "showClientGuildBest", true)
-			config:CreateOptionToggle(L.DISPLAY_WEEKLY_GUILD_BEST, L.DISPLAY_WEEKLY_GUILD_BEST_DESC, "displayWeeklyGuildBest", true)
+			config:CreateOptionToggle(L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS, L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS_DESC, "enableClientEnhancements", {["needReload"] = true})
+			config:CreateOptionToggle(L.SHOW_CLIENT_GUILD_BEST, L.SHOW_CLIENT_GUILD_BEST_DESC, "showClientGuildBest", {["needReload"] = true})
+			config:CreateOptionToggle(L.DISPLAY_WEEKLY_GUILD_BEST, L.DISPLAY_WEEKLY_GUILD_BEST_DESC, "displayWeeklyGuildBest", {["callback"] = function ()
+				GuildBestFrame:SetUp()
+			end})
 
 			config:CreatePadding()
 			config:CreateHeadline(L.COPY_RAIDERIO_PROFILE_URL)
@@ -1801,7 +1809,35 @@ end
 GuildBestMixin = {}
 GuildBestRunMixin = {}
 do
-	function GuildBestMixin:SetUp(bestRuns)
+	function GuildBestMixin:SwitchBestRun()
+		addonConfig.displayWeeklyGuildBest = not addonConfig.displayWeeklyGuildBest
+
+		self:SetUp()
+	end
+
+	function GuildBestMixin:GetBestRuns()
+		local guildName, _, _, guildRealm = GetGuildInfo("player")
+
+		if not guildName then
+			return
+		end
+
+		if not guildRealm then
+			_, guildRealm = GetNameAndRealm("player")
+		end
+
+		local guildFullname = guildName.."-"..guildRealm
+
+		if not guildBest[guildFullname] then
+			return {}
+		end
+
+		return guildBest[guildFullname]
+	end
+
+	function GuildBestMixin:SetUp()
+		local bestRuns = self:GetBestRuns()
+
 		local keyBest = "season_best"
 		local title = L["GUILD_BEST_SEASON"]
 
@@ -2757,23 +2793,7 @@ do
 				GuildBestFrame:ClearAllPoints()
 				GuildBestFrame:SetFrameStrata("HIGH")
 
-				local guildName, _, _, guildRealm = GetGuildInfo("player")
-
-				if not guildName then
-					return
-				end
-
-				if not guildRealm then
-					_, guildRealm = GetNameAndRealm("player")
-				end
-
-				local guildFullname = guildName.."-"..guildRealm
-
-				if not guildBest[guildFullname] then
-					return
-				end
-
-				GuildBestFrame:SetUp(guildBest[guildFullname])
+				GuildBestFrame:SetUp()
 
 				GuildBestFrame:SetPoint("TOPRIGHT",ChallengesFrame, "RIGHT", -10,-10)
 				GuildBestFrame:Show()
