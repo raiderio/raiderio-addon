@@ -1007,7 +1007,7 @@ end
 -- provider
 local AddProvider
 local AddClientCharacters
-local AddClientGuild
+local AddClientGuilds
 local GetScore
 local GetScoreColor
 do
@@ -1284,7 +1284,7 @@ do
 		clientCharacters = data
 	end
 
-	function AddClientGuild(data)
+	function AddClientGuilds(data)
 		-- make sure the object is what we expect it to be like (TODO: check this more deeply?)
 		assert(type(data) == "table", "Raider.IO has been requested to load a client database that isn't supported.")
 		guildBest = data
@@ -1859,8 +1859,8 @@ do
 
 		GameTooltip:SetText(C_ChallengeMode.GetMapUIInfo(GetDungeonWithData("id", self.runInfo.zone_id).keystone_instance), 1, 1, 1);
 
-		GameTooltip:AddLine(MYTHIC_PLUS_POWER_LEVEL:format(self.runInfo.level), 1, 1, 1);
-		GameTooltip:AddLine(self.runInfo.runTime, 1, 1, 1);
+		GameTooltip:AddLine(MYTHIC_PLUS_POWER_LEVEL:format(self.runInfo.level) .. (self.runInfo.upgrades and " (" .. GetStarsForUpgrades(self.runInfo.upgrades) .. ")" or ""), 1, 1, 1);
+		GameTooltip:AddLine(self.runInfo.clear_time, 1, 1, 1);
 
 		if self.runInfo.party then
 			GameTooltip:AddLine(" ");
@@ -2806,7 +2806,7 @@ _G.RaiderIO = {
 -- PLEASE DO NOT USE (we need it public for the sake of the database modules)
 _G.RaiderIO.AddProvider = AddProvider
 _G.RaiderIO.AddClientCharacters = AddClientCharacters
-_G.RaiderIO.AddClientGuild = AddClientGuild
+_G.RaiderIO.AddClientGuilds = AddClientGuilds
 
 -- register events and wait for the addon load event to fire
 addon:SetScript("OnEvent", function(_, event, ...) addon[event](addon, event, ...) end)
