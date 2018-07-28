@@ -868,9 +868,6 @@ do
 			config:CreateHeadline(L.RAIDERIO_CLIENT_CUSTOMIZATION)
 			config:CreateOptionToggle(L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS, L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS_DESC, "enableClientEnhancements", {["needReload"] = true})
 			config:CreateOptionToggle(L.SHOW_CLIENT_GUILD_BEST, L.SHOW_CLIENT_GUILD_BEST_DESC, "showClientGuildBest", {["needReload"] = true})
-			config:CreateOptionToggle(L.DISPLAY_WEEKLY_GUILD_BEST, L.DISPLAY_WEEKLY_GUILD_BEST_DESC, "displayWeeklyGuildBest", {["callback"] = function ()
-				GuildBestFrame:SetUp()
-			end})
 
 			config:CreatePadding()
 			config:CreateHeadline(L.COPY_RAIDERIO_PROFILE_URL)
