@@ -25,7 +25,7 @@
         </Scripts>
     </Frame>
     <Frame name="GuildBestFrame" parentKey="GuildBest" mixin="GuildBestMixin" hidden="true">
-        <Size x="90" y="93"/>
+        <Size x="90" y="105"/>
         <Layers>
             <Layer level="BACKGROUND">
                 <Texture atlas="ChallengeMode-guild-background" setAllPoints="true" alpha="0.4"/>
@@ -63,6 +63,19 @@
                     <Anchor point="TOPLEFT" relativeKey="$parent.Title" relativePoint="BOTTOMLEFT" y="-14"/>
                 </Anchors>
             </Frame>
+            <CheckButton parentKey="SwitchGuildBest" inherits="UICheckButtonTemplate" mixin="SwitchGuildBestMixin">
+                <Anchors>
+                    <Anchor point="BOTTOMLEFT" relativeKey="$parent" relativePoint="BOTTOMLEFT"/>
+                </Anchors>
+                <Scripts>
+                    <OnLoad method="OnLoad"/>
+                    <OnShow method="OnShow"/>
+                    <OnClick>
+                            PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON);
+                            self:GetParent():SwitchBestRun();
+                    </OnClick>
+                </Scripts>
+            </CheckButton>
         </Frames>
     </Frame>
 </Ui>

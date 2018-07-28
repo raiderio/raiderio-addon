@@ -112,5 +112,6 @@ L.SHOW_CLIENT_GUILD_BEST = "Show Best Records in Group Finder Mythic Dungeons"
 L.SHOW_CLIENT_GUILD_BEST_DESC = "Enabling this will display your guild's Top 5 runs (Season or Weekly) in the Mythic Dungeons tab of the Group Finder window."
 L.DISPLAY_WEEKLY_GUILD_BEST = "Show Guild Weekly Bests rather than Season Best"
 L.DISPLAY_WEEKLY_GUILD_BEST_DESC = "Enabling this will show your guild's Weekly Best Runs in your Mythic Dungeons frame rather than the Season Best Runs."
+L.CHECKBOX_DISPLAY_WEEKLY = "Display Weekly"
 
 ns.L = L

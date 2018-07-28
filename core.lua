@@ -1808,7 +1808,19 @@ end
 -- Guild Best
 GuildBestMixin = {}
 GuildBestRunMixin = {}
+GuildSwitchMixin = {}
+SwitchGuildBestMixin = {}
 do
+	function SwitchGuildBestMixin:OnLoad()
+		self.text:SetFontObject("GameFontNormalTiny2")
+		self.text:SetText(L["CHECKBOX_DISPLAY_WEEKLY"]);
+		self:SetSize(15, 15)
+	end
+
+	function SwitchGuildBestMixin:OnShow()
+		self:SetChecked(addonConfig.displayWeeklyGuildBest)
+	end
+
 	function GuildBestMixin:SwitchBestRun()
 		addonConfig.displayWeeklyGuildBest = not addonConfig.displayWeeklyGuildBest
 
