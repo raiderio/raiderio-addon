@@ -43,7 +43,7 @@
                         <Color r="0" g="0" b="0"/>
                     </Shadow>
                 </FontString>
-                <FontString parentKey="SubTitle" inherits="GameFontNormalTiny2" text="Guild Season Best" justifyH="CENTER">
+                <FontString parentKey="SubTitle" inherits="GameFontNormalTiny2" text="Guild: Season Best" justifyH="CENTER">
                     <Anchors>
                         <Anchor point="TOPLEFT" x="5" y="-15" />
                     </Anchors>
