@@ -25,7 +25,7 @@
         </Scripts>
     </Frame>
     <Frame name="GuildBestFrame" parentKey="GuildBest" mixin="GuildBestMixin" hidden="true">
-        <Size x="90" y="105"/>
+        <Size x="90" y="93"/>
         <Layers>
             <Layer level="BACKGROUND">
                 <Texture atlas="ChallengeMode-guild-background" setAllPoints="true" alpha="0.4"/>
@@ -33,7 +33,7 @@
             <Layer level="ARTWORK">
                 <FontString parentKey="Title" inherits="GameFontNormalTiny2" text="RaiderIO Records" justifyH="CENTER">
                     <Anchors>
-                        <Anchor point="TOPLEFT" x="5" y="-3" />
+                        <Anchor point="TOPLEFT" x="5" y="-4" />
                     </Anchors>
                     <Color r="1.0" g="0.85" b="0.0"/>
                     <Shadow>

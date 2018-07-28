@@ -440,12 +440,12 @@ do
 		return nil
 	end
 
-	function GetStarsForUpgrades(upgrades)
+	function GetStarsForUpgrades(upgrades, skipPadding)
 		local stars = ""
 		for q = 1, 3 do
 			if 3 - q < upgrades then
 				stars = stars .. "+"
-			else
+			elseif not skipPadding then
 				stars = stars .. " "
 			end
 		end
@@ -1859,7 +1859,12 @@ do
 
 		GameTooltip:SetText(C_ChallengeMode.GetMapUIInfo(GetDungeonWithData("id", self.runInfo.zone_id).keystone_instance), 1, 1, 1);
 
-		GameTooltip:AddLine(MYTHIC_PLUS_POWER_LEVEL:format(self.runInfo.level) .. (self.runInfo.upgrades and " (" .. GetStarsForUpgrades(self.runInfo.upgrades) .. ")" or ""), 1, 1, 1);
+		local upgradeStr = ""
+		if self.runInfo.upgrades > 0 then
+			upgradeStr = " (" .. GetStarsForUpgrades(self.runInfo.upgrades, true) .. ")"
+		end
+
+		GameTooltip:AddLine(MYTHIC_PLUS_POWER_LEVEL:format(self.runInfo.level) .. upgradeStr, 1, 1, 1);
 		GameTooltip:AddLine(self.runInfo.clear_time, 1, 1, 1);
 
 		if self.runInfo.party then
