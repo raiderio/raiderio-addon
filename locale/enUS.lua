@@ -106,5 +106,11 @@ L.UNLOCKING_PROFILE_FRAME = "RaiderIO: Unlocking the M+ Profile Frame."
 L.RAIDERIO_CLIENT_CUSTOMIZATION = "RaiderIO Client Customization"
 L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS = "Allow RaiderIO Client Enhancements"
 L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS_DESC = "Enabling this will allow you to view detailed My M+ Profile data downloaded from the RaiderIO Client for your claimed characters."
+L.GUILD_BEST_WEEKLY = "Guild Best (Weekly)"
+L.GUILD_BEST_SEASON = "Guild Best (Season)"
+L.SHOW_CLIENT_GUILD_BEST = "[TBD]"
+L.SHOW_CLIENT_GUILD_BEST_DESC = "[TBD]"
+L.DISPLAY_WEEKLY_GUILD_BEST = "[TBD]"
+L.DISPLAY_WEEKLY_GUILD_BEST_DESC = "[TBD]"
 
 ns.L = L

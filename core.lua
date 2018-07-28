@@ -29,6 +29,8 @@ local addonConfig = {
 	disableScoreColors = false,
 	alwaysExtendTooltip = false,
 	enableClientEnhancements = true,
+	showClientGuildBest = true,
+	displayWeeklyGuildBest = false,
 	showRaiderIOProfile = true,
 	enableProfileModifier = true,
 	inverseProfileModifier = false,
@@ -55,6 +57,7 @@ local dataProvider
 
 -- client
 local clientCharacters = {}
+local guildBest = {}
 
 -- tooltip related hooks and storage
 local tooltipArgs = {}
@@ -88,11 +91,22 @@ local CONST_AVERAGE_SCORE = ns.scoreLevelStats
 local L = ns.L
 
 -- enum dungeons
--- the for-loop serves two purposes: populate the enum, and localize the shortName
+-- the for-loop serves two purposes: localize the shortName, and populate the enums
 local ENUM_DUNGEONS = {}
+local KEYSTONE_INST_TO_DUNGEONID = {}
+local DUNGEON_INSTANCEMAPID_TO_DUNGEONID = {}
+local LFD_ACTIVITYID_TO_DUNGEONID = {}
 for i = 1, #CONST_DUNGEONS do
 	local dungeon = CONST_DUNGEONS[i]
+
 	ENUM_DUNGEONS[dungeon.shortName] = i
+	KEYSTONE_INST_TO_DUNGEONID[dungeon.keystone_instance] = i
+	DUNGEON_INSTANCEMAPID_TO_DUNGEONID[dungeon.instance_map_id] = i
+
+	for _, activity_id in ipairs(dungeon.lfd_activity_ids) do
+		LFD_ACTIVITYID_TO_DUNGEONID[activity_id] = i
+	end
+
 	dungeon.shortNameLocale = L["DUNGEON_SHORT_NAME_" .. dungeon.shortName] or dungeon.shortName
 end
 
@@ -110,9 +124,6 @@ local REGIONS
 local REGIONS_RESET_TIME
 local KEYSTONE_AFFIX_SCHEDULE
 local KEYSTONE_LEVEL_TO_BASE_SCORE
-local LFD_ACTIVITYID_TO_DUNGEONID
-local DUNGEON_INSTANCEMAPID_TO_DUNGEONID
-local KEYSTONE_INST_TO_DUNGEONID
 do
 	FACTION = {
 		["Alliance"] = 1,
@@ -183,99 +194,6 @@ do
 		[29] = 612,
 		[30] = 673,
 	}
-
-	LFD_ACTIVITYID_TO_DUNGEONID = {
-		-- Mythic Keystone
-		[462] = ENUM_DUNGEONS.NL,
-		[461] = ENUM_DUNGEONS.HOV,
-		[460] = ENUM_DUNGEONS.DHT,
-		[464] = ENUM_DUNGEONS.VOTW,
-		[463] = ENUM_DUNGEONS.BRH,
-		[465] = ENUM_DUNGEONS.MOS,
-		[467] = ENUM_DUNGEONS.ARC,
-		[459] = ENUM_DUNGEONS.EOA,
-		[466] = ENUM_DUNGEONS.COS,
-		[476] = ENUM_DUNGEONS.COEN,
-		[486] = ENUM_DUNGEONS.SEAT,
-		[471] = ENUM_DUNGEONS.LOWR,
-		[473] = ENUM_DUNGEONS.UPPR,
-		-- Mythic
-		[448] = ENUM_DUNGEONS.NL,
-		[447] = ENUM_DUNGEONS.HOV,
-		[446] = ENUM_DUNGEONS.DHT,
-		[451] = ENUM_DUNGEONS.VOTW,
-		[450] = ENUM_DUNGEONS.BRH,
-		[452] = ENUM_DUNGEONS.MOS,
-		[454] = ENUM_DUNGEONS.ARC,
-		[445] = ENUM_DUNGEONS.EOA,
-		[453] = ENUM_DUNGEONS.COS,
-		[475] = ENUM_DUNGEONS.COEN,
-		[485] = ENUM_DUNGEONS.SEAT,
-		-- [455] = ENUM_DUNGEONS.LOWR,
-		-- [455] = ENUM_DUNGEONS.UPPR,
-		-- Heroic
-		[438] = ENUM_DUNGEONS.NL,
-		[437] = ENUM_DUNGEONS.HOV,
-		[436] = ENUM_DUNGEONS.DHT,
-		[441] = ENUM_DUNGEONS.VOTW,
-		[440] = ENUM_DUNGEONS.BRH,
-		[442] = ENUM_DUNGEONS.MOS,
-		[444] = ENUM_DUNGEONS.ARC,
-		[435] = ENUM_DUNGEONS.EOA,
-		[443] = ENUM_DUNGEONS.COS,
-		[474] = ENUM_DUNGEONS.COEN,
-		[484] = ENUM_DUNGEONS.SEAT,
-		[470] = ENUM_DUNGEONS.LOWR,
-		[472] = ENUM_DUNGEONS.UPPR,
-		-- [439] = ENUM_DUNGEONS.AOVH,
-		-- Normal
-		[428] = ENUM_DUNGEONS.NL,
-		[427] = ENUM_DUNGEONS.HOV,
-		[426] = ENUM_DUNGEONS.DHT,
-		[431] = ENUM_DUNGEONS.VOTW,
-		[430] = ENUM_DUNGEONS.BRH,
-		[432] = ENUM_DUNGEONS.MOS,
-		[434] = ENUM_DUNGEONS.ARC,
-		[425] = ENUM_DUNGEONS.EOA,
-		[433] = ENUM_DUNGEONS.COS,
-		-- [0] = ENUM_DUNGEONS.COEN,
-		-- [0] = ENUM_DUNGEONS.SEAT,
-		-- [0] = ENUM_DUNGEONS.LOWR,
-		-- [0] = ENUM_DUNGEONS.UPPR,
-		-- [429] = ENUM_DUNGEONS.AOVH,
-	}
-
-	DUNGEON_INSTANCEMAPID_TO_DUNGEONID = {
-		[1458] = ENUM_DUNGEONS.NL,
-		[1477] = ENUM_DUNGEONS.HOV,
-		[1466] = ENUM_DUNGEONS.DHT,
-		[1493] = ENUM_DUNGEONS.VOTW,
-		[1501] = ENUM_DUNGEONS.BRH,
-		[1492] = ENUM_DUNGEONS.MOS,
-		[1516] = ENUM_DUNGEONS.ARC,
-		[1456] = ENUM_DUNGEONS.EOA,
-		[1571] = ENUM_DUNGEONS.COS,
-		[1677] = ENUM_DUNGEONS.COEN,
-		[1753] = ENUM_DUNGEONS.SEAT,
-		[1651] = ENUM_DUNGEONS.LOWR,
-		-- [1651] = ENUM_DUNGEONS.UPPR, -- has separate logic to handle this (we just pick best score out of these two)
-	}
-
-	KEYSTONE_INST_TO_DUNGEONID = {
-		[206] = ENUM_DUNGEONS.NL,
-		[200] = ENUM_DUNGEONS.HOV,
-		[198] = ENUM_DUNGEONS.DHT,
-		[207] = ENUM_DUNGEONS.VOTW,
-		[199] = ENUM_DUNGEONS.BRH,
-		[208] = ENUM_DUNGEONS.MOS,
-		[209] = ENUM_DUNGEONS.ARC,
-		[197] = ENUM_DUNGEONS.EOA,
-		[210] = ENUM_DUNGEONS.COS,
-		[233] = ENUM_DUNGEONS.COEN,
-		[239] = ENUM_DUNGEONS.SEAT,
-		[227] = ENUM_DUNGEONS.LOWR,
-		[234] = ENUM_DUNGEONS.UPPR,
-	}
 end
 
 -- easter
@@ -299,6 +217,7 @@ local addon = CreateFrame("Frame")
 
 -- utility functions
 local CompareDungeon
+local GetDungeonWithData
 local GetTimezoneOffset
 local GetRegion
 local GetKeystoneLevel
@@ -311,6 +230,15 @@ local GetWeeklyAffix
 local GetAverageScore
 local GetStarsForUpgrades
 do
+	-- Find the dungeon in CONST_DUNGEONS corresponding to the data in argument
+	function GetDungeonWithData(dataName, dataValue)
+		for i = 1, #CONST_DUNGEONS do
+			if CONST_DUNGEONS[i][dataName] == dataValue then
+				return CONST_DUNGEONS[i]
+			end
+		end
+	end
+
 	-- Compare two dungeon first by the keyLevel, then by their short name
 	function CompareDungeon(a, b)
 		if not a then
@@ -933,6 +861,8 @@ do
 			config:CreatePadding()
 			config:CreateHeadline(L.RAIDERIO_CLIENT_CUSTOMIZATION)
 			config:CreateOptionToggle(L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS, L.ENABLE_RAIDERIO_CLIENT_ENHANCEMENTS_DESC, "enableClientEnhancements", true)
+			config:CreateOptionToggle(L.SHOW_CLIENT_GUILD_BEST, L.SHOW_CLIENT_GUILD_BEST_DESC, "showClientGuildBest", true)
+			config:CreateOptionToggle(L.DISPLAY_WEEKLY_GUILD_BEST, L.DISPLAY_WEEKLY_GUILD_BEST_DESC, "displayWeeklyGuildBest", true)
 
 			config:CreatePadding()
 			config:CreateHeadline(L.COPY_RAIDERIO_PROFILE_URL)
@@ -969,7 +899,7 @@ do
 
 			-- adjust frame height dynamically
 			local children = {configFrame:GetChildren()}
-			local height = 30
+			local height = 40
 			for i = 1, #children do
 				height = height + children[i]:GetHeight() + 2
 			end
@@ -1077,6 +1007,7 @@ end
 -- provider
 local AddProvider
 local AddClientCharacters
+local AddClientGuild
 local GetScore
 local GetScoreColor
 do
@@ -1351,6 +1282,12 @@ do
 		-- make sure the object is what we expect it to be like (TODO: check this more deeply?)
 		assert(type(data) == "table", "Raider.IO has been requested to load a client database that isn't supported.")
 		clientCharacters = data
+	end
+
+	function AddClientGuild(data)
+		-- make sure the object is what we expect it to be like (TODO: check this more deeply?)
+		assert(type(data) == "table", "Raider.IO has been requested to load a client database that isn't supported.")
+		guildBest = data
 	end
 
 	-- retrieves the profile of a given unit, or name+realm query
@@ -1857,6 +1794,96 @@ do
 			profileTooltip:SetScript("OnDragStart", nil)
 			profileTooltip:SetScript("OnDragStop", nil)
 		end
+	end
+end
+
+-- Guild Best
+GuildBestMixin = {}
+GuildBestRunMixin = {}
+do
+	function GuildBestMixin:SetUp(bestRuns)
+		local keyBest = "season_best"
+		local title = L["GUILD_BEST_SEASON"]
+
+		if addonConfig.displayWeeklyGuildBest then
+			keyBest = "weekly_best"
+			title = L["GUILD_BEST_WEEKLY"]
+		end
+
+		self.SubTitle:SetText(title)
+
+		self.bestRuns = bestRuns[keyBest];
+
+		self:Reset()
+
+		if not self.bestRuns then
+			return
+		end
+
+		for i, run in ipairs(self.bestRuns) do
+			local frame = self.GuildBests[i]
+
+			if (not frame) then
+				frame = CreateFrame("Frame", nil, GuildBestFrame, "GuildBestRunTemplate")
+
+				frame:SetPoint("TOP", self.GuildBests[i-1], "BOTTOM")
+			end
+
+			frame:SetUp(run)
+			frame:Show()
+		end
+	end
+
+	function GuildBestMixin:Reset()
+		if self.GuildBests then
+			for _, frame in ipairs(self.GuildBests) do
+				frame:Hide()
+			end
+		end
+	end
+
+	function GuildBestRunMixin:SetUp(runInfo)
+		self.runInfo = runInfo
+
+		self.CharacterName:SetText(GetDungeonWithData("id", self.runInfo.zone_id).shortNameLocale)
+
+		self.Level:SetTextColor(COLOR_WHITE.r, COLOR_WHITE.g, COLOR_WHITE.b)
+		if self.runInfo.upgrades == 0 then
+			self.Level:SetTextColor(COLOR_GREY.r, COLOR_GREY.g, COLOR_GREY.b)
+		end
+		self.Level:SetText(GetStarsForUpgrades(self.runInfo.upgrades) .. self.runInfo.level)
+	end
+
+	function GuildBestRunMixin:OnEnter()
+		GameTooltip:SetOwner(self, "ANCHOR_LEFT");
+
+		GameTooltip:SetText(C_ChallengeMode.GetMapUIInfo(GetDungeonWithData("id", self.runInfo.zone_id).keystone_instance), 1, 1, 1);
+
+		GameTooltip:AddLine(MYTHIC_PLUS_POWER_LEVEL:format(self.runInfo.level), 1, 1, 1);
+		GameTooltip:AddLine(self.runInfo.runTime, 1, 1, 1);
+
+		if self.runInfo.party then
+			GameTooltip:AddLine(" ");
+
+			for i, member in ipairs(self.runInfo.party) do
+				if (member.name) then
+					local classInfo = C_CreatureInfo.GetClassInfo(member.class_id);
+					local color = (classInfo and RAID_CLASS_COLORS[classInfo.classFile]) or NORMAL_FONT_COLOR;
+					local texture;
+					if (member.role == "tank") then
+						texture = CreateAtlasMarkup("roleicon-tiny-tank");
+					elseif (member.role == "dps") then
+						texture = CreateAtlasMarkup("roleicon-tiny-dps");
+					elseif (member.role == "healer") then
+						texture = CreateAtlasMarkup("roleicon-tiny-healer");
+					end
+
+					GameTooltip:AddLine(MYTHIC_PLUS_LEADER_BOARD_NAME_ICON:format(texture, member.name), color.r, color.g, color.b);
+				end
+			end
+		end
+
+		GameTooltip:Show();
 	end
 end
 
@@ -2713,6 +2740,51 @@ do
 		hooksecurefunc(PVEFrame, "Hide", ProfileTooltip_Hide)
 		return 1
 	end
+
+	-- Guild Weekly Best
+	uiHooks[#uiHooks + 1] = function()
+		if not addonConfig.showClientGuildBest then
+			return 1
+		end
+
+		if _G.ChallengesFrame then
+			local function GuildBest_Show()
+				GuildBestFrame:ClearAllPoints()
+				GuildBestFrame:SetFrameStrata("HIGH")
+
+				local guildName, _, _, guildRealm = GetGuildInfo("player")
+
+				if not guildName then
+					return
+				end
+
+				if not guildRealm then
+					_, guildRealm = GetNameAndRealm("player")
+				end
+
+				local guildFullname = guildName.."-"..guildRealm
+
+				if not guildBest[guildFullname] then
+					return
+				end
+
+				GuildBestFrame:SetUp(guildBest[guildFullname])
+
+				GuildBestFrame:SetPoint("TOPRIGHT",ChallengesFrame, "RIGHT", -10,-10)
+				GuildBestFrame:Show()
+			end
+
+			local function GuildBest_Hide()
+				GuildBestFrame:Hide()
+			end
+
+			hooksecurefunc(ChallengesFrame, "Show", GuildBest_Show)
+			hooksecurefunc(ChallengesFrame, "Hide", GuildBest_Hide)
+			hooksecurefunc(PVEFrame, "Hide", GuildBest_Hide)
+
+			return 1
+		end
+	end
 end
 
 -- API
@@ -2734,6 +2806,7 @@ _G.RaiderIO = {
 -- PLEASE DO NOT USE (we need it public for the sake of the database modules)
 _G.RaiderIO.AddProvider = AddProvider
 _G.RaiderIO.AddClientCharacters = AddClientCharacters
+_G.RaiderIO.AddClientGuild = AddClientGuild
 
 -- register events and wait for the addon load event to fire
 addon:SetScript("OnEvent", function(_, event, ...) addon[event](addon, event, ...) end)

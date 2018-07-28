@@ -1,0 +1,68 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+    <Frame name="GuildBestRunTemplate" parentArray="GuildBests" virtual="true" mixin="GuildBestRunMixin">
+        <Size x="100" y="13"/>
+        <Layers>
+            <Layer level="ARTWORK">
+                <FontString parentKey="CharacterName" inherits="GameFontNormalTiny" justifyH="LEFT">
+                    <Size x="150" y="0"/>
+                    <Color r="1.0" g="1.0" b="1.0"/>
+                    <Anchors>
+                        <Anchor point="LEFT"/>
+                    </Anchors>
+                </FontString>
+                <FontString parentKey="Level" inherits="GameFontNormalTiny" justifyH="RIGHT">
+                    <Size x="35" y="0"/>
+                    <Anchors>
+                        <Anchor point="RIGHT"/>
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+        <Scripts>
+            <OnEnter method="OnEnter"/>
+            <OnLeave function="GameTooltip_Hide"/>
+        </Scripts>
+    </Frame>
+    <Frame name="GuildBestFrame" parentKey="GuildBest" mixin="GuildBestMixin" hidden="true">
+        <Size x="120" y="105"/>
+        <Layers>
+            <Layer level="BACKGROUND">
+                <Texture atlas="ChallengeMode-guild-background" setAllPoints="true" alpha="0.4"/>
+            </Layer>
+            <Layer level="ARTWORK">
+                <FontString parentKey="Title" inherits="GameFontNormalSmall" text="RaiderIO" justifyH="CENTER">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="10" y="-7"/>
+                    </Anchors>
+                    <Color r="1.0" g="0.85" b="0.0"/>
+                    <Shadow>
+                        <Offset>
+                            <AbsDimension x="1" y="-1"/>
+                        </Offset>
+                        <Color r="0" g="0" b="0"/>
+                    </Shadow>
+                </FontString>
+                <FontString parentKey="SubTitle" inherits="GameFontNormalTiny" text="Guild Best (Season)" justifyH="CENTER">
+                    <Anchors>
+                        <Anchor point="TOPLEFT" x="10" y="-20"/>
+                    </Anchors>
+                    <Color r="1.0" g="1.0" b="1.0"/>
+                    <Shadow>
+                        <Offset>
+                            <AbsDimension x="1" y="-1"/>
+                        </Offset>
+                        <Color r="0" g="0" b="0"/>
+                    </Shadow>
+                </FontString>
+            </Layer>
+        </Layers>
+        <Frames>
+            <Frame inherits="GuildBestRunTemplate" hidden="true">
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeKey="$parent.Title" relativePoint="BOTTOMLEFT" y="-17"/>
+                </Anchors>
+            </Frame>
+        </Frames>
+    </Frame>
+</Ui>
