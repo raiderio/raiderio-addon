@@ -25,7 +25,7 @@
         </Scripts>
     </Frame>
     <Frame name="GuildBestFrame" parentKey="GuildBest" mixin="GuildBestMixin" hidden="true">
-        <Size x="90" y="105"/>
+        <Size x="90" y="105" />
         <Layers>
             <Layer level="BACKGROUND">
                 <Texture atlas="ChallengeMode-guild-background" setAllPoints="true" alpha="0.4"/>
@@ -65,7 +65,7 @@
             </Frame>
             <CheckButton parentKey="SwitchGuildBest" inherits="UICheckButtonTemplate" mixin="SwitchGuildBestMixin">
                 <Anchors>
-                    <Anchor point="BOTTOMLEFT" relativeKey="$parent" relativePoint="BOTTOMLEFT"/>
+                    <Anchor point="BOTTOMLEFT" relativeKey="$parent" relativePoint="BOTTOMLEFT" x="3" />
                 </Anchors>
                 <Scripts>
                     <OnLoad method="OnLoad"/>
