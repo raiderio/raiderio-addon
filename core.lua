@@ -1810,7 +1810,9 @@ SwitchGuildBestMixin = {}
 do
 	function SwitchGuildBestMixin:OnLoad()
 		self.text:SetFontObject("GameFontNormalTiny2")
-		self.text:SetText(L["CHECKBOX_DISPLAY_WEEKLY"]);
+		self.text:SetText(L["CHECKBOX_DISPLAY_WEEKLY"])
+		self.text:SetPoint("LEFT", 15, 0)
+		self.text:SetJustifyH("LEFT")
 		self:SetSize(15, 15)
 	end
 
@@ -2807,7 +2809,7 @@ do
 
 				GuildBestFrame:SetUp()
 
-				GuildBestFrame:SetPoint("TOPRIGHT",ChallengesFrame, "RIGHT", -10,-10)
+				GuildBestFrame:SetPoint("TOPRIGHT", ChallengesFrame, "BOTTOMRIGHT", -10, 155)
 				GuildBestFrame:Show()
 			end
 
