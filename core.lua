@@ -2812,7 +2812,7 @@ do
 
 				GuildBestFrame:SetUp(guildFullname)
 
-				GuildBestFrame:SetPoint("TOPRIGHT", ChallengesFrame, "BOTTOMRIGHT", -10, 155)
+				GuildBestFrame:SetPoint("BOTTOMRIGHT", ChallengesFrame.DungeonIcons[#ChallengesFrame.DungeonIcons], "TOPRIGHT")
 				GuildBestFrame:Show()
 			end
 
