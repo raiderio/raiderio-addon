@@ -1861,7 +1861,8 @@ do
 
 		self:Reset()
 
-		if not self.bestRuns then
+		if not self.bestRuns or #self.bestRuns == 0 then
+			self.GuildBestNoRun:Show()
 			return
 		end
 
@@ -1880,6 +1881,8 @@ do
 	end
 
 	function GuildBestMixin:Reset()
+		self.GuildBestNoRun:Hide()
+		self.GuildBestNoRun.Text:SetText(L["NO_GUILD_RECORD"])
 		if self.GuildBests then
 			for _, frame in ipairs(self.GuildBests) do
 				frame:Hide()

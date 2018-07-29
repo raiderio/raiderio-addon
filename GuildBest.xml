@@ -58,6 +58,23 @@
             </Layer>
         </Layers>
         <Frames>
+            <Frame parentKey="GuildBestNoRun" hidden="true">
+                <Size x="80" y="13"/>
+                <Layers>
+                    <Layer level="ARTWORK">
+                        <FontString parentKey="Text" text="No data" inherits="GameFontNormalTiny2" justifyH="LEFT">
+                            <Size x="150" y="0"/>
+                            <Color r="1.0" g="1.0" b="1.0"/>
+                            <Anchors>
+                                <Anchor point="LEFT"/>
+                            </Anchors>
+                        </FontString>
+                    </Layer>
+                </Layers>
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeKey="$parent.Title" relativePoint="BOTTOMLEFT" y="-14"/>
+                </Anchors>
+            </Frame>
             <Frame inherits="GuildBestRunTemplate" hidden="true">
                 <Anchors>
                     <Anchor point="TOPLEFT" relativeKey="$parent.Title" relativePoint="BOTTOMLEFT" y="-14"/>
