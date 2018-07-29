@@ -57,6 +57,7 @@ local dataProvider
 
 -- client
 local clientCharacters = {}
+local guildProviderCalled = false
 local guildBest = {}
 
 -- tooltip related hooks and storage
@@ -1293,6 +1294,7 @@ do
 		-- make sure the object is what we expect it to be like (TODO: check this more deeply?)
 		assert(type(data) == "table", "Raider.IO has been requested to load a client database that isn't supported.")
 		guildBest = data
+		guildProviderCalled = true
 	end
 
 	-- retrieves the profile of a given unit, or name+realm query
@@ -2798,7 +2800,7 @@ do
 
 	-- Guild Weekly Best
 	uiHooks[#uiHooks + 1] = function()
-		if not addonConfig.showClientGuildBest then
+		if not addonConfig.showClientGuildBest or not guildProviderCalled then
 			return 1
 		end
 
