@@ -1857,7 +1857,7 @@ do
 
 		self.SubTitle:SetText(title)
 
-		self.bestRuns = bestRuns[keyBest];
+		self.bestRuns = (bestRuns and bestRuns[keyBest]) or {};
 
 		self:Reset()
 
