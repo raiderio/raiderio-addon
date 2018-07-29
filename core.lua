@@ -230,6 +230,7 @@ local GetFaction
 local GetWeeklyAffix
 local GetAverageScore
 local GetStarsForUpgrades
+local GetGuildFullname
 do
 	-- Find the dungeon in CONST_DUNGEONS corresponding to the data in argument
 	function GetDungeonWithData(dataName, dataValue)
@@ -455,6 +456,20 @@ do
 		else
 			return stars
 		end
+	end
+
+	function GetGuildFullname(unit)
+		local guildName, _, _, guildRealm = GetGuildInfo(unit)
+
+		if not guildName then
+			return nil
+		end
+
+		if not guildRealm then
+			_, guildRealm = GetNameAndRealm(unit)
+		end
+
+		return guildName.."-"..guildRealm
 	end
 
 end
@@ -1825,31 +1840,11 @@ do
 	function GuildBestMixin:SwitchBestRun()
 		addonConfig.displayWeeklyGuildBest = not addonConfig.displayWeeklyGuildBest
 
-		self:SetUp()
+		self:SetUp(GetGuildFullname("player"))
 	end
 
-	function GuildBestMixin:GetBestRuns()
-		local guildName, _, _, guildRealm = GetGuildInfo("player")
-
-		if not guildName then
-			return
-		end
-
-		if not guildRealm then
-			_, guildRealm = GetNameAndRealm("player")
-		end
-
-		local guildFullname = guildName.."-"..guildRealm
-
-		if not guildBest[guildFullname] then
-			return {}
-		end
-
-		return guildBest[guildFullname]
-	end
-
-	function GuildBestMixin:SetUp()
-		local bestRuns = self:GetBestRuns()
+	function GuildBestMixin:SetUp(guildFullname)
+		local bestRuns = guildBest[guildFullname] or {}
 
 		local keyBest = "season_best"
 		local title = L["GUILD_BEST_SEASON"]
@@ -2809,7 +2804,13 @@ do
 				GuildBestFrame:ClearAllPoints()
 				GuildBestFrame:SetFrameStrata("HIGH")
 
-				GuildBestFrame:SetUp()
+				local guildFullname = GetGuildFullname("player")
+
+				if not guildFullname then
+					return
+				end
+
+				GuildBestFrame:SetUp(guildFullname)
 
 				GuildBestFrame:SetPoint("TOPRIGHT", ChallengesFrame, "BOTTOMRIGHT", -10, 155)
 				GuildBestFrame:Show()
