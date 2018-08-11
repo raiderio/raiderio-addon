@@ -1670,7 +1670,8 @@ do
 	end
 
 	function AppendAveragePlayerScore(tooltip, keystoneLevel, addBlankLine)
-		if addonConfig.showAverageScore then
+--		if addonConfig.showAverageScore then
+		if false then -- Wait that a certain amount of run is recorded before displaying it
 			local averageScore = GetAverageScore(keystoneLevel)
 			if averageScore then
 				if addBlankLine then
