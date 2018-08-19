@@ -1423,12 +1423,10 @@ do
 	end
 
 	function AddLegionScore(tooltip, profile)
-		if profile.legionScore and profile.legionScore > 0 then
-			if profile.legionMainScore and profile.legionMainScore > profile.legionScore then
-				tooltip:AddDoubleLine(L.LEGION_MAIN_SCORE, GetFormattedScore(profile.legionMainScore), 1, 1, 1, 1, 1, 1)
-			else
-				tooltip:AddDoubleLine(L.LEGION_SCORE, GetFormattedScore(profile.legionScore), 1, 1, 1, 1, 1, 1)
-			end
+		if profile.legionScore and profile.legionScore > 0 and (not profile.legionMainScore or profile.legionMainScore <= profile.legionScore) then
+			tooltip:AddDoubleLine(L.LEGION_SCORE, GetFormattedScore(profile.legionScore), 1, 1, 1, 1, 1, 1)
+		elseif profile.legionMainScore and (not profile.legionScore or profile.legionMainScore > profile.legionScore) then
+			tooltip:AddDoubleLine(L.LEGION_MAIN_SCORE, GetFormattedScore(profile.legionMainScore), 1, 1, 1, 1, 1, 1)
 		end
 	end
 
