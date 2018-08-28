@@ -133,7 +133,7 @@ ns.scoreTiersSimple = {
 -- Dungeon listing sorted by id
 ns.dungeons = {
 	[1] = {
-		["id"] = 0,
+		["id"] = 9028,
 		["keystone_instance"] = 244,
 		["instance_map_id"] = 1763,
 		["lfd_activity_ids"] = { 0 },
@@ -141,7 +141,7 @@ ns.dungeons = {
 		["shortName"] = "AD"
 	},
 	[2] = {
-		["id"] = 0,
+		["id"] = 9164,
 		["keystone_instance"] = 245,
 		["instance_map_id"] = 1754,
 		["lfd_activity_ids"] = { 0 },
@@ -149,7 +149,7 @@ ns.dungeons = {
 		["shortName"] = "FH"
 	},
 	[3] = {
-		["id"] = 0,
+		["id"] = 9526,
 		["keystone_instance"] = 249,
 		["instance_map_id"] = 1762,
 		["lfd_activity_ids"] = { 0 },
@@ -157,7 +157,7 @@ ns.dungeons = {
 		["shortName"] = "KR"
 	},
 	[4] = {
-		["id"] = 0,
+		["id"] = 9525,
 		["keystone_instance"] = 252,
 		["instance_map_id"] = 1864,
 		["lfd_activity_ids"] = { 0 },
@@ -165,7 +165,7 @@ ns.dungeons = {
 		["shortName"] = "SOTS"
 	},
 	[5] = {
-		["id"] = 0,
+		["id"] = 9354,
 		["keystone_instance"] = 353,
 		["instance_map_id"] = 1822,
 		["lfd_activity_ids"] = { 0 },
@@ -173,7 +173,7 @@ ns.dungeons = {
 		["shortName"] = "SIEGE"
 	},
 	[6] = {
-		["id"] = 0,
+		["id"] = 9527,
 		["keystone_instance"] = 250,
 		["instance_map_id"] = 1877,
 		["lfd_activity_ids"] = { 0 },
@@ -181,7 +181,7 @@ ns.dungeons = {
 		["shortName"] = "TOS"
 	},
 	[7] = {
-		["id"] = 0,
+		["id"] = 8064,
 		["keystone_instance"] = 247,
 		["instance_map_id"] = 1594,
 		["lfd_activity_ids"] = { 0 },
@@ -189,7 +189,7 @@ ns.dungeons = {
 		["shortName"] = "TM"
 	},
 	[8] = {
-		["id"] = 0,
+		["id"] = 9391,
 		["keystone_instance"] = 251,
 		["instance_map_id"] = 1841,
 		["lfd_activity_ids"] = { 0 },
@@ -197,7 +197,7 @@ ns.dungeons = {
 		["shortName"] = "UNDR"
 	},
 	[9] = {
-		["id"] = 0,
+		["id"] = 9327,
 		["keystone_instance"] = 246,
 		["instance_map_id"] = 1771,
 		["lfd_activity_ids"] = { 0 },
@@ -205,7 +205,7 @@ ns.dungeons = {
 		["shortName"] = "TD"
 	},
 	[10] = {
-		["id"] = 0,
+		["id"] = 9424,
 		["keystone_instance"] = 248,
 		["instance_map_id"] = 1862,
 		["lfd_activity_ids"] = { 0 },
