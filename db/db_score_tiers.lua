@@ -177,7 +177,7 @@ ns.dungeons = {
 		["keystone_instance"] = 250,
 		["instance_map_id"] = 1877,
 		["lfd_activity_ids"] = { 0 },
-		["name"] = "Temple of Sethralis",
+		["name"] = "Temple of Sethraliss",
 		["shortName"] = "TOS"
 	},
 	[7] = {
