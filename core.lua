@@ -2136,6 +2136,7 @@ do
 	ns.OUTDATED_DAYS = OUTDATED_DAYS
 	ns.OUTDATED_HOURS = OUTDATED_HOURS
 	ns.GetNameAndRealm = GetNameAndRealm
+	ns.GetRealmSlug = GetRealmSlug
 	ns.CompareDungeon = CompareDungeon
 	ns.GetStarsForUpgrades = GetStarsForUpgrades
 	ns.ProfileOutput = ProfileOutput
