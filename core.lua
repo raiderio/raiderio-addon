@@ -894,7 +894,8 @@ do
 						end
 					end
 
-					if not best.dungeon then
+					-- if we don't have a best dungeon focused by this point, try to find one based on our queue or current instance
+					if not best.dungeon and addLFD then
 						local numSigned, status = GetLFDStatus()
 						if numSigned then
 							if numSigned == true then
@@ -908,6 +909,7 @@ do
 									end
 								end
 								best.dungeon = highestDungeon
+								best.level = highestDungeon.level
 							end
 						end
 						if not best.dungeon then
@@ -915,8 +917,14 @@ do
 						end
 					end
 
-					if best.dungeon then
+					-- if we have a dungeon, but no level assigned to it, try to read one from our profile
+					if best.dungeon and not best.level then
 						best.level = profile.dungeons[best.dungeon.index]
+					end
+
+					-- if no dungeon, or the level is undefined or 0, drop showing both as it's irrelevant information
+					if not best.dungeon or (best.level and best.level < 1) then
+						best.dungeon, best.level = nil
 					end
 
 					-- Jah: Disabled for now, as everyone who did a +15 in Legion will have one in BFA since we are sharing achievements
@@ -1035,6 +1043,10 @@ do
 		-- lookup name, realm and potentially unit identifier
 		local name, realm, unit = GetNameAndRealm(queryName, queryRealm)
 		if name and realm then
+			-- global flag to avoid caching LFD/instance flagged tooltips everywhere
+			if not ns.enableTooltipCaching and band(outputFlag, ProfileOutput.ADD_LFD) ~= ProfileOutput.ADD_LFD then
+				outputFlag = bor(outputFlag, ProfileOutput.ADD_LFD)
+			end
 			-- what modules are we looking into?
 			local reqMythicPlus = band(outputFlag, ProfileOutput.MYTHICPLUS) == ProfileOutput.MYTHICPLUS
 			local reqRaiding = band(outputFlag, ProfileOutput.RAIDING) == ProfileOutput.RAIDING
@@ -1229,7 +1241,7 @@ do
 		if arg1 == true then
 			modBit, modBitIsArg = arg3, true
 		elseif arg1 == false then
-			modBit, modBitIsArg = arg2[3], false
+			modBit, modBitIsArg = arg2[2], false
 		end
 		if modBit then
 			if band(modBit, ProfileOutput.MOD_KEY_DOWN) == ProfileOutput.MOD_KEY_DOWN then
@@ -1259,6 +1271,7 @@ do
 				UpdateTooltip(tooltipCache)
 			end
 		end
+		ns.PROFILE_UI.UpdateTooltip()
 	end
 end
 
@@ -1281,6 +1294,22 @@ do
 		-- the addon savedvariables are loaded and we can initialize the addon
 		if name == addonName then
 			ns.CONFIG.Init()
+
+			-- purge cache after zoning
+			ns.addon:RegisterEvent("PLAYER_ENTERING_WORLD")
+
+			-- detect toggling of the modifier keys (additional events to try self-correct if we locked the mod key by using ALT-TAB)
+			ns.addon:RegisterEvent("MODIFIER_STATE_CHANGED")
+
+			-- update our state when we enter new places or our LFD activity changes
+			ns.addon.LFG_LIST_ACTIVE_ENTRY_UPDATE = addon.CheckLfdAndCurrentInstanceState
+			ns.addon.GROUP_ROSTER_UPDATE = addon.CheckLfdAndCurrentInstanceState
+			ns.addon.ZONE_CHANGED = addon.CheckLfdAndCurrentInstanceState
+			ns.addon.ZONE_CHANGED_NEW_AREA = addon.CheckLfdAndCurrentInstanceState
+			ns.addon:RegisterEvent("LFG_LIST_ACTIVE_ENTRY_UPDATE")
+			ns.addon:RegisterEvent("GROUP_ROSTER_UPDATE")
+			ns.addon:RegisterEvent("ZONE_CHANGED")
+			ns.addon:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 		end
 
 		-- apply hooks to interface elements
@@ -1402,6 +1431,8 @@ do
 		local name, realm = GetNameAndRealm("player")
 		local realmSlug = GetRealmSlug(realm)
 		_G.RaiderIO_LastCharacter = format("%s-%s-%s", PLAYER_REGION or "", name or "", realmSlug or "")
+		-- force an update when we enter the world
+		addon:CheckLfdAndCurrentInstanceState()
 	end
 
 	-- modifier key is toggled, update the tooltip if needed
@@ -1416,7 +1447,6 @@ do
 		addon.modKey = m
 		if m ~= l and skipUpdatingTooltip ~= true then
 			UpdateTooltips()
-			ns.PROFILE_UI.UpdateTooltip()
 		end
 	end
 
@@ -1426,6 +1456,19 @@ do
 			return IsModifierKeyDown()
 		end
 		return ns.addonConfig.alwaysExtendTooltip or IsModifierKeyDown()
+	end
+
+	-- we relocate and need to check our current state and if we wanna cache tooltips or not
+	function addon:CheckLfdAndCurrentInstanceState()
+		local numSigned = GetLFDStatus()
+		if numSigned == true then
+			ns.enableTooltipCaching = false
+		elseif numSigned and numSigned > 0 then
+			ns.enableTooltipCaching = false
+		else
+			ns.enableTooltipCaching = not GetInstanceStatus()
+		end
+		UpdateTooltips()
 	end
 end
 
@@ -2027,65 +2070,81 @@ do
 
 	-- Keystone Info
 	uiHooks[#uiHooks + 1] = function()
-		local function OnSetItem(tooltip)
-			if not ns.addonConfig.enableKeystoneTooltips then
-				return
-			end
-			local _, link = tooltip:GetItem()
-			if type(link) ~= "string" then
-				return
-			end
-
-			local patterns = {
-				"keystone:%d+:(%d+):(%d+):(%d+):(%d+):(%d+)",
-				"item:138019:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:(%d+):(%d+):(%d+):(%d+):(%d+)",
-				"item:158923:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:(%d+):(%d+):(%d+):(%d+):(%d+)",
-			};
-
-			local inst, lvl, a1, a2, a3;
-			for _, pattern in ipairs(patterns) do
-				inst, lvl, a1, a2, a3 = link:match(pattern)
-
-				if lvl and (tonumber(lvl) or 100) < 100 then
-					break
+		local KEYSTONE_PATTERNS = {
+			"keystone:%d+:(.-):(.-):(.-):(.-):(.-)",
+			"item:158923:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:(.-):(.-):(.-):(.-):(.-):(.-)",
+			"item:138019:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:.-:(.-):(.-):(.-):(.-):(.-):(.-)",
+		}
+		local function SortByLevelDesc(a, b)
+			if a[2] == b[2] then
+				if a[3] == b[3] then
+					return a[1] < b[1]
 				end
+				return a[3] < b[3]
 			end
+			return a[2] > b[2]
+		end
+		local function OnSetItem(tooltip)
+			if not ns.addonConfig.enableKeystoneTooltips then return end
 
-			if not lvl then
-				return
+			local _, link = tooltip:GetItem()
+			if type(link) ~= "string" then return end
+
+			local inst, lvl, a1, a2, a3, a4
+			for i = 1, #KEYSTONE_PATTERNS do
+				inst, lvl, a1, a2, a3, a4 = link:match(KEYSTONE_PATTERNS[i])
+				if inst and lvl then
+					inst, lvl, a1, a2, a3, a4 = tonumber(inst) or 0, tonumber(lvl) or 0, tonumber(a1) or 0, tonumber(a2) or 0, tonumber(a3) or 0, tonumber(a4) or 0
+					if inst > 0 and lvl > 0 then
+						break
+					end
+				end
+				inst, lvl, a1, a2, a3, a4 = nil
 			end
+			if not lvl then return end
 
-			lvl = tonumber(lvl) or 0
 			local baseScore = KEYSTONE_LEVEL_TO_BASE_SCORE[lvl]
-			if not baseScore then
-				return
-			end
+			if not baseScore then return end
+
 			tooltip:AddLine(" ")
 			tooltip:AddDoubleLine(L.RAIDERIO_MP_BASE_SCORE, baseScore, 1, 0.85, 0, 1, 1, 1)
 
-			-- AppendAveragePlayerScore(tooltip, lvl)
+			-- TODO: AppendAveragePlayerScore(tooltip, lvl)
+			if not inst then tooltip:Show() return end
 
-			inst = tonumber(inst)
-			if inst then
-				local index = KEYSTONE_INST_TO_DUNGEONID[inst]
-				if index then
-					local n = GetNumGroupMembers()
-					if n <= 5 then -- let's show score only if we are in a 5 man group/raid
-						for i = 0, n do
-							local unit = i == 0 and "player" or "party" .. i
-							local profile = GetPlayerProfile(ProfileOutput.MYTHICPLUS, unit)
-							if profile then
-								local level = profile.dungeons[index]
-								if level > 0 then
-									-- TODO: sort these by dungeon level, descending
-									local dungeonName = CONST_DUNGEONS[index] and " " .. CONST_DUNGEONS[index].shortNameLocale or ""
-									tooltip:AddDoubleLine(UnitName(unit), "+" .. level .. dungeonName, 1, 1, 1, 1, 1, 1)
-								end
-							end
+			local index = KEYSTONE_INST_TO_DUNGEONID[inst]
+			if not index then tooltip:Show() return end
+
+			local n = GetNumGroupMembers()
+			if n > 5 then tooltip:Show() return end
+
+			local t = {}
+			local j = 0
+
+			for i = 0, n do
+				local unit = i == 0 and "player" or "party" .. i
+				local playerData = GetPlayerProfile(ProfileOutput.MYTHICPLUS, unit)
+				if playerData then
+					local profile = playerData.profile
+					if profile then
+						local level = profile.dungeons[index]
+						if level > 0 then
+							local dungeon = CONST_DUNGEONS[index]
+							j = j + 1
+							t[j]= { UnitName(unit), level, dungeon and " " .. dungeon.shortNameLocale or "" }
 						end
 					end
 				end
 			end
+
+			if j > 0 then
+				table.sort(t, SortByLevelDesc)
+				for i = 1, j do
+					local name, level, dungeonName = t[i][1], t[i][2], t[i][3]
+					tooltip:AddDoubleLine(name, "+" .. level .. dungeonName, 1, 1, 1, 1, 1, 1)
+				end
+			end
+
 			tooltip:Show()
 		end
 		GameTooltip:HookScript("OnTooltipSetItem", OnSetItem)
@@ -2112,17 +2171,12 @@ do
 	-- Guild Weekly Best
 	uiHooks[#uiHooks + 1] = function()
 		if _G.ChallengesFrame and _G.PVEFrame then
-			local function Show()
-				if not ns.GUILD_BEST_DATA or not ns.GUILD_BEST_FRAME or not ns.addonConfig.showClientGuildBest then return end
-				-- ns.GUILD_BEST_FRAME:Show()
+			local function Refresh()
+				if not ns.GUILD_BEST_DATA or not ns.addonConfig.showClientGuildBest then return end
+				ns.GUILD_BEST_FRAME:Refresh()
 			end
-			local function Hide()
-				if not ns.GUILD_BEST_FRAME then return end
-				ns.GUILD_BEST_FRAME:Hide()
-			end
-			ChallengesFrame:HookScript("OnShow", Show)
-			ChallengesFrame:HookScript("OnHide", Hide)
-			PVEFrame:HookScript("OnHide", Hide)
+			ChallengesFrame:HookScript("OnShow", Refresh)
+			PVEFrame:HookScript("OnShow", Refresh)
 			return 1
 		end
 	end
@@ -2135,9 +2189,10 @@ do
 	ns.IS_DB_OUTDATED = IS_DB_OUTDATED
 	ns.OUTDATED_DAYS = OUTDATED_DAYS
 	ns.OUTDATED_HOURS = OUTDATED_HOURS
+	ns.CompareDungeon = CompareDungeon
+	ns.GetDungeonWithData = GetDungeonWithData
 	ns.GetNameAndRealm = GetNameAndRealm
 	ns.GetRealmSlug = GetRealmSlug
-	ns.CompareDungeon = CompareDungeon
 	ns.GetStarsForUpgrades = GetStarsForUpgrades
 	ns.ProfileOutput = ProfileOutput
 	ns.TooltipProfileOutput = TooltipProfileOutput
@@ -2169,15 +2224,30 @@ local WrapDeprecatedFunc
 do
 	local notified = {}
 
-	local function Notify(funcName, newFuncName)
-		if notified[funcName] then return end
-		notified[funcName] = true
-		DEFAULT_CHAT_FRAME:AddMessage(format(L[newFuncName and "API_DEPRECATED_WITH" or "API_DEPRECATED"], funcName, newFuncName), 1, 1, 0)
+	-- case insensitive pattern returns the probably path to addon and file, along with the line of the caused error
+	local function GetAddOnNameAndFile(raw)
+		if type(raw) ~= "string" then return end
+		return (raw:match("^\s*[Ii][Nn][Tt][Ee][Rr][Ff][Aa][Cc][Ee][\\/]+[Aa][Dd][Dd][Oo][Nn][Ss][\\/]+(.-\:%d+)\:"))
 	end
 
+	-- attempts to extract the error from the first six error lines (first one always blames this function so we ignore it)
+	local function GetCallingAddOnName(stack)
+		local _, c1, c2, c3, c4, c5, c6 = ("[\r\n]+"):split(stack)
+		c1, c2, c3, c4, c5, c6 = GetAddOnNameAndFile(c1), GetAddOnNameAndFile(c2), GetAddOnNameAndFile(c3), GetAddOnNameAndFile(c4), GetAddOnNameAndFile(c5), GetAddOnNameAndFile(c6)
+		return c1 or c2 or c3 or c4 or c5 or c6 or L.API_DEPRECATED_ANONYMOUS_FUNCTION
+	end
+
+	-- writes a notification about the particular API call but only once per session
+	local function Notify(funcName, newFuncName, stack)
+		if notified[funcName] then return end
+		notified[funcName] = true
+		DEFAULT_CHAT_FRAME:AddMessage(format(L[newFuncName and "API_DEPRECATED_WITH" or "API_DEPRECATED"], funcName, newFuncName, GetCallingAddOnName(stack)), 1, 1, 0)
+	end
+
+	-- wraps the deprecated function and calls the new API with the appropriate arguments
 	function WrapDeprecatedFunc(funcName, newFuncName)
 		return function(...)
-			Notify(funcName, newFuncName)
+			Notify(funcName, newFuncName, debugstack())
 			local d = GetPlayerProfile(ProfileOutput.DATA, ...)
 			if d then d = d[CONST_PROVIDER_DATA_MYTHICPLUS] end
 			if d then d = d.profile end
@@ -2207,12 +2277,13 @@ _G.RaiderIO = {
 	--   realmOrNil            = "ArgentDawn" or nil. Can be nil if realm is part of unitOrNameOrNameRealm, or if it's the same realm as the currently logged in character
 	--   factionOrNil          = 1 for Aliance, 2 for Horde, or nil for automatic (looks up both factions, first found is used)
 	--
-	-- RaiderIO.GetPlayerProfile(unitOrNameOrNameRealm, realmOrNil, factionOrNil, ...) => nil | profile, hasData, isCached, hasDataFromMultipleProviders
+	-- RaiderIO.GetPlayerProfile(outputFlag, unitOrNameOrNameRealm, realmOrNil, factionOrNil, ...) => nil | profile, hasData, isCached, hasDataFromMultipleProviders
+	--   outputFlag  = a number generated by one of the functions in TooltipProfileOutput, or a bit.bor you create using ProfileOutput as described above.
 	--
-	-- RaiderIO.GetPlayerProfile("target")
-	-- RaiderIO.GetPlayerProfile("Joe")
-	-- RaiderIO.GetPlayerProfile("Joe-ArgentDawn")
-	-- RaiderIO.GetPlayerProfile("Joe", "ArgentDawn")
+	-- RaiderIO.GetPlayerProfile(0, "target")
+	-- RaiderIO.GetPlayerProfile(0, "Joe")
+	-- RaiderIO.GetPlayerProfile(0, "Joe-ArgentDawn")
+	-- RaiderIO.GetPlayerProfile(0, "Joe", "ArgentDawn")
 	--
 	ProfileOutput = EXTERNAL_ProfileOutput,
 	TooltipProfileOutput = EXTERNAL_TooltipProfileOutput,
@@ -2244,3 +2315,7 @@ _G.RaiderIO.AddProvider = AddProvider
 -- register events and wait for the addon load event to fire
 addon:SetScript("OnEvent", function(_, event, ...) addon[event](addon, event, ...) end)
 addon:RegisterEvent("ADDON_LOADED")
+
+-- DOESN'T DO ANYTHING AND WILL BE REMOVED ONCE SERVER SIDE IS PATCHED
+_G.RaiderIO.AddClientCharacters = function() end
+_G.RaiderIO.AddClientGuilds = function() end

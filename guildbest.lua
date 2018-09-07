@@ -3,9 +3,6 @@ local addonName, ns = ...
 -- constants
 local L = ns.L
 
--- global frame reference
-ns.GUILD_BEST_FRAME = _G.RaiderIO_GuildBestFrame
-
 -- utility functions
 local GetGuildFullName
 do
@@ -23,9 +20,31 @@ end
 
 RaiderIO_GuildBestMixin = {}
 
+function RaiderIO_GuildBestMixin:OnLoad()
+	-- namespace reference
+	ns.GUILD_BEST_FRAME = self
+	-- make it tiny bit larger
+	self:SetScale(1.2)
+	-- prepare to be shown later
+	self:Reset()
+	-- set the title of the container
+	self.Title:SetText(L.GUILD_BEST_TITLE)
+end
+
+function RaiderIO_GuildBestMixin:Refresh()
+	if not ChallengesFrame then self:Reset() self:Hide() return end
+	local guildFullName = GetGuildFullName("player")
+	if not guildFullName then self:Reset() self:Hide() return end
+	self:SetParent(ChallengesFrame)
+	self:ClearAllPoints()
+	self:SetPoint("BOTTOMLEFT", ChallengesFrame.WeeklyInfo.Child.SeasonBest, "TOPLEFT", 0, 0)
+	self:SetFrameStrata("HIGH")
+	self:SetUp(guildFullName)
+	self:Show()
+end
+
 function RaiderIO_GuildBestMixin:SwitchBestRun()
 	ns.addonConfig.displayWeeklyGuildBest = not ns.addonConfig.displayWeeklyGuildBest
-
 	self:SetUp(GetGuildFullName("player"))
 end
 
@@ -41,9 +60,7 @@ function RaiderIO_GuildBestMixin:SetUp(guildFullName)
 	end
 
 	self.SubTitle:SetText(title)
-
 	self.bestRuns = (bestRuns and bestRuns[keyBest]) or {}
-
 	self:Reset()
 
 	if not self.bestRuns or #self.bestRuns == 0 then
@@ -53,13 +70,10 @@ function RaiderIO_GuildBestMixin:SetUp(guildFullName)
 
 	for i, run in ipairs(self.bestRuns) do
 		local frame = self.GuildBests[i]
-
-		if (not frame) then
+		if not frame then
 			frame = CreateFrame("Frame", nil, ns.GUILD_BEST_FRAME, "RaiderIO_GuildBestRunTemplate")
-
 			frame:SetPoint("TOP", self.GuildBests[i-1], "BOTTOM")
 		end
-
 		frame:SetUp(run)
 		frame:Show()
 	end
@@ -73,20 +87,6 @@ function RaiderIO_GuildBestMixin:Reset()
 			frame:Hide()
 		end
 	end
-end
-
-function RaiderIO_GuildBestMixin:OnShow()
-	if not ChallengesFrame then return self:Hide() end
-	local guildFullName = GetGuildFullName("player")
-	if not guildFullName then return self:Hide() end
-	self:ClearAllPoints()
-	self:SetPoint("BOTTOMRIGHT", ChallengesFrame.DungeonIcons[#ChallengesFrame.DungeonIcons], "TOPRIGHT")
-	self:SetFrameStrata("HIGH")
-	self:SetUp(guildFullName)
-end
-
-function RaiderIO_GuildBestMixin:OnHide()
-	self:Reset()
 end
 
 RaiderIO_SwitchGuildBestMixin = {}
@@ -107,31 +107,25 @@ RaiderIO_GuildBestRunMixin = {}
 
 function RaiderIO_GuildBestRunMixin:SetUp(runInfo)
 	self.runInfo = runInfo
-
-	self.CharacterName:SetText(GetDungeonWithData("id", self.runInfo.zone_id).shortNameLocale)
-
-	self.Level:SetTextColor(COLOR_WHITE.r, COLOR_WHITE.g, COLOR_WHITE.b)
+	self.CharacterName:SetText(ns.GetDungeonWithData("id", self.runInfo.zone_id).shortNameLocale)
+	self.Level:SetTextColor(1, 1, 1)
 	if self.runInfo.upgrades == 0 then
-		self.Level:SetTextColor(COLOR_GREY.r, COLOR_GREY.g, COLOR_GREY.b)
+		self.Level:SetTextColor(.62, .62, .62)
 	end
-	self.Level:SetText(GetStarsForUpgrades(self.runInfo.upgrades) .. self.runInfo.level)
+	self.Level:SetText(ns.GetStarsForUpgrades(self.runInfo.upgrades) .. self.runInfo.level)
 end
 
 function RaiderIO_GuildBestRunMixin:OnEnter()
-	GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-	GameTooltip:SetText(C_ChallengeMode.GetMapUIInfo(GetDungeonWithData("id", self.runInfo.zone_id).keystone_instance), 1, 1, 1)
-
+	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+	GameTooltip:SetText(C_ChallengeMode.GetMapUIInfo(ns.GetDungeonWithData("id", self.runInfo.zone_id).keystone_instance), 1, 1, 1)
 	local upgradeStr = ""
 	if self.runInfo.upgrades > 0 then
-		upgradeStr = " (" .. GetStarsForUpgrades(self.runInfo.upgrades, true) .. ")"
+		upgradeStr = " (" .. ns.GetStarsForUpgrades(self.runInfo.upgrades, true) .. ")"
 	end
-
 	GameTooltip:AddLine(MYTHIC_PLUS_POWER_LEVEL:format(self.runInfo.level) .. upgradeStr, 1, 1, 1)
 	GameTooltip:AddLine(self.runInfo.clear_time, 1, 1, 1)
-
 	if self.runInfo.party then
 		GameTooltip:AddLine(" ")
-
 		for i, member in ipairs(self.runInfo.party) do
 			if (member.name) then
 				local classInfo = C_CreatureInfo.GetClassInfo(member.class_id)
@@ -144,11 +138,9 @@ function RaiderIO_GuildBestRunMixin:OnEnter()
 				elseif (member.role == "healer") then
 					texture = CreateAtlasMarkup("roleicon-tiny-healer")
 				end
-
 				GameTooltip:AddLine(MYTHIC_PLUS_LEADER_BOARD_NAME_ICON:format(texture, member.name), color.r, color.g, color.b)
 			end
 		end
 	end
-
 	GameTooltip:Show()
 end
