@@ -166,8 +166,8 @@ L.USE_ENGLISH_ABBREVIATION = "Force English Abbreviations for Dungeons"
 L.USE_ENGLISH_ABBREVIATION_DESC = "When set, this will overrides the abbreviations used for dungeons to be the English versions, rather than your current language."
 L.CANCEL = "Cancel"
 L.CONFIRM = "Confirm"
-L.ENABLE_DEBUG_MODE_RELOAD = "You are enabling Debug mode. This is intended for testing purpose, and will cause additional memory usage."
-L.DISABLE_DEBUG_MODE_RELOAD = "Your are disabling debug mode."
-L.WARNING_DEBUG_MODE_ENABLE = "[|cffFFFFFF%s|r] Debug mode is enable for this addon. You may disable with this by typing |cffFFFFFF/raiderio debug|r"
+L.ENABLE_DEBUG_MODE_RELOAD = "You are enabling Debug Mode. This is intended for testing and development purposes only, and will incur additional memory usage.\n\n Clicking Confirm will Reload your Interface."
+L.DISABLE_DEBUG_MODE_RELOAD = "Your are disabling Debug Mode.\n\nClicking Confirm will Reload your Interface."
+L.WARNING_DEBUG_MODE_ENABLE = "|cffFFFFFF%s|r Debug Mode is enabled. You may disable it by typing |cffFFFFFF/raiderio debug|r."
 
 ns.L = L

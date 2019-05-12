@@ -2946,7 +2946,7 @@ _G.RaiderIO = {
 	-- GetPlayerProfile
 	--   A function that returns a table with different data types, based on the type of query specified. Use the explanations above to build the query you need.
 	--
-	-- RaiderIO.HasPlayerProfile(unitOrNameOrNameRealm, realmOrNil, factionOrNil) => true | false
+	-- RaiderIO.HasPlayerProfile(unitOrNameOrNameRealm, realmOrNil, factionOrNil, [regionOrNil]) => true | false
 	--   unitOrNameOrNameRealm = "player", "target", "raid1", "Joe" or "Joe-ArgentDawn"
 	--   realmOrNil            = "ArgentDawn" or nil. Can be nil if realm is part of unitOrNameOrNameRealm, or if it's the same realm as the currently logged in character
 	--   factionOrNil          = 1 for Alliance, 2 for Horde, or nil for automatic (looks up both factions, first found is used)
