@@ -57,9 +57,9 @@ do
 		end
 	end
 
-	local function PopulateProfile(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel)
+	local function PopulateProfile(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel, forceDisableModifier)
 		-- respect modifier and inverse modifier behavior for the profile tooltip
-		if ns.addonConfig.enableProfileModifier then
+		if not forceDisableModifier and ns.addonConfig.enableProfileModifier then
 			if (ns.addonConfig.inverseProfileModifier == ns.addon:IsModifierKeyDown(true) or not ns.HasPlayerProfile(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil)) then
 				if not (not ns.addonConfig.showRaiderIOProfile) then
 					unitOrNameOrNameAndRealm, realmOrNil = "player"
@@ -199,18 +199,18 @@ do
 		return true
 	end
 
-	local function SaveQuery(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel)
-		query[1], query[2], query[3], query[4], query[5], query[6] = unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel
+	local function SaveQuery(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel, forceDisableModifier)
+		query[1], query[2], query[3], query[4], query[5], query[6], query[7] = unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel, forceDisableModifier
 		hasQuery = true
 	end
 
 	local function ClearQuery()
-		query[1], query[2], query[3], query[4], query[5], query[6] = nil
+		query[1], query[2], query[3], query[4], query[5], query[6], query[7] = nil
 		hasQuery = false
 	end
 
 	local function GetQuery()
-		return query[1], query[2], query[3], query[4], query[5], query[6]
+		return query[1], query[2], query[3], query[4], query[5], query[6], query[7]
 	end
 
 	function IsFallbackAnchorShown()
@@ -242,13 +242,13 @@ do
 		ProfileTooltip:SetFrameStrata(FALLBACK_FRAME_STRATA)
 	end
 
-	function UpdateProfile(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel)
+	function UpdateProfile(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel, forceDisableModifier)
 		if unitOrNameOrNameAndRealm == true then
-			unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel = GetQuery()
+			unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel, forceDisableModifier = GetQuery()
 		end
 		ProfileTooltip:ClearLines()
-		if PopulateProfile(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel) then
-			SaveQuery(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel)
+		if PopulateProfile(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel, forceDisableModifier) then
+			SaveQuery(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel, forceDisableModifier)
 			ProfileTooltip:Show()
 		else
 			ClearQuery()
@@ -294,7 +294,7 @@ function ProfileTooltip.ToggleLock()
 	SetDrag(not ns.addonConfig.lockProfile)
 end
 
-function ProfileTooltip.ShowProfile(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, anchorFrame, frameStrata, lfdActivityID, keystoneLevel)
+function ProfileTooltip.ShowProfile(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, anchorFrame, frameStrata, lfdActivityID, keystoneLevel, forceDisableModifier)
 	if not ns.addonConfig.showRaiderIOProfile then
 		return
 	end
@@ -306,7 +306,7 @@ function ProfileTooltip.ShowProfile(unitOrNameOrNameAndRealm, realmOrNil, factio
 	else
 		SetUserAnchor()
 	end
-	UpdateProfile(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel)
+	UpdateProfile(unitOrNameOrNameAndRealm, realmOrNil, factionOrNil, regionOrNil, lfdActivityID, keystoneLevel, forceDisableModifier)
 end
 
 function ProfileTooltip.HideProfile(useFallback)

@@ -197,7 +197,7 @@ local function UpdateTooltip(region, realm, name)
 		end
 		Tooltip:Show()
 		if isShown then
-			ns.PROFILE_UI.ShowProfile(name, realm, nil, region, Tooltip)
+			ns.PROFILE_UI.ShowProfile(name, realm, nil, region, Tooltip, nil, nil, nil, true)
 		end
 	else
 		Tooltip:Hide()
