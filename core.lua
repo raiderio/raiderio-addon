@@ -2660,11 +2660,9 @@ do
 			end
 			local function CustomButtonOnEnter(self) -- UIDropDownMenuTemplates.xml#155
 				_G[self:GetName() .. "Highlight"]:Show()
-				CustomOnEnter(self:GetParent())
 			end
 			local function CustomButtonOnLeave(self) -- UIDropDownMenuTemplates.xml#178
 				_G[self:GetName() .. "Highlight"]:Hide()
-				CustomOnLeave(self:GetParent())
 			end
 			custom = CreateFrame("Button", addonName .. "_CustomDropDownList", UIParent, "UIDropDownListTemplate")
 			custom:Hide()
