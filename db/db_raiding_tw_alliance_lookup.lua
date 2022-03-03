@@ -2,7 +2,7 @@
 -- Copyright (c) 2022 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=2,region="tw",faction=1,date="2022-03-02T06:35:15Z",currentRaid={["name"]="Sepulcher of the First Ones",["shortName"]="SFO",["bossCount"]=11},previousRaid=nil,lookup1={}}
+local provider={name=...,data=2,region="tw",faction=1,date="2022-03-03T06:12:16Z",currentRaid={["name"]="Sepulcher of the First Ones",["shortName"]="SFO",["bossCount"]=11},previousRaid=nil,lookup1={}}
 local F
 
 F = function() provider.lookup1[1] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} end F()

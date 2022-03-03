@@ -2,10 +2,10 @@
 -- Copyright (c) 2022 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=2,region="tw",faction=2,date="2022-03-02T06:35:15Z",currentRaid={["name"]="Sepulcher of the First Ones",["shortName"]="SFO",["bossCount"]=11},previousRaid=nil,lookup2={}}
+local provider={name=...,data=2,region="tw",faction=2,date="2022-03-03T06:12:16Z",currentRaid={["name"]="Sepulcher of the First Ones",["shortName"]="SFO",["bossCount"]=11},previousRaid=nil,lookup2={}}
 local F
 
-F = function() provider.lookup2[1] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} end F()
+F = function() provider.lookup2[1] = {1301,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} end F()
 
 F = nil
 RaiderIO.AddProvider(provider)

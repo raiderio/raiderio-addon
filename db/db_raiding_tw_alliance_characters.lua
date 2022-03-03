@@ -2,7 +2,7 @@
 -- Copyright (c) 2022 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=2,region="tw",faction=1,date="2022-03-02T06:35:15Z",currentRaid={["name"]="Sepulcher of the First Ones",["shortName"]="SFO",["bossCount"]=11},previousRaid=nil,db1={}}
+local provider={name=...,data=2,region="tw",faction=1,date="2022-03-03T06:12:16Z",currentRaid={["name"]="Sepulcher of the First Ones",["shortName"]="SFO",["bossCount"]=11},previousRaid=nil,db1={}}
 local F
 
 F = function() provider.db1["暗影之月"]={0,"Eleme","Longhan","Missun","奧蕾賽絲","斯克拉姆","晨晨法","木瓜之槌教派","紊貓貓","阿莫維亞"} end F()
