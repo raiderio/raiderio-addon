@@ -2,7 +2,7 @@
 -- Copyright (c) 2022 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",faction=2,date="2022-03-11T06:31:16Z",numCharacters=21778,db2={}}
+local provider={name=...,data=3,region="tw",faction=2,date="2022-03-12T06:31:38Z",numCharacters=21952,db2={}}
 local F
 
 F = function() provider.db2["寒冰皇冠"]={0,"Elvemigchat","也只是怕錯過"} end F()
