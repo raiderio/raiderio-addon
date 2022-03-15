@@ -2,11 +2,10 @@
 -- Copyright (c) 2022 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",faction=2,date="2022-03-14T06:43:28Z",numCharacters=21815,db2={}}
+local provider={name=...,data=3,region="tw",faction=2,date="2022-03-15T06:44:16Z",numCharacters=22004,db2={}}
 local F
 
 F = function() provider.db2["寒冰皇冠"]={0,"Elvemigchat","也只是怕錯過"} end F()
-F = function() provider.db2["世界之樹"]={4,"向日葵的蠟燭","朝陽可可","玫瑰的蠟燭"} end F()
 
 F = nil
 RaiderIO.AddProvider(provider)
