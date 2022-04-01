@@ -2,7 +2,7 @@
 -- Copyright (c) 2022 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",faction=2,date="2022-03-31T06:55:28Z",numCharacters=21211,db2={}}
+local provider={name=...,data=3,region="tw",faction=2,date="2022-04-01T06:54:38Z",numCharacters=21449,db2={}}
 local F
 
 F = function() provider.db2["屠魔山谷"]={0,"種豬騎士","胖達莉亞"} end F()
