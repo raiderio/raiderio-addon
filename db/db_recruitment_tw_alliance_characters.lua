@@ -2,7 +2,7 @@
 -- Copyright (c) 2022 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",faction=1,date="2022-04-03T06:56:17Z",numCharacters=21028,db1={}}
+local provider={name=...,data=3,region="tw",faction=1,date="2022-04-04T06:55:14Z",numCharacters=20850,db1={}}
 local F
 
 F = function() provider.db1["聖光之願"]={0,"Ajirons","Avidar","Damek","Darc","Darroch","Hermann","Ivokerk","Matt","Mud","Percy","Peregrine","Reko","Seb","Waldemar","Will","Xaoc","天使卡士達","小熊鳥貓娘","杜卡堡小美人","蔻醬"} end F()
