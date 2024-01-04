@@ -2,7 +2,7 @@
 -- Copyright (c) 2023 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",date="2024-01-03T09:50:45Z",numCharacters=26990,db={}}
+local provider={name=...,data=3,region="tw",date="2024-01-04T09:50:14Z",numCharacters=27037,db={}}
 local F
 
 F = function() provider.db["冰風崗哨"]={0,"保温杯放可乐","公主请坐牢","冰歧淋","喵貓貓喵貓貓","妳幹嘛哎喲","戀夏","戀夏丶","我超威的","战斗暴龙兽","斷了綫的風箏","系艾玛","索尔","繁花如愿","聖光照耀尾巴","薩拉塔斯姐姐","踢皮球的小哥","逮蝦戶","酒館發牌員"} end F()
