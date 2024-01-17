@@ -2,11 +2,11 @@
 -- Copyright (c) 2023 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",date="2024-01-16T10:14:57Z",numCharacters=27341,lookup={},recordSizeInBytes=2,encodingOrder={0,1,3}}
+local provider={name=...,data=3,region="tw",date="2024-01-17T09:22:16Z",numCharacters=27751,lookup={},recordSizeInBytes=2,encodingOrder={0,1,3}}
 local F
 
--- chunk size: 86
-F = function() provider.lookup[1] = "?\5?\5?\5?\5?\5?\5?\5?\5?\5?\5?\5?\5?\5?\5?\5?\5?\5?\5@\13@\13s\29@\13s\29s\29s\29s\29@\13@\13s\29s\29s\29s\29@\13s\29s\29s\29s\29;\16\8\4\8\8;\4\8\8\8\16" end F()
+-- chunk size: 156
+F = function() provider.lookup[1] = "<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29;\4\8\8<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29<\29@\13@\13s\29@\13s\29s\29s\29s\29@\13@\13s\29s\29s\29s\29@\13s\29s\29s\29s\29\8\4;\16\8\4\8\8\8\16" end F()
 
 F = nil
 RaiderIO.AddProvider(provider)
