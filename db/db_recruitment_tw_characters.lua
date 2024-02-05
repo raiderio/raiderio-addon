@@ -2,7 +2,7 @@
 -- Copyright (c) 2023 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",date="2024-02-04T08:18:51Z",numCharacters=28683,db={}}
+local provider={name=...,data=3,region="tw",date="2024-02-05T08:27:47Z",numCharacters=28535,db={}}
 local F
 
 F = function() provider.db["語風"]={0,"Loadingpr","Loadingzz","Panpanda","上汤娃娃菜","不可能更快乐","伊甸園的笨熊","你劈我瓜是吧","切赫","双生之焰","吃饭睡觉","听风起雨落","吾乃惠惠","和風","哲别","国服之光","坎特","大水牛丶","大瓜","小奶牛","少主不要停","少主快来嘛","情话还是说好","感覺到","是恢恢","東東哥哥","東雲名乃","水頭媽媽桑","深藍爺叔","灬水中月灬","牛肉糊","老公","落夢夢","蜜柚小騎","这回真寄咯","釋丶迦瀾達","陳鼎鼎睡覺嘍","青芒","静电小子","鱼没有脚印"} end F()
