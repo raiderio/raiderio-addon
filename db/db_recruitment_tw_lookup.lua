@@ -1,12 +1,12 @@
 --
--- Copyright (c) 2023 by Ludicrous Speed, LLC
+-- Copyright (c) 2024 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",date="2024-02-29T08:27:01Z",numCharacters=26336,lookup={},recordSizeInBytes=2,encodingOrder={0,1,3}}
+local provider={name=...,data=3,region="tw",date="2024-03-21T08:23:29Z",numCharacters=23112,lookup={},recordSizeInBytes=2,encodingOrder={0,1,3}}
 local F
 
--- chunk size: 26
-F = function() provider.lookup[1] = "s\29s\29s\29s\29s\29s\29s\29s\29s\29s\29s\29s\29s\29" end F()
+-- chunk size: 2
+F = function() provider.lookup[1] = "\169\22" end F()
 
 F = nil
 RaiderIO.AddProvider(provider)
