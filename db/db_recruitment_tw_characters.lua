@@ -2,7 +2,7 @@
 -- Copyright (c) 2024 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",date="2024-04-07T08:28:00Z",numCharacters=20028,db={}}
+local provider={name=...,data=3,region="tw",date="2024-04-08T08:29:34Z",numCharacters=20152,db={}}
 local F
 
 F = function() provider.db["克羅之刃"]={0,"暴脾气"} end F()
