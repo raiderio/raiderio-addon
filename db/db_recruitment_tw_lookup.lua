@@ -2,7 +2,7 @@
 -- Copyright (c) 2024 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",date="2024-05-06T08:33:41Z",numCharacters=22860,lookup={},recordSizeInBytes=2,encodingOrder={0,1,3}}
+local provider={name=...,data=3,region="tw",date="2024-05-07T08:04:54Z",numCharacters=22899,lookup={},recordSizeInBytes=2,encodingOrder={0,1,3}}
 local F
 
 -- chunk size: 2
