@@ -14765,6 +14765,30 @@ do
     CreateInterfacePanel()
     CreateSlashCommand()
 
+	-- register to the AddOns Compartment
+	local mouseButtonNote = "\nLeft Click for Settings\n Right Click for Search";
+	AddonCompartmentFrame:RegisterAddon({
+		text = addonName,
+		icon = "Interface/AddOns/RaiderIO/icons/logo.blp",
+		notCheckable = true,
+		func = function(button, menuInputData, menu)
+			local buttonName = menuInputData.buttonName;
+			if buttonName == "LeftButton" then
+				settings:Show()
+			elseif buttonName == "RightButton" then
+				search:Show()
+			end
+		end,
+		funcOnEnter = function(button)
+			MenuUtil.ShowTooltip(button, function(tooltip)
+				tooltip:SetText(addonName .. mouseButtonNote)
+			end)
+		end,
+		funcOnLeave = function(button)
+			MenuUtil.HideTooltip(button)
+		end,
+	})
+
 end
 
 -- serverlog.lua (requires debug mode)
