@@ -5272,7 +5272,7 @@ do
             local dungeon = util:GetDungeonByInstanceMapID(instanceMapID)
             if dungeon then
                 local keyLevel = data[baseIndex + MAP_FIELD_KEY_LEVEL] ---@type number
-                local isSuccess = data[baseIndex + MAP_FIELD_IS_SUCCESS] ---@type boolean
+                local isSuccess = data[baseIndex + MAP_FIELD_IS_SUCCESS] ~= 0 and true or false ---@type boolean
                 local clearTimeMS = data[baseIndex + MAP_FIELD_CLEAR_TIME_MS] ---@type number
                 local goldTimeLimit, silverTimeLimit, bronzeTimeLimit = util:GetKeystoneTimeLimits(dungeon)
                 goldTimeLimit, silverTimeLimit, bronzeTimeLimit = util:ApplyKeystoneTimeLimitsForLevel(goldTimeLimit, silverTimeLimit, bronzeTimeLimit, keyLevel)
