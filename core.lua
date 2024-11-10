@@ -5261,7 +5261,7 @@ do
         local MAP_NUM_FIELDS = MAP_FIELD_CLEAR_TIME_MS
         local MAX_RUNS_TO_SHOW = 3
         local numRuns = data[FIELD_INDEX_NUM_RUNS]
-        tooltip:AddDoubleLine("Recent Runs With You", numRuns, 1, 1, 1, 1, 1, 1) -- TODO: localize
+        tooltip:AddDoubleLine(L.RECENT_RUNS_WITH_YOU, numRuns, 1, 1, 1, 1, 1, 1)
         local runsText = {} ---@type string[]
         for runIndex = 0, min(MAX_RUNS_TO_SHOW - 1, numRuns) do
             local baseIndex = FIELD_INDEX_FIRST_MAP + (runIndex * MAP_NUM_FIELDS) - 1
