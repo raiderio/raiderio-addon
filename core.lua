@@ -5212,7 +5212,7 @@ do
 
     local function AppendRecentRunsWithCharacter(tooltip, keystoneProfile, state)
         -- TODO: is realm in combatlog format? (where there are no spaces). It needs to be.
-        local lookupKey = state.name .. "-" ..state.region .. "-" .. state.realm
+        local lookupKey = state.name .. "-" .. state.realm
         local data = ns.CLIENT_RECENT_CHARACTERS[lookupKey]
 
         local FIELD_INDEX_DATE = 1
