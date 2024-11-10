@@ -5242,6 +5242,9 @@ do
     ---@param profile DataProviderCharacterProfile
     ---@param state TooltipState
     local function AppendRecentRunsWithCharacter(tooltip, profile, state)
+        if not CLIENT_RECENT_CHARACTERS then
+            return
+        end
         local lookupKey = format("%s-%s", profile.name, profile.realm)
         local data = CLIENT_RECENT_CHARACTERS[lookupKey]
         if not data then
