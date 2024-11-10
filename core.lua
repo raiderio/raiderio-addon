@@ -5210,6 +5210,80 @@ do
         end
     end
 
+    local function AppendRecentRunsWithCharacter(tooltip, keystoneProfile, state)
+        -- TODO: is realm in combatlog format? (where there are no spaces). It needs to be.
+        local lookupKey = state.name .. "-" ..state.region .. "-" .. state.realm
+        local data = ns.CLIENT_RECENT_CHARACTERS[lookupKey]
+
+        local FIELD_INDEX_DATE = 1
+        local FIELD_INDEX_NUM_RUNS = 2
+        local FIELD_INDEX_FIRST_MAP = 3
+        local NUM_FIELDS = 4
+
+        local MAP_FIELD_INSTANCE_MAP_ID = 1
+        local MAP_FIELD_KEY_LEVEL = 2
+        local MAP_FIELD_IS_SUCCESS = 3
+        local MAP_FIELD_CLEAR_TIME_MS = 4
+        local MAP_NUM_FIELDS = MAP_FIELD_CLEAR_TIME_MS
+
+        local MAX_RUNS_TO_SHOW = 3
+
+        if data ~= nil then
+            local numRuns = data[FIELD_INDEX_NUM_RUNS]
+            tooltip:AddDoubleLine("Recent Runs With You", numRuns, 1, 1, 1, 1, 1, 1)
+            local recentDungeons = ""
+            for runIndex = 0, min(MAX_RUNS_TO_SHOW - 1, numRuns) do
+                local baseIndex = FIELD_INDEX_FIRST_MAP + (runIndex * MAP_NUM_FIELDS) - 1
+                local instanceMapID = data[baseIndex + MAP_FIELD_INSTANCE_MAP_ID]
+                if not instanceMapID then
+                    break
+                end
+
+                local dungeon = util:GetDungeonByInstanceMapID(instanceMapID)
+                if dungeon ~= nil then
+                    local keyLevel = data[baseIndex + MAP_FIELD_KEY_LEVEL]
+                    local isSuccess = data[baseIndex + MAP_FIELD_IS_SUCCESS]
+                    local clearTimeMS = data[baseIndex + MAP_FIELD_CLEAR_TIME_MS]
+
+                    local goldTimeLimit, silverTimeLimit, bronzeTimeLimit = dungeon.timers[1], dungeon.timers[2], dungeon.timers[3]
+
+                    -- TODO: share this calculation with the other place we are doing it; rather than duplicating
+                    if keyLevel >= 7 then
+                        if goldTimeLimit > 0 then
+                            goldTimeLimit = goldTimeLimit + 90
+                        end
+                        if silverTimeLimit > 0 then
+                            silverTimeLimit = silverTimeLimit + 90
+                        end
+                        if bronzeTimeLimit > 0 then
+                            bronzeTimeLimit = bronzeTimeLimit + 90
+                        end
+                    end
+
+                    local runSeconds = clearTimeMS / 1000
+                    local runNumUpgrades = 0
+                    if isSuccess then
+                        runNumUpgrades = 1
+                        if runSeconds <= goldTimeLimit then
+                            runNumUpgrades = 3
+                        elseif runSeconds <= silverTimeLimit then
+                            runNumUpgrades = 2
+                        end
+                    end
+
+                    if strlen(recentDungeons) > 0 then
+                        recentDungeons = recentDungeons .. " |cff888888/|r "
+                    end
+
+                    recentDungeons = recentDungeons .. util:GetNumChests(runNumUpgrades) .. keyLevel .. " " .. dungeon.shortName
+                end
+            end
+            if strlen(recentDungeons) > 0 then
+                tooltip:AddLine(recentDungeons, 1, 1, 1)
+            end
+        end
+    end
+
     ---@class PartyMember
     ---@field public unit string
     ---@field public level number
@@ -5594,6 +5668,9 @@ do
                         end
                         local sortedMilestone = keystoneProfile.sortedMilestones[i]
                         tooltip:AddDoubleLine(sortedMilestone.label, sortedMilestone.text, 1, 1, 1, 1, 1, 1)
+                    end
+                    do
+                        AppendRecentRunsWithCharacter(tooltip, keystoneProfile, state)
                     end
                     if isExtendedProfile and (hasMod or hasModSticky) and keystoneProfile.sortedDungeons[1] then
                         local hasBestDungeons = false
