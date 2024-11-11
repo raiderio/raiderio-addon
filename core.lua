@@ -9954,6 +9954,8 @@ if IS_RETAIL then
             local mapID = self:GetKeystone()
             local liveDataProvider = self:GetLiveDataProvider()
             local liveSummary = liveDataProvider:GetSummary()
+            local liveDeathPenalty = liveDataProvider:GetDeathPenalty(liveSummary.level)
+            local liveDeathPenaltyMS = liveDeathPenalty * 1000
             ---@type ReplayCompletedSummary
             local summary = {
                 replaySeason = replay.season,
@@ -9962,7 +9964,7 @@ if IS_RETAIL then
                 zoneId = mapID,
                 keyLevel = liveSummary.level,
                 completedAt = time(),
-                clearTimeMS = liveSummary.timer,
+                clearTimeMS = liveSummary.timer + liveDeathPenaltyMS,
             }
             table.insert(_G.RaiderIO_CompletedReplays, summary)
             local delta = ConvertMillisecondsToSeconds(summary.clearTimeMS)
