@@ -5242,7 +5242,7 @@ do
     ---@param profile DataProviderCharacterProfile
     ---@param state TooltipState
     local function AppendRecentRunsWithCharacter(tooltip, profile, state)
-        if not CLIENT_RECENT_CHARACTERS then
+        if not CLIENT_RECENT_CHARACTERS or not config:Get("enableClientEnhancements") then
             return
         end
         local lookupKey = format("%s-%s", profile.name, profile.realm)
@@ -5278,13 +5278,12 @@ do
                 goldTimeLimit, silverTimeLimit, bronzeTimeLimit = util:ApplyKeystoneTimeLimitsForLevel(goldTimeLimit, silverTimeLimit, bronzeTimeLimit, keyLevel)
                 local runSeconds = clearTimeMS / 1000
                 local runNumUpgrades = 0
-                if isSuccess then
+                if runSeconds <= goldTimeLimit then
+                    runNumUpgrades = 3
+                elseif runSeconds <= silverTimeLimit then
+                    runNumUpgrades = 2
+                elseif runSeconds <= bronzeTimeLimit then
                     runNumUpgrades = 1
-                    if runSeconds <= goldTimeLimit then
-                        runNumUpgrades = 3
-                    elseif runSeconds <= silverTimeLimit then
-                        runNumUpgrades = 2
-                    end
                 end
                 runsText[#runsText + 1] = format("%s%s %s", util:GetNumChests(runNumUpgrades), keyLevel, dungeon.shortName)
             end
