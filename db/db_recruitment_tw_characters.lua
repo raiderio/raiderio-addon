@@ -2,7 +2,7 @@
 -- Copyright (c) 2025 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",date="2025-01-14T08:23:27Z",numCharacters=24446,db={}}
+local provider={name=...,data=3,region="tw",date="2025-01-15T08:24:59Z",numCharacters=24790,db={}}
 local F
 
 F = function() provider.db["聖光之願"]={0,"一霽無瑕一","光頭暴擊高","兩儀織","叫爸爸","孜然小酥肉","新木優子","紅燒獅子頭","維魯德拉","艾德吻","艾德妮","艾德林","艾德狼","艾德莉亞","雪貓甜滋滋"} end F()
