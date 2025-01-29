@@ -2,7 +2,7 @@
 -- Copyright (c) 2025 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="kr",date="2025-01-28T08:26:42Z",numCharacters=27346,db={}}
+local provider={name=...,data=3,region="kr",date="2025-01-29T08:22:58Z",numCharacters=27348,db={}}
 local F
 
 F = function() provider.db["아즈샤라"]={0,"Icepink","루브루브","모카기사님","모카아이스님","모카악사님","모카죽기님","쇽쇽전사","술사모카","아이스블루베리","와우레이드톡방","잠탱이루브","잠탱이루브님","쿠로베리"} end F()
