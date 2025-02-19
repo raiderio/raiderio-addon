@@ -2,7 +2,7 @@
 -- Copyright (c) 2025 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="us",date="2025-02-18T06:13:22Z",numCharacters=65,db={}}
+local provider={name=...,data=3,region="us",date="2025-02-19T06:15:32Z",numCharacters=70,db={}}
 local F
 
 F = function() provider.db["Mankrik"]={0,"Altere","Cawanu","Dknold","Dopåmine","Dromhunter","Dromlock","Drommekage","Droodkage","Drömmekage","Drømmekage","Elder","Elderne","Eldertoo","Elementalino","Galacnocok","Gøkù","Habiibi","Howyadóinmon","Huntinnuggs","Kadron","Kèrupt","Lazzarrass","Liljessie","Limz","Lymz","Låymon","Maikeruu","Manlycupcake","Mon","Neroslice","Nevlak","Osakha","Phailme","Pwniszher","Pølsemix","Revirez","Shadowgrave","Shotalotapus","Sinthra","Stitchyboi","Styggmz","Twistedfaith","Tyder","Varltok","Vinsmøke","Zaritjr","Zubee","Zuubedoo","Zuubinator","Zúzù","Èpinephrine"} end F()
