@@ -1542,6 +1542,7 @@ do
         inverseProfileModifier = false,
         positionProfileAuto = true,
         lockProfile = false,
+        enableLFGExportButton = true, -- NEW in 11.1
         showRoleIcons = true,
         profilePoint = { point = nil, x = 0, y = 0 },
         debugMode = false,
@@ -2950,11 +2951,12 @@ do
 end
 
 -- json.lua
--- dependencies: module, callback, util
+-- dependencies: module, config, callback, util
 do
 
     ---@class JSONModule : Module
     local json = ns:NewModule("JSON") ---@type JSONModule
+    local config = ns:GetModule("Config") ---@type ConfigModule
     local callback = ns:GetModule("Callback") ---@type CallbackModule
     local util = ns:GetModule("Util") ---@type UtilModule
 
@@ -3046,6 +3048,7 @@ do
         EditBoxOnEscapePressed = function(self) self:GetParent():Hide() end ---@diagnostic disable-line: undefined-field
     }
 
+    ---@type RaiderIOExportButton
     local exportButton
 
     local RoleNameToBit = {
@@ -3171,7 +3174,9 @@ do
 
     local function UpdateCopyDialog()
         local canShow = CanShowCopyDialog()
-        exportButton:SetShown(canShow)
+        if config:Get("enableLFGExportButton") then
+            exportButton:SetShown(canShow)
+        end
         if not canShow then
             json:CloseCopyDialog()
             return false
@@ -3220,6 +3225,10 @@ do
         return button
     end
 
+    local function UpdateButtonVisibility()
+        exportButton:SetShown(config:Get("enableLFGExportButton"))
+    end
+
     function json:CanLoad()
         return not exportButton and LFGListFrame
     end
@@ -3227,6 +3236,8 @@ do
     function json:OnLoad()
         self:Enable()
         exportButton = CreateExportButton()
+        UpdateButtonVisibility()
+        callback:RegisterEvent(UpdateButtonVisibility, "RAIDERIO_SETTINGS_SAVED")
         callback:RegisterEvent(UpdateCopyDialog, "GROUP_ROSTER_UPDATE", "LFG_LIST_ACTIVE_ENTRY_UPDATE", "LFG_LIST_APPLICANT_LIST_UPDATED", "LFG_LIST_APPLICANT_UPDATED", "PLAYER_ENTERING_WORLD", "PLAYER_ROLES_ASSIGNED", "PLAYER_SPECIALIZATION_CHANGED")
     end
 
@@ -14419,6 +14430,10 @@ do
             configOptions:CreateOptionToggle(L.INVERSE_PROFILE_MODIFIER, L.INVERSE_PROFILE_MODIFIER_DESC, "inverseProfileModifier")
             configOptions:CreateOptionToggle(L.ENABLE_AUTO_FRAME_POSITION, L.ENABLE_AUTO_FRAME_POSITION_DESC, "positionProfileAuto")
             configOptions:CreateOptionToggle(L.ENABLE_LOCK_PROFILE_FRAME, L.ENABLE_LOCK_PROFILE_FRAME_DESC, "lockProfile")
+
+            configOptions:CreatePadding()
+            configOptions:CreateHeadline(L.MISC_SETTINGS)
+            configOptions:CreateOptionToggle(L.ENABLE_LFG_EXPORT_BUTTON, L.ENABLE_LFG_EXPORT_BUTTON_DESC, "enableLFGExportButton")
 
             configOptions:CreatePadding()
             configOptions:CreateHeadline(L.RAIDERIO_CLIENT_CUSTOMIZATION)
