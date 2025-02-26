@@ -3172,11 +3172,20 @@ do
         return not not (hasGroupMembers or entry or numApplicants > 0)
     end
 
-    local function UpdateCopyDialog()
-        local canShow = CanShowCopyDialog()
-        if config:Get("enableLFGExportButton") then
-            exportButton:SetShown(canShow)
+    local function CanShowButton()
+        if not config:Get("enableLFGExportButton") then
+            return false
         end
+        return CanShowCopyDialog()
+    end
+
+    local function UpdateButtonVisibility()
+        exportButton:SetShown(CanShowButton())
+    end
+
+    local function UpdateCopyDialog()
+        local canShow = CanShowButton()
+        exportButton:SetShown(canShow)
         if not canShow then
             json:CloseCopyDialog()
             return false
@@ -3225,12 +3234,8 @@ do
         return button
     end
 
-    local function UpdateButtonVisibility()
-        exportButton:SetShown(config:Get("enableLFGExportButton"))
-    end
-
     function json:CanLoad()
-        return not exportButton and LFGListFrame
+        return not exportButton and LFGListFrame and config:IsEnabled()
     end
 
     function json:OnLoad()
