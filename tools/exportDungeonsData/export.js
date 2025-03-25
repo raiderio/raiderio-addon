@@ -1,9 +1,10 @@
 const db = require('./db');
 
 const config = {
-    // the desired expansion and season to export data from
-    expansion: 9,
-    season: 10,
+    // `true` means the latest expansion, otherwise specify the desired expansion and season to export data from
+    expansion: true,
+    // `true` means the latest season, otherwise specify the season that you wish to export
+    season: true,
     // manually specify certain fields for these particular keystone instances
     keystoneInstanceOverride: {
         [2]: { // Temple of the Jade Serpent
@@ -180,6 +181,29 @@ const config = {
 
     instanceData.forEach((v, k) => extendInstance(v, k + 1000001)); // TODO: fake ID as placeholder
 
+    const getNumberByKey = (items, key, lowest) => {
+        if (!Array.isArray(items)) {
+            items = [items];
+        }
+        return items.reduce((pv, cv) => {
+            cv = cv[key];
+            if (Array.isArray(cv)) {
+                cv = cv.reduce((pv, cv) => (cv = parseInt(cv), (lowest ? pv < cv : pv > cv) ? pv : cv), -1);
+            } else {
+                cv = parseInt(cv);
+            }
+            return (lowest ? pv < cv : pv > cv) ? pv : cv;
+        }, -1);
+    };
+
+    if (config.expansion === true) {
+        config.expansion = getNumberByKey(seasonData, 'ExpansionID');
+    }
+
+    if (config.season === true) {
+        config.season = getNumberByKey(seasonData, 'Season');
+    }
+
     const relSeasonData = db.groupItems(
         seasonData,
         item => (
@@ -284,7 +308,9 @@ const config = {
             return pv;
         }, []);
 
-    const luaInstanceMapAndKeystoneIDs = instanceMapAndKeystoneIDs.map(o => `\t[${o.MapID}] = ${o.IDs.length > 1 ? `{ ${o.IDs.join(', ')} }` : o.IDs[0]}`).join(',\r\n');
+    instanceMapAndKeystoneIDs.sort((a, b) => getNumberByKey(a, 'IDs', true) - getNumberByKey(b, 'IDs', true));
+
+    const luaInstanceMapAndKeystoneIDs = `${instanceMapAndKeystoneIDs.map(o => `\t[${o.MapID}] = ${o.IDs.length > 1 ? `{ ${o.IDs.join(', ')} }` : o.IDs[0]}`).join(',\r\n')},`;
 
     const lua = `local _, ns = ...
 
