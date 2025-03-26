@@ -2568,18 +2568,8 @@ do
     ---@param bronzeTimeLimit number
     ---@param level? number
     ---@return number goldTimeLimit, number silverTimeLimit, number bronzeTimeLimit
+    -- Previously here to apply +90s timer when level was >7 (TWW S1)
     function util:ApplyKeystoneTimeLimitsForLevel(goldTimeLimit, silverTimeLimit, bronzeTimeLimit, level)
-        if level and level >= 7 then
-            if goldTimeLimit > 0 then
-                goldTimeLimit = goldTimeLimit + 90
-            end
-            if silverTimeLimit > 0 then
-                silverTimeLimit = silverTimeLimit + 90
-            end
-            if bronzeTimeLimit > 0 then
-                bronzeTimeLimit = bronzeTimeLimit + 90
-            end
-        end
         return goldTimeLimit, silverTimeLimit, bronzeTimeLimit
     end
 
