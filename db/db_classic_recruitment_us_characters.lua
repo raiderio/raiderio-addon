@@ -2,7 +2,7 @@
 -- Copyright (c) 2025 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="us",date="2025-04-20T06:08:10Z",numCharacters=91,db={}}
+local provider={name=...,data=3,region="us",date="2025-04-21T06:09:29Z",numCharacters=91,db={}}
 local F
 
 F = function() provider.db["Arugal"]={0,"Bktd","Davelol","Davelolfan","Daveloli","Daveloltroll","Denkah","Denkar","Denkr","Dkdave","Fluffysbff","Fluffyshh","Fluffyshype","Fluffyspve","Fluffysum","Fluffyswl","Fluffyzz","Flxffys","Lprkrn","Lylie","Notbucket","Photoncannon","Txshy","Txshytwo"} end F()
