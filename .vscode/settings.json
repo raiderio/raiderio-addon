@@ -12,7 +12,7 @@
         "utf8": "disable"
     },
     "Lua.workspace.library": [
-        "~\\.vscode\\extensions\\ketho.wow-api-0.18.2\\Annotations"
+        "~\\.vscode\\extensions\\ketho.wow-api-0.19.1\\Annotations"
     ],
     "Lua.diagnostics.disable": [
         "assign-type-mismatch",
@@ -73,6 +73,7 @@
         "GameTooltipTextLeft1",
         "GameTooltipTextRight2",
         "GenerateClosure",
+        "GetAppropriateTooltip",
         "GUILD_NEWS",
         "GUILD_NEWS_TITLE",
         "GuildListScrollFrame",
@@ -81,6 +82,8 @@
         "ItemRefTooltip",
         "LE_REALM_RELATION_SAME",
         "LE_WORLD_ELAPSED_TIMER_TYPE_CHALLENGE_MODE",
+        "LFGList_ReportAdvertisement",
+        "LFGList_ReportListing",
         "LFGListFrame",
         "LFGListFrameDropDown",
         "LinkUtil",
@@ -128,8 +131,6 @@
         "WHO_LIST_GUILD_FORMAT",
         "WhoFrame",
         "WhoListScrollFrame",
-        "WorldFrame",
-        "LFGList_ReportListing",
-        "LFGList_ReportAdvertisement"
+        "WorldFrame"
     ]
 }
