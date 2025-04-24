@@ -2,7 +2,7 @@
 -- Copyright (c) 2025 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="eu",date="2025-04-23T06:11:42Z",numCharacters=113,db={}}
+local provider={name=...,data=3,region="eu",date="2025-04-24T06:13:02Z",numCharacters=113,db={}}
 local F
 
 F = function() provider.db["Golemagg"]={0,"Seruss","Twism"} end F()
