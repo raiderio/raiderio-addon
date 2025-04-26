@@ -2,7 +2,7 @@
 -- Copyright (c) 2025 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="us",date="2025-04-25T06:12:50Z",numCharacters=97,db={}}
+local provider={name=...,data=3,region="us",date="2025-04-26T06:11:41Z",numCharacters=99,db={}}
 local F
 
 F = function() provider.db["Mankrik"]={0,"Derisbear","Deriscorch","Derisdeath","Derisdots","Deriseal","Derishield","Derishock","Derishot","Derishout","Derismoo","Deristab","Deristas","Deristide","Deristorm","Deristree","Deristrike"} end F()
