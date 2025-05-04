@@ -2,7 +2,7 @@
 -- Copyright (c) 2025 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",date="2025-05-03T08:15:40Z",numCharacters=35366,db={}}
+local provider={name=...,data=3,region="tw",date="2025-05-04T08:17:54Z",numCharacters=35105,db={}}
 local F
 
 F = function() provider.db["水晶之刺"]={0,"潘鳳"} end F()
