@@ -1,6 +1,7 @@
-## Interface: 11506
+## Interface: 11507
 ## Title: Raider.IO Mythic Plus, Raiding, and Recruitment
 ## Notes: Shows Raider.IO Mythic+ Score, Raid Progress, and Recruitment status in-game. Make sure to load one or more region DB.
+## Notes-ruRU: Показывает рейтинг Raider.IO Mythic+, прогресс рейда и статус рекрутинга в игре. Обязательно загрузите одну или несколько баз данных регионов.
 ## Author: Vladinator (Vladinator-TarrenMill), Aspyr (Aspyrox-Skullcrusher) and Isak (Isak-Sargeras)
 ## Version: 1.15.5 (@project-version@)
 ## IconTexture: Interface\AddOns\RaiderIO\icons\logo

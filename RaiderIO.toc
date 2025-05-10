@@ -1,6 +1,7 @@
-## Interface: 110100, 110105
+## Interface: 110105, 110107
 ## Title: Raider.IO Mythic Plus, Raiding, and Recruitment
 ## Notes: Shows Raider.IO Mythic+ Score, Raid Progress, and Recruitment status in-game. Make sure to load one or more region DB.
+## Notes-ruRU: Показывает рейтинг Raider.IO Mythic+, прогресс рейда и статус рекрутинга в игре. Обязательно загрузите одну или несколько баз данных регионов.
 ## Author: Vladinator (Vladinator-TarrenMill), Aspyr (Aspyrox-Skullcrusher) and Isak (Isak-Sargeras)
 ## Version: 11.1.0 (@project-version@)
 ## IconTexture: Interface\AddOns\RaiderIO\icons\logo
@@ -9,6 +10,17 @@
 ## X-AddonProvider: github
 ## X-Curse-Project-ID: 279257
 ## X-Wago-ID: b6mb0XKP
+## Category-enUS: Dungeons & Raids
+## Category-deDE: Dungeons & Schlachtzüge
+## Category-esES: Mazmorras y bandas
+## Category-esMX: Calabozos y bandas
+## Category-frFR: Donjons et raids
+## Category-itIT: Spedizioni e incursioni
+## Category-koKR: 던전 및 공격대
+## Category-ptBR: Masmorras e Raides
+## Category-ruRU: Подземелья и рейды
+## Category-zhCN: 地下城和团队副本
+## Category-zhTW: 地城與團隊
 db/db_client_characters.lua
 db/db_client_config.lua
 db/db_client_guilds.lua
