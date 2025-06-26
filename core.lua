@@ -1917,6 +1917,11 @@ do
         -- whotooltip.lua
         if IsParentedBy(frame, WhoFrame.ScrollBox) then return true end
         if IsParentedBy(frame, WhoListScrollFrame and WhoListScrollFrame:GetParent()) then return true end
+        -- lfgtooltip.lua
+        if LFGListFrame and LFGListFrame.SearchPanel and LFGListFrame.ApplicationViewer then
+            if IsParentedBy(frame, LFGListFrame.SearchPanel.ScrollBox) then return true end
+            if IsParentedBy(frame, LFGListFrame.ApplicationViewer.ScrollBox) then return true end
+        end
         -- guildtooltip.lua
         if IsParentedBy(frame, GuildRosterContainer) then return true end
         if IsParentedBy(frame, GuildListScrollFrame and GuildListScrollFrame:GetParent()) then return true end
