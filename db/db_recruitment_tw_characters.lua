@@ -2,7 +2,7 @@
 -- Copyright (c) 2025 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="tw",date="2025-06-29T08:41:27Z",numCharacters=29308,db={}}
+local provider={name=...,data=3,region="tw",date="2025-06-30T08:37:35Z",numCharacters=29252,db={}}
 local F
 
 F = function() provider.db["米奈希爾"]={0,"雪鹽焦糖貓"} end F()
