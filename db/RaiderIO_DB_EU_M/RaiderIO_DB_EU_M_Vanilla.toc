@@ -1,13 +1,11 @@
-## Interface: 40401
-## Title: Raider.IO |cffFFFFFFRaiding|r (Korea)
+## Interface: 11506
+## Title: Raider.IO |cffFFFFFFMythic Plus|r (Europe)
 ## Author: Vladinator (Vladinator-TarrenMill), Aspyr (Aspyrox-Skullcrusher) and Isak (Isak-Sargeras)
-## Version: 4.4.1 (@project-version@)
+## Version: 1.15.5 (@project-version@)
 ## IconTexture: Interface\AddOns\RaiderIO\icons\logo
 ## Dependencies: RaiderIO
 ## DefaultState: enabled
-## X-Type: Raiding
-## X-Region: Korea
+## X-Type: Mythic Plus
+## X-Region: Europe
 ## X-Faction: Both
 ## X-Website: https://raider.io
-../RaiderIO/db/db_classic_raiding_kr_characters.lua
-../RaiderIO/db/db_classic_raiding_kr_lookup.lua
