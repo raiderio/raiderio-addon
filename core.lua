@@ -22,7 +22,7 @@ local ScrollBoxUtil do
     ---@class CallbackRegistryMixin
     ---@field public RegisterCallback fun(event: string|any, callback: fun())
 
-    ---@class ScrollBoxBaseMixin : CallbackRegistryMixin
+    ---@class ScrollBoxBaseMixin : CallbackRegistryMixin, Frame
     ---@field public GetFrames fun(): Frame[]
     ---@field public Update fun()
     ---@field public buttons? Button[]
@@ -76,13 +76,34 @@ end
 
 local HookUtil do
 
+    ---@alias ScriptAnyWidgetHandler
+    ---|ScriptAnimation
+    ---|ScriptAnimationGroup
+    ---|ScriptBrowser
+    ---|ScriptButton
+    ---|ScriptCheckout
+    ---|ScriptCinematicModel
+    ---|ScriptColorSelect
+    ---|ScriptCooldown
+    ---|ScriptDressUpModel
+    ---|ScriptEditBox
+    ---|ScriptFogOfWarFrame
+    ---|ScriptFrame
+    ---|ScriptGameTooltip
+    ---|ScriptModel
+    ---|ScriptModelSceneActor
+    ---|ScriptMovieFrame
+    ---|ScriptScrollFrame
+    ---|ScriptSlider
+    ---|ScriptStatusBar
+
     HookUtil = {}
 
     local hooked = {}
 
     ---@param frame Frame
     ---@param callback fun(self: Frame, ...)
-    ---@param ... string
+    ---@param ... ScriptAnyWidgetHandler
     function HookUtil:On(frame, callback, ...)
         local hook = hooked[frame]
         if not hook then
@@ -104,7 +125,7 @@ local HookUtil do
 
     ---@param frames Frame[]
     ---@param callback fun(self: Frame, ...)
-    ---@param ... string
+    ---@param ... ScriptAnyWidgetHandler
     function HookUtil:OnAll(frames, callback, ...)
         for _, frame in ipairs(frames) do
             HookUtil:On(frame, callback, ...)
@@ -112,7 +133,7 @@ local HookUtil do
     end
 
     ---@param object Frame[]|Frame
-    ---@param map table<string, fun()>
+    ---@param map table<ScriptAnyWidgetHandler, fun()>
     function HookUtil:MapOn(object, map)
         if type(object) ~= "table" then
             return
@@ -1917,6 +1938,11 @@ do
         -- whotooltip.lua
         if IsParentedBy(frame, WhoFrame.ScrollBox) then return true end
         if IsParentedBy(frame, WhoListScrollFrame and WhoListScrollFrame:GetParent()) then return true end
+        -- lfgtooltip.lua
+        if LFGListFrame and LFGListFrame.SearchPanel and LFGListFrame.ApplicationViewer then
+            if IsParentedBy(frame, LFGListFrame.SearchPanel.ScrollBox) then return true end
+            if IsParentedBy(frame, LFGListFrame.ApplicationViewer.ScrollBox) then return true end
+        end
         -- guildtooltip.lua
         if IsParentedBy(frame, GuildRosterContainer) then return true end
         if IsParentedBy(frame, GuildListScrollFrame and GuildListScrollFrame:GetParent()) then return true end
@@ -1937,9 +1963,12 @@ do
     ---| 1 #Script handler ignored due to safety concerns.
     ---| 2 #Script handler executed successfully.
     ---| 3 #Script handler executed but silently errored.
+    ---| 4 #Script handler ignored due to before-callback.
+
+    ---@alias ExecuteWidgetOnEnterSafelyBefore fun(focus: Frame|ScriptRegion): boolean?
 
     ---@param object? Frame|ScriptRegion @Any interface widget object that supports the methods GetScript.
-    ---@param before? fun() @Optional function to run right before the OnEnter script executes.
+    ---@param before? ExecuteWidgetOnEnterSafelyBefore @Optional function to run right before the OnEnter script executes.
     ---@return ExecuteWidgetOnEnterSafelyStatus @Returns a status enum to indicate the outcome of the call.
     function util:ExecuteWidgetOnEnterSafely(object, before)
         if not object or type(object) ~= "table" or type(object.GetScript) ~= "function" then
@@ -1952,8 +1981,12 @@ do
         if not IsOnEnterSafe(object, func) then
             return 1
         end
+        local call ---@type boolean?
         if type(before) == "function" then
-            before()
+            call = before(object)
+        end
+        if call == false then
+            return 4
         end
         if not pcall(func, object) then
             return 3
@@ -1986,9 +2019,23 @@ do
         end
     end
 
-    ---@param before? fun() @Optional function to run right before the OnEnter script executes.
+    ---@param before? ExecuteWidgetOnEnterSafelyBefore @Optional function to run right before the OnEnter script executes.
     ---@return ExecuteWidgetOnEnterSafelyStatus @Returns a status enum to indicate the outcome of the call.
     function util:ExecuteFocusWidgetOnEnterSafely(before)
+        local focus = util:GetMouseFocus()
+        if not focus then
+            return 0
+        end
+        return self:ExecuteWidgetOnEnterSafely(focus, before)
+    end
+
+    ---@param widget ScriptRegion
+    ---@param before? ExecuteWidgetOnEnterSafelyBefore @Optional function to run right before the OnEnter script executes.
+    ---@return ExecuteWidgetOnEnterSafelyStatus @Returns a status enum to indicate the outcome of the call.
+    function util:ExecuteIsMouseOverWidgetOnEnterSafely(widget, before)
+        if not widget:IsMouseOver() then
+            return 0
+        end
         local focus = util:GetMouseFocus()
         if not focus then
             return 0
@@ -6206,8 +6253,12 @@ do
         GameTooltip:Hide()
     end
 
-    local function OnScroll()
+    ---@param frame Frame
+    local function OnScroll(frame)
         if not config:Get("enableWhoTooltips") then
+            return
+        end
+        if not frame:IsMouseOver() then
             return
         end
         GameTooltip:Hide()
@@ -7276,7 +7327,11 @@ if not IS_CLASSIC_ERA then
         return false
     end
 
-    local function OnScroll()
+    ---@param frame ScrollBoxBaseMixin
+    local function OnScroll(frame)
+        if not frame:IsMouseOver() then
+            return
+        end
         GameTooltip:Hide()
         util:ExecuteFocusWidgetOnEnterSafely()
     end
@@ -7393,8 +7448,12 @@ if IS_CLASSIC_ERA then
         GameTooltip:Hide()
     end
 
-    local function OnScroll()
+    ---@param frame Frame
+    local function OnScroll(frame)
         if not config:Get("enableGuildTooltips") then
+            return
+        end
+        if not frame:IsMouseOver() then
             return
         end
         GameTooltip:Hide()
@@ -7514,8 +7573,12 @@ do
         return true
     end
 
-    local function OnScroll()
+    ---@param frame ScrollBoxBaseMixin
+    local function OnScroll(frame)
         if not config:Get("enableGuildTooltips") then
+            return
+        end
+        if not frame:IsMouseOver() then
             return
         end
         GameTooltip:Hide()
@@ -7916,12 +7979,7 @@ if IS_RETAIL then
             self.GuildBests[i]:SetUp(currentRuns[i + self.offset])
         end
 
-        if self:IsMouseOver(0, 0, 0, 0) then
-            local focus = util:GetMouseFocus()
-            if focus and focus ~= GameTooltip:GetOwner() then
-                util:ExecuteWidgetOnEnterSafely(focus) ---@diagnostic disable-line: param-type-mismatch
-            end
-        end
+        util:ExecuteIsMouseOverWidgetOnEnterSafely(self, function(focus) return focus ~= GameTooltip:GetOwner() end)
 
         self:SetHeight(35 + (numVisibleRuns > 0 and numVisibleRuns * self.GuildBests[1]:GetHeight() or 0) + switchRealHeight)
 
