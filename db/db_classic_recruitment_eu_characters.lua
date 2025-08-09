@@ -2,7 +2,7 @@
 -- Copyright (c) 2025 by Ludicrous Speed, LLC
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="eu",date="2025-08-09T16:56:41Z",numCharacters=219,db={}}
+local provider={name=...,data=3,region="eu",date="2025-08-09T17:12:03Z",numCharacters=219,db={}}
 local F
 
 F = function() provider.db["Gehennas"]={0,"Bgmagemitko","Brewstar","Cantiez","Chimit","Crankilockin","Crankipanda","Devilmonk","Devilsham","Devilshamtre","Exandero","Exanderr","Exandk","Exandri","Exandria","Exandro","Exandrova","Exandru","Exmeralda","Fartbozz","Granie","Gultropy","Hacezbank","Healors","Hresources","Juliusb","Juliusm","Juliusp","Juliust","Juliusw","Juliuswlx","Juliuswx","Juliusxp","Juliusxpx","Kamarile","Komithunt","Lightmit","Livid","Lokkdk","Londonderry","Masuke","Mcfu","Mitcow","Nemehealvai","Neonreäver","Occbull","Occdk","Occdkxy","Occdruid","Occdruidx","Occdruidxy","Occmage","Occmagex","Ohhkiakiakia","Progress","Purpr","Scarpacashew","Scarpadk","Shaili","Sulfius","Wikeed"} end F()
