@@ -1,6 +1,6 @@
 local IS_RETAIL = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 local IS_CLASSIC_ERA = WOW_PROJECT_ID == WOW_PROJECT_CLASSIC
-local IS_CLASSIC = WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC or WOW_PROJECT_ID == WOW_PROJECT_WRATH_CLASSIC or WOW_PROJECT_ID == WOW_PROJECT_CATACLYSM_CLASSIC
+local IS_CLASSIC = not IS_RETAIL and not IS_CLASSIC_ERA
 
 local addonName = ... ---@type string @The name of the addon.
 local ns = select(2, ...) ---@class ns @The addon namespace.
@@ -380,11 +380,119 @@ local DropDownUtil do
 
 end
 
+local StaticPopupUtil do
+
+    ---@param widget? Region
+    local function isTextFontString(widget)
+        return widget and widget:GetObjectType() == "FontString"
+    end
+
+    ---@param widget? Region
+    ---@param reqShown? boolean
+    local function isEditBox(widget, reqShown)
+        return widget and widget:GetObjectType() == "EditBox" and (not reqShown or widget:IsShown())
+    end
+
+    ---@param widget? Region
+    local function isButton(widget)
+        return widget and widget:GetObjectType() == "Button"
+    end
+
+    StaticPopupUtil = {}
+
+    ---@param popup InternalStaticPopupDialog
+    ---@param ... any
+    ---@return InternalStaticPopupDialog
+    function StaticPopupUtil:Show(popup, ...)
+        local id = popup.id
+        if not StaticPopupDialogs[id] then
+            if type(popup.text) == "function" then
+                popup.text = popup.text()
+            end
+            if not popup.which then
+                popup.which = popup.id
+            end
+            StaticPopupDialogs[id] = popup
+        end
+        return StaticPopup_Show(id, ...)
+    end
+
+    ---@param popup InternalStaticPopupFrame
+    function StaticPopupUtil:GetTextFontString(popup)
+        local text = popup.Text
+        if isTextFontString(text) then
+            return text
+        end
+        if popup.GetTextFontString then
+            text = popup:GetTextFontString()
+        end
+        if isTextFontString(text) then
+            return text
+        end
+        text = popup.text
+        if isTextFontString(text) then
+            return text
+        end
+        local name = self:GetName()
+        text = _G[name .. "Text"]
+        return text
+    end
+
+    ---@param popup InternalStaticPopupFrame
+    function StaticPopupUtil:GetEditBox(popup)
+        local editBox = popup.EditBox
+        if isEditBox(editBox) then
+            return editBox
+        end
+        if popup.GetEditBox then
+            editBox = popup:GetEditBox()
+        end
+        if isEditBox(editBox) then
+            return editBox
+        end
+        local name = self:GetName()
+        editBox = _G[name .. "WideEditBox"]
+        if isEditBox(editBox, true) then
+            return editBox
+        end
+        editBox = _G[name .. "EditBox"]
+        return editBox
+    end
+
+    ---@param popup InternalStaticPopupFrame
+    ---@param index number
+    function StaticPopupUtil:GetButton(popup, index)
+        local button ---@type Button?
+        if popup.GetButton then
+            button = popup:GetButton(index)
+        end
+        if isButton(button) then
+            return button
+        end
+        local func = popup[format("GetButton%d", index)] ---@type (fun(self: InternalStaticPopupFrame): Button?)?
+        if func then
+            button = func(popup)
+        end
+        if isButton(button) then
+            return button
+        end
+        button = popup[format("button%d", index)] ---@type Button?
+        if isButton(button) then
+            return button
+        end
+        local name = self:GetName()
+        button = _G[format("%sButton%d", name, index)]
+        return button
+    end
+
+end
+
 -- clients have API naming variants and this helps bridge that gap (this will require revisions/deletion as the clients unify their API's)
 local GetDetailedItemLevelInfo = GetDetailedItemLevelInfo or C_Item.GetDetailedItemLevelInfo ---@diagnostic disable-line: deprecated
 local GetItemInfo = GetItemInfo or C_Item.GetItemInfo ---@diagnostic disable-line: deprecated
 local GetItemInfoInstant = GetItemInfoInstant or C_Item.GetItemInfoInstant ---@diagnostic disable-line: deprecated
 local GetItemQualityColor = GetItemQualityColor or C_Item.GetItemQualityColor ---@diagnostic disable-line: deprecated
+local ReloadUI = ReloadUI or C_UI.Reload
 
 -- constants.lua (ns)
 -- dependencies: none
@@ -2737,8 +2845,22 @@ do
         return format("https://%s/characters/%s/%s/%s/%s?utm_source=addon", ns.RAIDERIO_DOMAIN, ns.PLAYER_REGION, realmSlug, name, urlSuffix), name, realm, realmSlug
     end
 
+    ---@class InternalStaticPopupFrameText : FontString
+    ---@field public text_arg1? string
+    ---@field public text_arg2? string
+
     ---@class InternalStaticPopupFrame : Frame
     ---@field public OnAcceptCallback? function
+    ---@field public Text? InternalStaticPopupFrameText
+    ---@field public GetTextFontString? fun(): InternalStaticPopupFrameText
+    ---@field public EditBox? EditBox
+    ---@field public GetEditBox? fun(): EditBox
+    ---@field public GetButton? fun(self, index: number): Button
+    ---@field public GetButton1? fun(): Button
+    ---@field public GetButton2? fun(): Button
+    ---@field public text? InternalStaticPopupFrameText Deprecated in 11.2 (Used as fallback strategy in case other clients are using the older variant.)
+    ---@field public button1? Button Deprecated in 11.2 (Used as fallback strategy in case other clients are using the older variant.)
+    ---@field public button2? Button Deprecated in 11.2 (Used as fallback strategy in case other clients are using the older variant.)
 
     ---@class InternalStaticPopupDialog
     ---@field public id string
@@ -2762,19 +2884,8 @@ do
 
     ---@param popup InternalStaticPopupDialog
     ---@param ... any
-    ---@return InternalStaticPopupDialog
     function util:ShowStaticPopupDialog(popup, ...)
-        local id = popup.id
-        if not StaticPopupDialogs[id] then
-            if type(popup.text) == "function" then
-                popup.text = popup.text()
-            end
-            if not popup.which then
-                popup.which = popup.id
-            end
-            StaticPopupDialogs[id] = popup
-        end
-        return StaticPopup_Show(id, ...)
+        return StaticPopupUtil:Show(popup, ...)
     end
 
     ---@type InternalStaticPopupDialog
@@ -2791,11 +2902,12 @@ do
         hideOnEscape = true,
         OnShow = function(self)
             self:SetWidth(420)
-            local editBox = _G[self:GetName() .. "WideEditBox"] or _G[self:GetName() .. "EditBox"]
-            editBox:SetText(self.text.text_arg2) ---@diagnostic disable-line: undefined-field
+            local textFontString = StaticPopupUtil:GetTextFontString(self)
+            local editBox = StaticPopupUtil:GetEditBox(self)
+            editBox:SetText(textFontString.text_arg2)
             editBox:SetFocus()
             editBox:HighlightText()
-            local button = _G[self:GetName() .. "Button2"]
+            local button = StaticPopupUtil:GetButton(self, 2)
             button:ClearAllPoints()
             button:SetWidth(200)
             button:SetPoint("CENTER", editBox, "CENTER", 0, -30)
