@@ -2,7 +2,7 @@
 -- Copyright (c) 2025 by RaiderIO, Inc.
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="us",date="2025-09-06T06:06:14Z",numCharacters=225,db={}}
+local provider={name=...,data=3,region="us",date="2025-09-07T06:06:00Z",numCharacters=225,db={}}
 local F
 
 F = function() provider.db["Mankrik"]={0,"Bootyjustice","Bussybladez","Dankstormx","Fentgodx","Janc","Jigokusix","Joinsurreal","Primalchickn","Primalgopro","Primalhunts","Primalhuntz","Primaljoker","Primallz","Primalm","Primalmon","Primalporc","Primalprocs","Primalshocks","Primalsnaps","Primalthree","Primalx","Qqm","Rinakitten","Rinarawr","Sporgor","Sprigdk","Sprigs","Sprigsd","Waifugodx"} end F()
