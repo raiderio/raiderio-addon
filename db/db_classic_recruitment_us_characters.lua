@@ -2,13 +2,13 @@
 -- Copyright (c) 2025 by RaiderIO, Inc.
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="us",date="2025-09-22T06:05:37Z",numCharacters=133,db={}}
+local provider={name=...,data=3,region="us",date="2025-09-23T06:06:07Z",numCharacters=127,db={}}
 local F
 
-F = function() provider.db["Pagle"]={0,"Airbrake","Akerin","Amalthae","Arcadiodk","Arcadiodruid","Arcadiopally","Arcadiosham","Arcadioshot","Arcadiö","Astringence","Bounsay","Buffalotres","Dragonsage","Effervesce","Eirié","Emerlaus","Feroce","Finatae","Fuocoso","Gathormackoy","Holysesher","Jandiee","Kelthara","Kælah","Lessholy","Lustyqt","Malashan","Namereported","Nanajan","Reskulan","Safirion","Sandilock","Sandistar","Scarletwind","Slashme","Stardrae","Teramedic","Touchofkarma","Uno","Wethealussy","Whozewhatzit","Wulfwÿnn","Xatrina","Xdxdxdxdxdxd","Zabum","Álejandro","Álexander","Ärcadio"} end F()
-F = function() provider.db["Faerlina"]={96,"Bolitrona","Dontchimbo","Guandolo","Hijueputa","Jaofindel","Jaofndel","Koltarax","Koltaris","Machetiada","Torrm"} end F()
-F = function() provider.db["Benediction"]={116,"Grogaldar","Ihuntthebads"} end F()
-F = function() provider.db["Arugal"]={120,"Manadot"} end F()
+F = function() provider.db["Pagle"]={0,"Airbrake","Akerin","Amalthae","Arcadiodk","Arcadiodruid","Arcadiopally","Arcadiosham","Arcadioshot","Arcadiö","Astringence","Bounsay","Buffalotres","Dragonsage","Effervesce","Eirié","Emerlaus","Feroce","Finatae","Fuocoso","Gathormackoy","Holysesher","Ineedwhat","Jandiee","Kelthara","Konnan","Kælah","Lessholy","Lustyqt","Malashan","Namereported","Nanajan","Reskulan","Safirion","Sandilock","Sandistar","Scarletwind","Slashme","Stardrae","Teramedic","Touchofkarma","Uno","Wethealussy","Whozewhatzit","Wulfwÿnn","Xatrina","Xdxdxdxdxdxd","Zabum","Álejandro","Álexander","Ärcadio"} end F()
+F = function() provider.db["Faerlina"]={100,"Bolitrona","Dontchimbo","Guandolo","Hijueputa","Jaofindel","Jaofndel","Koltarax","Koltaris","Machetiada","Torrm"} end F()
+F = function() provider.db["Benediction"]={120,"Grogaldar","Ihuntthebads"} end F()
+F = function() provider.db["Arugal"]={124,"Manadot"} end F()
 
 F = nil
 RaiderIO.AddProvider(provider)
