@@ -2,7 +2,7 @@
 -- Copyright (c) 2025 by RaiderIO, Inc.
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="kr",date="2025-10-10T09:03:38Z",numCharacters=33613,db={}}
+local provider={name=...,data=3,region="kr",date="2025-10-11T08:44:19Z",numCharacters=33316,db={}}
 local F
 
 F = function() provider.db["하이잘"]={0,"하기스흑마"} end F()
