@@ -2,10 +2,10 @@
 -- Copyright (c) 2025 by RaiderIO, Inc.
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="us",date="2025-10-24T06:06:19Z",numCharacters=40,db={}}
+local provider={name=...,data=3,region="us",date="2025-10-25T06:06:14Z",numCharacters=46,db={}}
 local F
 
-F = function() provider.db["Pagle"]={0,"Anaranjado","Calsharpsdk","Calsharpton","Cougarstoves","Immerie"} end F()
+F = function() provider.db["Pagle"]={0,"Anaranjado","Calsharpsdk","Calsharpton","Immerie","Mcpews","Rawrandstuff","Thebluegums"} end F()
 
 F = nil
 RaiderIO.AddProvider(provider)
