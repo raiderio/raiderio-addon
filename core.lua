@@ -3822,7 +3822,9 @@ do
         DUNGEON_BEST_INDEX     = 11,    -- best dungeon index
         WARBAND_CURRENT_SCORE  = 12,    -- warband current season score
         WARBAND_PREVIOUS_SCORE = 13,    -- warband previous season score
-        WARBAND_DUNGEON_LEVELS = 14     -- warband dungeon levels and stars for each dungeon completed
+        WARBAND_DUNGEON_LEVELS = 14,    -- warband dungeon levels and stars for each dungeon completed
+        WARBAND_CURRENT_ROLES  = 15,    -- warband current season roles
+        WARBAND_PREVIOUS_ROLES = 16,    -- warband previous season roles
     }
 
     ---@class EncoderRecruitmentFields
@@ -4244,12 +4246,12 @@ do
         }
         results.mplusWarbandCurrent = {
             score = results.warbandCurrentScore or 0,
-            roles = {}  -- no roles for warband scores
+            roles = ORDERED_ROLES[results.warbandPreviousRoleOrdinalIndex] or ORDERED_ROLES[1]
         }
         results.mplusWarbandPrevious = {
             season = results.warbandPreviousScoreSeason,
             score = results.warbandPreviousScore or 0,
-            roles = {} -- no roles for warband scores
+            roles = ORDERED_ROLES[results.warbandCurrentRoleOrdinalIndex] or ORDERED_ROLES[1]
         }
     end
 
@@ -4368,6 +4370,12 @@ do
                 results.hasRenderableData = results.hasRenderableData or results.warbandPreviousScore > 0
             elseif field == ENCODER_MYTHICPLUS_FIELDS.WARBAND_DUNGEON_LEVELS then
                 bitOffset = ReadDungeonLevelStats(results, bucket, bitOffset, 'warband')
+            elseif field == ENCODER_MYTHICPLUS_FIELDS.WARBAND_CURRENT_ROLES then
+                value, bitOffset = ReadBitsFromString(bucket, bitOffset, 7)
+                results.warbandPreviousRoleOrdinalIndex = 1 + value -- indexes are one-based
+            elseif field == ENCODER_MYTHICPLUS_FIELDS.WARBAND_PREVIOUS_ROLES then
+                value, bitOffset = ReadBitsFromString(bucket, bitOffset, 7)
+                results.warbandPreviousRoleOrdinalIndex = 1 + value -- indexes are one-based
             end
         end
         ApplySortedDungeons(results)
