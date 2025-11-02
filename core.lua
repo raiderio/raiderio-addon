@@ -4185,12 +4185,18 @@ do
             local dungeonLevel = results.dungeons[i]
             local dungeonChests = results.dungeonUpgrades[dungeon.index]
             local dungeonFractionalTime = results.dungeonTimes[dungeon.index]
+            local warbandDungeonLevel = results.warbandDungeons[i]
+            local warbandDungeonChests = results.warbandDungeonUpgrades[dungeon.index]
+            local warbandDungeonFractionalTime = results.warbandDungeonTimes[dungeon.index]
             local sortOrder = format("%02d-%02d-%s", 99 - dungeonLevel, 99 - dungeonChests, dungeon.shortName)
             results.sortedDungeons[i] = {
                 dungeon = dungeon,
                 level = dungeonLevel,
                 chests = dungeonChests,
                 fractionalTime = dungeonFractionalTime,
+                warbandLevel = warbandDungeonLevel,
+                warbandChests = warbandDungeonChests,
+                warbandFractionalTime = warbandDungeonFractionalTime,
                 sortOrder = sortOrder,
             }
         end
@@ -5618,14 +5624,26 @@ do
         local lines = {} ---@type string[]
         for i = 1, #sortedDungeons do
             local sortedDungeon = sortedDungeons[i]
-            local chests = sortedDungeon.chests
-            local level = sortedDungeon.level
+            local characterLevel = sortedDungeon.level
+            local characterChests = sortedDungeon.chests
+            local warbandLevel = sortedDungeon.warbandLevel
+            local warbandChests = sortedDungeon.warbandChests
             -- local fractionalTime = sortedDungeon.fractionalTime
-            local text = {
-                util:GetNumChests(chests),
+            local warbandText = {
+                "|cffffffff(|r",
+                util:GetNumChests(warbandChests),
                 "|cff",
-                util:GetKeystoneChestColor(chests, true),
-                level > 0 and level or "-",
+                util:GetKeystoneChestColor(warbandChests, true),
+                warbandLevel,
+                "|r",
+                "|cffffffff)|r ",
+            }
+            local text = {
+                warbandLevel > characterLevel and table.concat(warbandText) or "",
+                util:GetNumChests(characterChests),
+                "|cff",
+                util:GetKeystoneChestColor(characterChests, true),
+                characterLevel > 0 and characterLevel or "-",
                 "|r",
             }
             lines[i] = table.concat(text)
@@ -5921,15 +5939,19 @@ do
                             end
                         end
                     end
+                    local hasShownWarbandScore = false
                     if config:Get("showWarbandScore") then
                         if not config:Get("showWarbandScore") then
                             if keystoneProfile.mplusWarbandCurrent.score > keystoneProfile.mplusCurrent.score then
                                 tooltip:AddDoubleLine(L.WARBAND_SCORE, GetScoreText(keystoneProfile.mplusWarbandCurrent), 1, 1, 1, util:GetScoreColor(keystoneProfile.mplusWarbandCurrent.score))
+                                hasShownWarbandScore = true
                             end
                         else
-                            local isWarbandPreviousScoreRelevant = keystoneProfile.mplusWarbandCurrent.score < (ns.PREVIOUS_SEASON_MAIN_SCORE_RELEVANCE_THRESHOLD * keystoneProfile.mplusWarbandPrevious.score)
+                            local warbandPreviousScoreThreshold = (ns.PREVIOUS_SEASON_MAIN_SCORE_RELEVANCE_THRESHOLD * keystoneProfile.mplusWarbandPrevious.score)
+                            local isWarbandPreviousScoreRelevant = warbandPreviousScoreThreshold > keystoneProfile.mplusWarbandCurrent.score and warbandPreviousScoreThreshold > keystoneProfile.mplusWarbandCurrent.score
                             local isWarbandCurrentScoreBetter = keystoneProfile.mplusWarbandCurrent.score > keystoneProfile.mplusCurrent.score
                             if isWarbandCurrentScoreBetter or isWarbandPreviousScoreRelevant then
+                                hasShownWarbandScore = true
                                 if isWarbandPreviousScoreRelevant then
                                     tooltip:AddDoubleLine(GetSeasonLabel(L.WARBAND_BEST_SCORE_BEST_SEASON, keystoneProfile.mplusWarbandPrevious.season), GetScoreText(keystoneProfile.mplusWarbandPrevious, true), 1, 1, 1, util:GetScoreColor(keystoneProfile.mplusWarbandPrevious.score, true))
                                 end
@@ -5939,7 +5961,7 @@ do
                             end
                         end
                     end
-                    if config:Get("showMainsScore") then
+                    if not hasShownWarbandScore and config:Get("showMainsScore") then
                         if not config:Get("showMainBestScore") then
                             if keystoneProfile.mplusMainCurrent.score > keystoneProfile.mplusCurrent.score then
                                 tooltip:AddDoubleLine(L.MAINS_SCORE, GetScoreText(keystoneProfile.mplusMainCurrent), 1, 1, 1, util:GetScoreColor(keystoneProfile.mplusMainCurrent.score))
