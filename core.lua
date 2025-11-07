@@ -689,8 +689,8 @@ do
             RAIDERIO_COLOR = { 256, 256, 0, 0, 0/256, 64/256, 64/256, 128/256, 0, 0 },
             RAIDERIO_WHITE = { 256, 256, 0, 0, 64/256, 128/256, 64/256, 128/256, 0, 0 },
             RAIDERIO_BLACK = { 256, 256, 0, 0, 128/256, 192/256, 64/256, 128/256, 0, 0 },
-            WARBAND_WHITE = { 256, 256, 0, 0, 0/256, 64/256, 128/256, 192/256, 0, 0 },
-            WARBAND_BLACK = { 256, 256, 0, 0, 64/256, 128/256, 128/256, 192/256, 0, 0 },
+            WARBAND_WHITE = { 256, 256, 0, 0, 0/256, 64/256, 128/256, 192/256, 2, 0 },
+            WARBAND_BLACK = { 256, 256, 0, 0, 64/256, 128/256, 128/256, 192/256, 2, 0 },
         },
         ---@class CustomIcons_Replay : CustomIcons
         replay = {
@@ -857,7 +857,6 @@ do
     ns.PROFILE_TOOLTIP_COLUMN_TEXTURE = { -- The regular character column and the warband icon used in the profile tooltip.
         CHARACTER = "|T982414:1:1|t",
         WARBAND = ns.CUSTOM_ICONS.icons.WARBAND_WHITE("TextureMarkup"),
-        WARBAND_SMALL = ns.CUSTOM_ICONS.icons.WARBAND_WHITE("TextureMarkup", 10),
     }
 
     ---@class RoleIcon
@@ -6020,7 +6019,7 @@ do
                     end
                     local hasShownWarbandScore = false
                     if config:Get("showWarbandScore") then
-                        local warbandText = format("%s %s", L.WARBAND_SCORE, ns.PROFILE_TOOLTIP_COLUMN_TEXTURE.WARBAND_SMALL)
+                        local warbandText = format("%s%s", L.WARBAND_SCORE, ns.PROFILE_TOOLTIP_COLUMN_TEXTURE.WARBAND)
                         if not config:Get("showWarbandScore") then
                             if keystoneProfile.mplusWarbandCurrent.score > keystoneProfile.mplusCurrent.score then
                                 tooltip:AddDoubleLine(warbandText, GetScoreText(keystoneProfile.mplusWarbandCurrent), 1, 1, 1, util:GetScoreColor(keystoneProfile.mplusWarbandCurrent.score))
@@ -6111,7 +6110,7 @@ do
                                 if sortedDungeon.level > 0 or sortedDungeon.warbandLevel > 0 then
                                     local text = {
                                         dungeonLinesWarband[i],
-                                        sortedDungeon.warbandLevel > 0 and format(" %s", ns.PROFILE_TOOLTIP_COLUMN_TEXTURE.WARBAND_SMALL) or "",
+                                        sortedDungeon.warbandLevel > 0 and ns.PROFILE_TOOLTIP_COLUMN_TEXTURE.WARBAND or "",
                                         util:GetTextPaddingTexture(dungeonLinesMaxWidth - dungeonLinesWidth[i]),
                                         dungeonLines[i],
                                     }
