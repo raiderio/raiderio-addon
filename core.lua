@@ -689,8 +689,8 @@ do
             RAIDERIO_COLOR = { 256, 256, 0, 0, 0/256, 64/256, 64/256, 128/256, 0, 0 },
             RAIDERIO_WHITE = { 256, 256, 0, 0, 64/256, 128/256, 64/256, 128/256, 0, 0 },
             RAIDERIO_BLACK = { 256, 256, 0, 0, 128/256, 192/256, 64/256, 128/256, 0, 0 },
-            WARBAND_WHITE = { 256, 256, 0, 0, 0/256, 64/256, 128/256, 192/256, 4, 2 },
-            WARBAND_BLACK = { 256, 256, 0, 0, 64/256, 128/256, 128/256, 192/256, 4, 2 },
+            WARBAND_WHITE = { 256, 256, 0, 0, 0/256, 64/256, 128/256, 192/256, -2, 2 },
+            WARBAND_BLACK = { 256, 256, 0, 0, 64/256, 128/256, 128/256, 192/256, -2, 2 },
         },
         ---@class CustomIcons_Replay : CustomIcons
         replay = {
@@ -6019,7 +6019,7 @@ do
                     end
                     local hasShownWarbandScore = false
                     if config:Get("showWarbandScore") then
-                        local warbandText = format("%s%s", L.WARBAND_SCORE, ns.PROFILE_TOOLTIP_COLUMN_TEXTURE.WARBAND)
+                        local warbandText = format("%s %s", L.WARBAND_SCORE, ns.PROFILE_TOOLTIP_COLUMN_TEXTURE.WARBAND)
                         if not config:Get("showWarbandScore") then
                             if keystoneProfile.mplusWarbandCurrent.score > keystoneProfile.mplusCurrent.score then
                                 tooltip:AddDoubleLine(warbandText, GetScoreText(keystoneProfile.mplusWarbandCurrent), 1, 1, 1, util:GetScoreColor(keystoneProfile.mplusWarbandCurrent.score))
@@ -6110,8 +6110,9 @@ do
                                 if sortedDungeon.level > 0 or sortedDungeon.warbandLevel > 0 then
                                     local text = {
                                         dungeonLinesWarband[i],
+                                        " ",
                                         sortedDungeon.warbandLevel > 0 and ns.PROFILE_TOOLTIP_COLUMN_TEXTURE.WARBAND or "",
-                                        util:GetTextPaddingTexture(dungeonLinesMaxWidth - dungeonLinesWidth[i]),
+                                        sortedDungeon.warbandLevel > 0 and util:GetTextPaddingTexture(dungeonLinesMaxWidth - dungeonLinesWidth[i]) or "",
                                         dungeonLines[i],
                                     }
                                     tooltip:AddDoubleLine(sortedDungeon.dungeon.shortNameLocale, table.concat(text, ""), r, g, b, 0.5, 0.5, 0.5)
@@ -14934,7 +14935,7 @@ do
                 height = height + children[i]:GetHeight() + 3.5
             end
 
-            configSliderFrame:SetMinMaxValues(1, height - 440)
+            configSliderFrame:SetMinMaxValues(1, max(1, height - 440))
             configFrame:SetHeight(height)
 
             -- adjust frame width dynamically (add padding based on the largest option label string)
