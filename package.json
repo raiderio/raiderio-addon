@@ -20,7 +20,7 @@
   "dependencies": {
     "faker": "^4.1.0",
     "fast-csv": "^4.3.6",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "moment": "^2.29.4",
     "node-fetch": "^2.6.7"
   }
