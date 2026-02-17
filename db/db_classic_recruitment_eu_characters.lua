@@ -2,12 +2,12 @@
 -- Copyright (c) 2025 by RaiderIO, Inc.
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="eu",date="2026-02-16T06:09:13Z",numCharacters=46,db={}}
+local provider={name=...,data=3,region="eu",date="2026-02-17T06:09:00Z",numCharacters=50,db={}}
 local F
 
 F = function() provider.db["Everlook"]={0,"Bâînê","Büffelhüftè","Czarodejnica","Dosy","Drangosh","Draufgehn","Drride","Duisha","Hamulcvr","Hyriu","Jommey","Kaelthoras","Littentilly","Mallamalla","Molax","Naeq","Shokie","Siqras","Vylariana","Wildgulasch","Wildhearts","Wototem"} end F()
-F = function() provider.db["Hoptallus"]={44,"Arizara","Drdottington","Eruveena","Feronya","Ludidoktor","Nikotako","Palladan","Psyvise","Rualan"} end F()
-F = function() provider.db["MirageRaceway"]={62,"Leanaa"} end F()
+F = function() provider.db["Hoptallus"]={44,"Arizara","Drdottington","Eruveena","Feronya","Ludidoktor","Ludidoktorr","Ludidokttor","Nacugivara","Nikotako","Noshecant","Palladan","Psyvise","Rualan"} end F()
+F = function() provider.db["MirageRaceway"]={70,"Leanaa"} end F()
 
 F = nil
 RaiderIO.AddProvider(provider)
