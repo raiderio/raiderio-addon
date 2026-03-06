@@ -2,7 +2,7 @@
 -- Copyright (c) 2026 by RaiderIO, Inc.
 -- All rights reserved.
 --
-local provider={name=...,data=1,region="tw",date="2026-03-05T13:46:19Z",currentSeasonId=0,numCharacters=3070,keystoneMilestoneLevels={15,12,10,7,4,2},lookup={},recordSizeInBytes=30,encodingOrder={1,2,5,6,9,10,11,12,14,15}}
+local provider={name=...,data=1,region="tw",date="2026-03-06T06:37:14Z",currentSeasonId=0,numCharacters=3302,keystoneMilestoneLevels={15,12,10,7,4,2},lookup={},recordSizeInBytes=30,encodingOrder={1,2,5,6,9,10,11,12,14,15}}
 local F
 
 -- chunk size: 90
