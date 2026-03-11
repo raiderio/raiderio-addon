@@ -2,7 +2,7 @@
 -- Copyright (c) 2026 by RaiderIO, Inc.
 -- All rights reserved.
 --
-local provider={name=...,data=1,region="tw",date="2026-03-10T06:39:02Z",currentSeasonId=0,numCharacters=4745,keystoneMilestoneLevels={15,12,10,7,4,2},db={}}
+local provider={name=...,data=1,region="tw",date="2026-03-11T06:38:51Z",currentSeasonId=0,numCharacters=5023,keystoneMilestoneLevels={15,12,10,7,4,2},db={}}
 local F
 
 F = function() provider.db["銀翼要塞"]={0,"天嵐彗星"} end F()
