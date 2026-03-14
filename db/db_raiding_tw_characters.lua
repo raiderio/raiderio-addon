@@ -2,7 +2,7 @@
 -- Copyright (c) 2026 by RaiderIO, Inc.
 -- All rights reserved.
 --
-local provider={["name"]=...,["data"]=2,["region"]="tw",["date"]="2026-03-13T06:00:47Z",["numCharacters"]=5398,["recordSizeInBytes"]=14,["encodingOrder"]={1,4},["currentRaids"]={{["id"]=16340,["mapId"]=2912,["name"]="MN Tier 1 (VS / DR / MQD)",["shortName"]="VS/DR/MQD",["bossCount"]=9,["ordinal"]=1}},["previousRaids"]={},["db"]={}}
+local provider={["name"]=...,["data"]=2,["region"]="tw",["date"]="2026-03-14T06:00:44Z",["numCharacters"]=5623,["recordSizeInBytes"]=14,["encodingOrder"]={1,4},["currentRaids"]={{["id"]=16340,["mapId"]=2912,["name"]="MN Tier 1 (VS / DR / MQD)",["shortName"]="VS/DR/MQD",["bossCount"]=9,["ordinal"]=1}},["previousRaids"]={},["db"]={}}
 local F
 
 F = function() provider.db["眾星之子"]={0,"夜嵐緋雪"} end F()
