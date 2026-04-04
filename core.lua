@@ -6350,7 +6350,23 @@ do
             tooltip:SetOwner(o1, o2, o3, o4) ---@diagnostic disable-line: param-type-mismatch
         end
         if p1 then
-            tooltip:SetPoint(p1, p2, p3, p4, p5)
+            if p2 and p3 then
+                if p4 and p5 then
+                    tooltip:SetPoint(p1, p2, p3, p4, p5)
+                else
+                    tooltip:SetPoint(p1, p2, p3)
+                end
+            elseif p2 then
+                if p4 and p5 then
+                    tooltip:SetPoint(p1, p2, p4, p5)
+                else
+                    tooltip:SetPoint(p1, p2)
+                end
+            elseif p4 and p5 then
+                tooltip:SetPoint(p1, p4, p5)
+            else
+                tooltip:SetPoint(p1)
+            end
         end
         if not o1 and a1 then
             tooltip:SetAnchorType(a1, a2, a3)
@@ -7799,9 +7815,9 @@ do
         if not config:Get("enableGuildTooltips") then
             return
         end
-        local clubType
-        local nameAndRealm
-        local level
+        local clubType ---@type Enum.ClubType?
+        local nameAndRealm ---@type string?
+        local level ---@type number?
         local faction = ns.PLAYER_FACTION
         if type(self.GetMemberInfo) == "function" then
             local info = self:GetMemberInfo()
@@ -7828,6 +7844,9 @@ do
                     faction = util:GetFactionFromRace(race, faction)
                 end
             end
+        end
+        if issecretvalue(clubType) or issecretvalue(nameAndRealm) or issecretvalue(level) then
+            return
         end
         if (clubType and clubType ~= Enum.ClubType.Guild and clubType ~= Enum.ClubType.Character) or not nameAndRealm or not util:IsMaxLevel(level, true) then
             return
