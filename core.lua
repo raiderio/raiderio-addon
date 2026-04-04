@@ -6350,23 +6350,7 @@ do
             tooltip:SetOwner(o1, o2, o3, o4) ---@diagnostic disable-line: param-type-mismatch
         end
         if p1 then
-            if p2 and p3 then
-                if p4 and p5 then
-                    tooltip:SetPoint(p1, p2, p3, p4, p5)
-                else
-                    tooltip:SetPoint(p1, p2, p3)
-                end
-            elseif p2 then
-                if p4 and p5 then
-                    tooltip:SetPoint(p1, p2, p4, p5)
-                else
-                    tooltip:SetPoint(p1, p2)
-                end
-            elseif p4 and p5 then
-                tooltip:SetPoint(p1, p4, p5)
-            else
-                tooltip:SetPoint(p1)
-            end
+            tooltip:SetPoint(p1, p2, p3 or p1, p4 or 0, p5 or 0)
         end
         if not o1 and a1 then
             tooltip:SetAnchorType(a1, a2, a3)
