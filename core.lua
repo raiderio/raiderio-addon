@@ -6262,7 +6262,7 @@ do
                         end
                     end
                     if easterEgg then
-                        tooltip:AddLine(easterEgg, 0.9, 0.8, 0.5)
+                        tooltip:AddLine(easterEgg, 0.9, 0.8, 0.5) ---@diagnostic disable-line: param-type-mismatch
                     end
                 end
                 -- profile added to tooltip successfully
@@ -7449,7 +7449,11 @@ do
     ---@param region? RegionString
     local function IsPlayer(unit, name, realm, region)
         if unit and UnitExists(unit) then
-            return UnitIsUnit(unit, "player")
+            local isPlayer = UnitIsUnit(unit, "player")
+            if issecretvalue(isPlayer) then
+                return false
+            end
+            return isPlayer
         end
         return name == ns.PLAYER_NAME and realm == ns.PLAYER_REALM and (not region or region == ns.PLAYER_REGION)
     end
@@ -15319,13 +15323,14 @@ do
             end
         else
             local unit = ...
-            if issecretvalue(unit) or not unit or not UnitIsPlayer(unit) or UnitIsUnit(unit, "player") then
+            if issecretvalue(unit) or not unit or not UnitIsPlayer(unit) then
                 return
             end
-            local guid = UnitGUID(unit)
-            if guid then
-                InspectPlayerGUID(guid)
+            local isPlayer = UnitIsUnit(unit, "player")
+            if issecretvalue(isPlayer) or isPlayer then
+                return
             end
+            InspectPlayerGUID(UnitGUID(unit))
         end
     end
 
