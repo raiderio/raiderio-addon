@@ -12318,6 +12318,9 @@ do
     ---@type ModifyMenu?
     local ModifyMenu = Menu and Menu.ModifyMenu
 
+    ---@type MenuManagerProxy?
+    local MenuGetManager = Menu and Menu.GetManager and Menu.GetManager()
+
     ---@param rootDescription ModifyMenuCallbackRootDescriptionPolyfill
     ---@param contextData? ModifyMenuCallbackRootDescriptionContextDataPolyfill
     local function IsValidMenu(rootDescription, contextData)
@@ -12471,16 +12474,29 @@ do
                 end
             }
         }
-        if ModifyMenu then
-            for name, enabled in pairs(validTypes) do
-                if enabled then
-                    local tag = format("MENU_UNIT_%s", name)
-                    ModifyMenu(tag, GenerateClosure(OnMenuShow))
+        if ModifyMenu and MenuGetManager then
+            -- HOTFIX: we delay calling the modify menu API until Blizzard has opened a dropdown menu themselves
+            -- this allows the secure code setup the internal state required, which wouldn't be the case if we modified the menu too early in the session
+            -- the only downside to this is that the first dropdown menu shown won't be modified, so the user would need to re-open it to see our options (which is better than tainting the dropdown system entirely)
+            local isInit = false
+            local function init()
+                if isInit then
+                    return
+                end
+                isInit = true
+                local onMenuShow = GenerateClosure(OnMenuShow) ---@type ModifyMenuCallbackFuncPolyfill
+                for name, enabled in pairs(validTypes) do
+                    if enabled then
+                        local tag = format("MENU_UNIT_%s", name)
+                        ModifyMenu(tag, onMenuShow)
+                    end
+                end
+                for tag, _ in pairs(validTags) do
+                    ModifyMenu(tag, onMenuShow)
                 end
             end
-            for tag, _ in pairs(validTags) do
-                ModifyMenu(tag, GenerateClosure(OnMenuShow))
-            end
+            hooksecurefunc(MenuGetManager, "OpenMenu", init)
+            hooksecurefunc(MenuGetManager, "OpenContextMenu", init)
         end
         if LibDropDownExtension then
             LibDropDownExtension:RegisterEvent("OnShow OnHide", OnToggle, 1, dropdown)
