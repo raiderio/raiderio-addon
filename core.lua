@@ -2400,6 +2400,9 @@ do
     ---@param factionName string
     ---@return FactionNumber? faction
     function util:GetFactionFromName(factionName)
+        if issecretvalue(factionName) then
+            return
+        end
         return ns.FACTION_TO_ID[factionName]
     end
 
