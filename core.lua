@@ -2541,6 +2541,9 @@ do
     ---@param level? number @The level to test
     ---@param fallback? boolean @If a valid level isn't provided, we'll fallback to this boolean
     function util:IsMaxLevel(level, fallback)
+        if issecretvalue(level) then
+            return fallback
+        end
         if level and type(level) == "number" then
             return level >= ns.MAX_LEVEL
         end
