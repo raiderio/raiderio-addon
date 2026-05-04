@@ -2,13 +2,13 @@
 -- Copyright (c) 2026 by RaiderIO, Inc.
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="cn",date="2026-05-02T07:39:04Z",numCharacters=36113,db={}}
+local provider={name=...,data=3,region="cn",date="2026-05-04T07:46:26Z",numCharacters=35601,db={}}
 local F
 
 F = function() provider.db["藏宝海湾"]={0,"守护者乌瑟尔","射色有未来","小狼妮","左手的左边","抓小德做宝宝","无尽的迷惘","最强老六","爱上吸血鬼","白佳妮","直男不信圣光","脏艺术家"} end F()
-F = function() provider.db["主宰之剑"]={22,"伊伊奇思妙想","凯凯浪迹天涯","小玩儿","杠杠浪迹天涯","灬妖妖灬"} end F()
-F = function() provider.db["洛萨"]={32,"Tysck"} end F()
-F = function() provider.db["伊森利恩"]={34,"Higepiyo","劍灬來"} end F()
+F = function() provider.db["主宰之剑"]={22,"丨大蜜蜜丨","伊伊奇思妙想","凯凯浪迹天涯","小玩儿","杠杠浪迹天涯","灬妖妖灬"} end F()
+F = function() provider.db["洛萨"]={34,"Tysck"} end F()
+F = function() provider.db["伊森利恩"]={36,"Higepiyo"} end F()
 F = function() provider.db["末日行者"]={38,"他自己的侵蝶","他自己的青蝶","天赐祝福","白猫计划"} end F()
 F = function() provider.db["阿拉希"]={46,"冲锋盾墙","命运终焉","哒哒咑"} end F()
 F = function() provider.db["永恒之井"]={52,"幕雪晴","慕雪晴","暮雪晴"} end F()
