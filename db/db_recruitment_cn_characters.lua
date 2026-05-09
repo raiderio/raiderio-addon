@@ -2,7 +2,7 @@
 -- Copyright (c) 2026 by RaiderIO, Inc.
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="cn",date="2026-05-05T08:37:33Z",numCharacters=35699,db={}}
+local provider={name=...,data=3,region="cn",date="2026-05-09T08:22:50Z",numCharacters=35279,db={}}
 local F
 
 F = function() provider.db["藏宝海湾"]={0,"守护者乌瑟尔","射色有未来","小狼妮","左手的左边","抓小德做宝宝","无尽的迷惘","最强老六","爱上吸血鬼","白佳妮","直男不信圣光","脏艺术家"} end F()
@@ -29,12 +29,12 @@ F = function() provider.db["艾露恩"]={106,"龙皇"} end F()
 F = function() provider.db["月光林地"]={108,"一色彩羽","霜月冷冰"} end F()
 F = function() provider.db["奎尔萨拉斯"]={112,"Amakusashino","下半蛆职业"} end F()
 F = function() provider.db["暗影迷宫"]={116,"阿斗七号"} end F()
-F = function() provider.db["白银之手"]={118,"南宫灬问雅","星夜极光","阿渝子"} end F()
-F = function() provider.db["古尔丹"]={124,"龙娘"} end F()
-F = function() provider.db["死亡之翼"]={126,"午夜忧伤蟑螂","午夜忧郁蟑螂"} end F()
-F = function() provider.db["罗宁"]={130,"吃麻瓜冷静瑕","吃麻瓜冷静瞎"} end F()
-F = function() provider.db["无尽之海"]={134,"Greyghost","Moondance","Pen","Tenpen","一点二十丸","丨释怀","乄德","乔乔小弟","九点二十一","可怜德古丹","周哲伦","大废止者","整活大師","札皮","渣皮","無料案内人","独轶望江楼","电击治疗丶","章鱼哥的邻居","轧皮","释丨怀","阿蒙内特","骑骑丶"} end F()
-F = function() provider.db["米奈希尔"]={180,"章鱼术"} end F()
+F = function() provider.db["白银之手"]={118,"南宫灬问雅","星夜极光","茗煜","阿渝子"} end F()
+F = function() provider.db["古尔丹"]={126,"龙娘"} end F()
+F = function() provider.db["死亡之翼"]={128,"午夜忧伤蟑螂","午夜忧郁蟑螂"} end F()
+F = function() provider.db["罗宁"]={132,"吃麻瓜冷静瑕","吃麻瓜冷静瞎"} end F()
+F = function() provider.db["无尽之海"]={136,"Greyghost","Moondance","Pen","Tenpen","一点二十丸","丨释怀","乄德","乔乔小弟","九点二十一","可怜德古丹","周哲伦","大废止者","整活大師","札皮","渣皮","無料案内人","独轶望江楼","电击治疗丶","章鱼哥的邻居","轧皮","释丨怀","阿蒙内特","骑骑丶"} end F()
+F = function() provider.db["米奈希尔"]={182,"章鱼术"} end F()
 
 F = nil
 RaiderIO.AddProvider(provider)
