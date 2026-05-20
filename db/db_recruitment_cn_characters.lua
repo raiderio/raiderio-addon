@@ -2,7 +2,7 @@
 -- Copyright (c) 2026 by RaiderIO, Inc.
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="cn",date="2026-05-19T08:27:12Z",numCharacters=35958,db={}}
+local provider={name=...,data=3,region="cn",date="2026-05-20T08:33:04Z",numCharacters=36239,db={}}
 local F
 
 F = function() provider.db["藏宝海湾"]={0,"守护者乌瑟尔","射色有未来","小狼妮","左手的左边","抓小德做宝宝","无尽的迷惘","爱上吸血鬼","直男不信圣光","脏艺术家"} end F()
