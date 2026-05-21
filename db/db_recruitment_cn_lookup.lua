@@ -2,7 +2,7 @@
 -- Copyright (c) 2026 by RaiderIO, Inc.
 -- All rights reserved.
 --
-local provider={name=...,data=3,region="cn",date="2026-05-20T08:33:04Z",numCharacters=36239,lookup={},recordSizeInBytes=2,encodingOrder={0,1,3}}
+local provider={name=...,data=3,region="cn",date="2026-05-21T08:28:32Z",numCharacters=36754,lookup={},recordSizeInBytes=2,encodingOrder={0,1,3}}
 local F
 
 -- chunk size: 130
