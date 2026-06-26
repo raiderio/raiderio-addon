@@ -13033,7 +13033,7 @@ if IS_RETAIL then
     ---@field public IsAtEnd fun(self: WowScrollBoxListPolyfill): boolean
     ---@field public HasScrollableExtent fun(self: WowScrollBoxListPolyfill): boolean
     ---@field public ScrollToEnd fun(self: WowScrollBoxListPolyfill)
-    ---@field public SetDataProvider fun(self: WowScrollBoxListPolyfill)
+    ---@field public SetDataProvider fun(self: WowScrollBoxListPolyfill, dataProvider: any)
 
     ---@class WowTrimScrollBarPolyfill : Frame
     ---@field public OnLoad fun(self: WowTrimScrollBarPolyfill)
@@ -15543,8 +15543,132 @@ do
 
 end
 
+-- builds.lua
+-- dependencies: module, config
+if IS_RETAIL then
+
+    ---@class BuildsModule : Module
+    local builds = ns:NewModule("Builds") ---@type BuildsModule
+    local config = ns:GetModule("Config") ---@type ConfigModule
+
+    ---@class TitledPanelMixinPolyfill
+    ---@field public SetTitleColor fun(self: TitledPanelMixinPolyfill, color: ColorMixin)
+    ---@field public SetTitle fun(self: TitledPanelMixinPolyfill, title?: string)
+    ---@field public SetTitleFormatted fun(self: TitledPanelMixinPolyfill, fmt: string, ...: any)
+    ---@field public SetTitleMaxLinesAndHeight fun(self: TitledPanelMixinPolyfill, maxLines: number, height: number)
+    ---@field public SetTitleOffsets fun(self: TitledPanelMixinPolyfill, leftOffset?: number, rightOffset?: number)
+
+    ---@class PortraitFrameMixinPolyfill : TitledPanelMixinPolyfill
+    ---@field public SetPortraitToAsset fun(self: PortraitFrameMixinPolyfill, texture: number|string)
+    ---@field public SetPortraitTextureRaw fun(self: PortraitFrameMixinPolyfill, texture: number|string)
+    ---@field public SetPortraitAtlasRaw fun(self: PortraitFrameMixinPolyfill, atlas: string, ...: any)
+    ---@field public SetPortraitTexCoord fun(self: PortraitFrameMixinPolyfill, ...: any)
+    ---@field public SetPortraitShown fun(self: PortraitFrameMixinPolyfill, shown?: boolean)
+
+    ---@class PortraitFrameBaseTemplatePolyfillPortraitContainer : Frame
+    ---@field public portrait Texture
+    ---@field public CircleMask MaskTexture
+
+    ---@class PortraitFrameBaseTemplatePolyfillTitleContainer : Frame
+    ---@field public TitleText FontString
+
+    ---@class PortraitFrameBaseTemplatePolyfill : Frame, PortraitFrameMixinPolyfill
+    ---@field public layoutType string
+    ---@field public NineSlice Frame
+    ---@field public PortraitContainer PortraitFrameBaseTemplatePolyfillPortraitContainer
+    ---@field public TitleContainer PortraitFrameBaseTemplatePolyfillTitleContainer
+
+    ---@class ButtonFrameTemplatePolyfill : PortraitFrameBaseTemplatePolyfill
+    ---@field public Bg Texture
+    ---@field public TopTileStreaks Texture
+    ---@field public CloseButton Button
+    ---@field public Inset Frame
+
+    ---@class MinimalScrollBarPolyfill : EventFrame
+
+    ---@class BuildsFrame : ButtonFrameTemplatePolyfill
+
+    ---@param frame BuildsFrame
+    local function onLoad(frame)
+        ---@class BuildsFrame
+        local self = frame
+        self:EnableMouse(true)
+        self:SetSize(600, 550)
+        self:SetPoint("CENTER", 0, 24)
+        self:SetFrameStrata("HIGH")
+        self:SetTitle("Builds")
+        ButtonFrameTemplate_HidePortrait(self)
+        self.CancelButton = CreateFrame("Button", nil, self, "SharedButtonSmallTemplate")
+        self.CancelButton:SetSize(80, 22)
+        self.CancelButton:SetPoint("BOTTOMRIGHT", -4, 4)
+        self.CancelButton:SetText(CLOSE)
+        self.ScrollBox = CreateFrame("Frame", nil, self, "WowScrollBoxList") ---@type WowScrollBoxListPolyfill
+        self.ScrollBox:SetSize(466, 386)
+        self.ScrollBox:SetPoint("TOP", self, "TOP", 0, 100)
+        self.ScrollBox:SetPoint("LEFT", 7, 0)
+        self.ScrollBox:SetPoint("BOTTOMRIGHT", -34, 28)
+        self.ScrollBar = CreateFrame("EventFrame", nil, self, "MinimalScrollBar") ---@type MinimalScrollBarPolyfill
+        self.ScrollBar:SetPoint("TOPLEFT", self.ScrollBox, "TOPRIGHT", 4, -3)
+        self.ScrollBar:SetPoint("BOTTOMLEFT", self.ScrollBox, "BOTTOMRIGHT", 4, 2)
+        local view = CreateScrollBoxListLinearView()
+        view:SetElementExtent(20)
+        -- view:SetElementInitializer("Button", function(button, elementData) createButtonAndInit(button, elementData) end) -- TODO
+        local pad, spacing = 2
+        view:SetPadding(pad, pad, pad, pad, spacing)
+        ScrollUtil.InitScrollBoxListWithScrollBar(self.ScrollBox, self.ScrollBar, view)
+        -- local dataProvider = {} --- TODO
+        -- self.ScrollBox:SetDataProvider(dataProvider) -- TODO
+    end
+
+    local frame ---@type BuildsFrame?
+
+    local function getFrame()
+        if frame then
+            return frame
+        end
+        frame = CreateFrame("Frame", format("%s_BuildsFrame", addonName), UIParent, "ButtonFrameTemplate") ---@type BuildsFrame
+        frame:Hide()
+        onLoad(frame)
+        return frame
+    end
+
+    function builds:IsBuildsFrameShown()
+        return frame and frame:IsShown()
+    end
+
+    function builds:ShowBuildsFrame()
+        if not frame then
+            frame = getFrame()
+        end
+        frame:Show()
+    end
+
+    function builds:HideBuildsFrame()
+        if frame then
+            frame:Hide()
+        end
+    end
+
+    function builds:ToggleBuildsFrame()
+        if self:IsBuildsFrameShown() then
+            self:HideBuildsFrame()
+        else
+            self:ShowBuildsFrame()
+        end
+    end
+
+    function builds:CanLoad()
+        return config:IsEnabled()
+    end
+
+    function builds:OnLoad()
+        -- TODO
+    end
+
+end
+
 -- shortcuts.lua
--- dependencies: module, callback, config, util, profile, search, settings, LibDataBroker + LibDBIcon
+-- dependencies: module, callback, config, util, profile, search, settings, builds, LibDataBroker + LibDBIcon
 do
 
     ---@class ShortcutsModule : Module
@@ -15555,6 +15679,7 @@ do
     local profile = ns:GetModule("Profile") ---@type ProfileModule
     local search = ns:GetModule("Search") ---@type SearchModule
     local settings = ns:GetModule("Settings") ---@type SettingsModule
+    local builds = ns:GetModule("Builds", true) ---@type BuildsModule?
 
     local LDB = LibStub("LibDataBroker-1.1", true)
     local LDBI = LibStub("LibDBIcon-1.0", true)
@@ -15610,6 +15735,7 @@ do
     ---@param frame Frame
     ---@param button mouseButton
     function shortcuts:OnButtonClick(frame, button)
+        -- TODO: builds (if loaded, or maybe regardless? change this to open a dropdown menu on click with the options to toggle settings, search, and the builds frame)
         if button == "RightButton" then
             settings:Toggle()
             return
@@ -15703,7 +15829,7 @@ do
     end
 
     function shortcuts:CanLoad()
-        return config:IsEnabled() and profile:IsEnabled() and search:IsEnabled() and settings:IsEnabled()
+        return config:IsEnabled() and profile:IsEnabled() and search:IsEnabled() and settings:IsEnabled() and (not builds or builds:IsEnabled())
     end
 
     function shortcuts:OnLoad()
