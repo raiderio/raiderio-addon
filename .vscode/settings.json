@@ -97,6 +97,7 @@
         "ObjectiveTrackerFrame",
         "OpacitySliderFrame",
         "OpenColorPicker",
+        "PanelDragBarMixin",
         "PVEFrame",
         "RAID_CLASS_COLORS",
         "RED_FONT_COLOR",

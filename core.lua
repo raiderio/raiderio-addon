@@ -920,6 +920,18 @@ do
             atlasWidth = 12,
             atlasHeight = 16,
         },
+        ---@class MarkupIcons
+        Specialization = {
+            atlas = "ui-hud-micromenu-spectalents-up",
+            atlasWidth = 16,
+            atlasHeight = 20.5,
+        },
+        ---@class MarkupIcons
+        GroupFinder = {
+            atlas = "ui-hud-micromenu-groupfinder-up",
+            atlasWidth = 16,
+            atlasHeight = 20.5,
+        },
     }
 
     -- Finalize the `ns.MARKUP_ICONS` table
@@ -13614,7 +13626,7 @@ if IS_RETAIL then
         view:SetElementExtent(20)
         view:SetElementInitializer("Button", function(button, elementData) frame:CreateButtonAndInit(button, elementData) end)
 
-        local pad, spacing = 2
+        local pad, spacing = 2, nil
         view:SetPadding(pad, pad, pad, pad, spacing)
         ScrollUtil.InitScrollBoxListWithScrollBar(frame.Log.Events.ScrollBox, frame.Log.Events.ScrollBar, view)
         frame.Log.Events.ScrollBox:SetDataProvider(frame.logDataProvider)
@@ -13718,7 +13730,7 @@ do
     end
 
     local LibCombatLogging = LibStub and LibStub:GetLibrary("LibCombatLogging-1.0", true) ---@type LibCombatLogging
-    local LoggingCombat = LibCombatLogging and function(...) return LibCombatLogging.LoggingCombat("Raider.IO", ...) end or _G.LoggingCombat
+    local LoggingCombat = LibCombatLogging and function(...) return LibCombatLogging.LoggingCombat(L.RAIDERIO, ...) end or _G.LoggingCombat
 
     local autoLogFromMapID do
         ---@param instances DungeonInstance[]
@@ -15572,11 +15584,22 @@ if IS_RETAIL then
     ---@class PortraitFrameBaseTemplatePolyfillTitleContainer : Frame
     ---@field public TitleText FontString
 
+    ---@class PanelDragBarTemplatePolyfill : Button
+    ---@field public showCursorOnHover boolean
+    ---@field public OnLoad fun(self: PanelDragBarTemplatePolyfill)
+    ---@field public OnEnter fun(self: PanelDragBarTemplatePolyfill)
+    ---@field public OnLeave fun(self: PanelDragBarTemplatePolyfill)
+    ---@field public OnDragStart fun(self: PanelDragBarTemplatePolyfill)
+    ---@field public OnDragStop fun(self: PanelDragBarTemplatePolyfill)
+    ---@field public Init fun(self: PanelDragBarTemplatePolyfill, target: Region)
+    ---@field public SetTarget fun(self: PanelDragBarTemplatePolyfill, target: Region)
+    ---@field public SetDragSuspended fun(self: PanelDragBarTemplatePolyfill, suspendDrag?: boolean)
+
     ---@class PortraitFrameBaseTemplatePolyfill : Frame, PortraitFrameMixinPolyfill
     ---@field public layoutType string
     ---@field public NineSlice Frame
     ---@field public PortraitContainer PortraitFrameBaseTemplatePolyfillPortraitContainer
-    ---@field public TitleContainer PortraitFrameBaseTemplatePolyfillTitleContainer
+    ---@field public TitleContainer PortraitFrameBaseTemplatePolyfillTitleContainer|PanelDragBarTemplatePolyfill
 
     ---@class ButtonFrameTemplatePolyfill : PortraitFrameBaseTemplatePolyfill
     ---@field public Bg Texture
@@ -15588,36 +15611,122 @@ if IS_RETAIL then
 
     ---@class BuildsFrame : ButtonFrameTemplatePolyfill
 
+    ---@class BuildsDataProviderBuildButton : Button
+
+    ---@class BuildsDataProviderBuildElementData
+    ---@field public index number
+    ---@field public left string
+    ---@field public right string
+
+    ---@generic T
+    ---@class DataProviderPolyfill<T>
+    ---@field public Find fun(self: DataProviderPolyfill, index: number): T
+    ---@field public GetSize fun(self: DataProviderPolyfill): number
+    ---@field public ForEach fun(self: DataProviderPolyfill, callback: fun(elementData: T))
+    ---@field public Insert fun(self: DataProviderPolyfill, elementData: T)
+
+    ---@param button BuildsDataProviderBuildButton
+    local function updateBuildButton(button)
+        local elementData = button.elementData
+        button.LeftLabel:SetText(elementData.left) -- TODO
+        button.RightLabel:SetText(elementData.right) -- TODO
+    end
+
+    local buildsButtonHeight = 40
+
+    ---@param button BuildsDataProviderBuildButton
+    ---@param elementData BuildsDataProviderBuildElementData
+    local function createBuild(button, elementData)
+        ---@class BuildsDataProviderBuildButton
+        local button = button
+        button.elementData = elementData
+        if not button.isInit then
+            button.isInit = true
+            button:SetHeight(buildsButtonHeight)
+            button.Bg = button:CreateTexture(nil, "BACKGROUND")
+            button.Bg:SetAllPoints()
+            button.Bg:SetColorTexture(random(128, 255)/255, random(128, 255)/255, random(128, 255)/255, 0.25) -- TODO
+            ---@param self BuildsDataProviderBuildButton
+            local function OnClick(self)
+                local elementData = self.elementData
+                print(format("Clicked Button %d", elementData.index)) -- TODO
+            end
+            ---@param self BuildsDataProviderBuildButton
+            local function OnEnter(self)
+                local elementData = self.elementData
+                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                GameTooltip:AddLine(format("Button %d", elementData.index), 1, 1, 1, false) -- TODO
+                GameTooltip:Show()
+            end
+            ---@param self BuildsDataProviderBuildButton
+            local function OnLeave(self)
+                GameTooltip:Hide()
+            end
+            button:SetScript("OnClick", OnClick)
+            button:SetScript("OnEnter", OnEnter)
+            button:SetScript("OnLeave", OnLeave)
+            button.RightLabel = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            button.RightLabel:SetWordWrap(false)
+            button.RightLabel:SetJustifyH("RIGHT")
+            button.RightLabel:SetHeight(buildsButtonHeight)
+            button.RightLabel:SetPoint("RIGHT", -5, 0)
+            button.LeftLabel = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            button.LeftLabel:SetWordWrap(false)
+            button.LeftLabel:SetJustifyH("LEFT")
+            button.LeftLabel:SetHeight(buildsButtonHeight)
+            button.LeftLabel:SetPoint("LEFT", 24 - 20, 0)
+            button.LeftLabel:SetPoint("RIGHT", button.RightLabel, "LEFT", -5, 0)
+        end
+        updateBuildButton(button)
+    end
+
     ---@param frame BuildsFrame
     local function onLoad(frame)
         ---@class BuildsFrame
         local self = frame
         self:EnableMouse(true)
-        self:SetSize(600, 550)
-        self:SetPoint("CENTER", 0, 24)
+        self:SetSize(545, 500)
+        self:SetPoint("CENTER", 0, 0)
         self:SetFrameStrata("HIGH")
-        self:SetTitle("Builds")
+        self:SetTitle(L.BUILDS_TITLE)
         ButtonFrameTemplate_HidePortrait(self)
+        if PanelDragBarMixin then
+            self.TitleContainer:SetPoint("TOPLEFT", self, "TOPLEFT", 25, -1)
+            self.TitleContainer:SetPoint("TOPRIGHT", self, "TOPRIGHT", -25, -1)
+            self:SetMovable(true)
+            self:SetClampedToScreen(true)
+            Mixin(self.TitleContainer, PanelDragBarMixin)
+            self.TitleContainer:OnLoad()
+            self.TitleContainer:SetTarget(self)
+            self.TitleContainer:HookScript("OnEnter", self.TitleContainer.OnEnter)
+            self.TitleContainer:HookScript("OnLeave", self.TitleContainer.OnLeave)
+            self.TitleContainer:HookScript("OnDragStart", self.TitleContainer.OnDragStart)
+            self.TitleContainer:HookScript("OnDragStop", self.TitleContainer.OnDragStop)
+        end
+        local function closeFrame()
+            builds:HideBuildsFrame()
+        end
+        self.CloseButton:HookScript("OnClick", closeFrame)
         self.CancelButton = CreateFrame("Button", nil, self, "SharedButtonSmallTemplate")
         self.CancelButton:SetSize(80, 22)
         self.CancelButton:SetPoint("BOTTOMRIGHT", -4, 4)
         self.CancelButton:SetText(CLOSE)
+        self.CancelButton:HookScript("OnClick", closeFrame)
         self.ScrollBox = CreateFrame("Frame", nil, self, "WowScrollBoxList") ---@type WowScrollBoxListPolyfill
-        self.ScrollBox:SetSize(466, 386)
-        self.ScrollBox:SetPoint("TOP", self, "TOP", 0, 100)
-        self.ScrollBox:SetPoint("LEFT", 7, 0)
-        self.ScrollBox:SetPoint("BOTTOMRIGHT", -34, 28)
+        self.ScrollBox:SetPoint("TOPLEFT", self.Inset, "TOPLEFT", 6, -6)
+        self.ScrollBox:SetPoint("BOTTOMRIGHT", self.Inset, "BOTTOMRIGHT", -22, 6)
         self.ScrollBar = CreateFrame("EventFrame", nil, self, "MinimalScrollBar") ---@type MinimalScrollBarPolyfill
         self.ScrollBar:SetPoint("TOPLEFT", self.ScrollBox, "TOPRIGHT", 4, -3)
         self.ScrollBar:SetPoint("BOTTOMLEFT", self.ScrollBox, "BOTTOMRIGHT", 4, 2)
         local view = CreateScrollBoxListLinearView()
-        view:SetElementExtent(20)
-        -- view:SetElementInitializer("Button", function(button, elementData) createButtonAndInit(button, elementData) end) -- TODO
-        local pad, spacing = 2
+        view:SetElementExtent(buildsButtonHeight)
+        view:SetElementInitializer("Button", function(button, elementData) createBuild(button, elementData) end)
+        local pad, spacing = 2, nil
         view:SetPadding(pad, pad, pad, pad, spacing)
         ScrollUtil.InitScrollBoxListWithScrollBar(self.ScrollBox, self.ScrollBar, view)
-        -- local dataProvider = {} --- TODO
-        -- self.ScrollBox:SetDataProvider(dataProvider) -- TODO
+        local dataProvider = CreateDataProvider() ---@type DataProviderPolyfill<BuildsDataProviderBuildElementData>
+        self.ScrollBox:SetDataProvider(dataProvider)
+        for i = 1, 100 do dataProvider:Insert({ index = i, left = format("Left %d", i), right = format("Right %d", i) }) end -- TODO
     end
 
     local frame ---@type BuildsFrame?
@@ -15662,7 +15771,7 @@ if IS_RETAIL then
     end
 
     function builds:OnLoad()
-        -- TODO
+        self:Enable()
     end
 
 end
@@ -15685,13 +15794,26 @@ do
     local LDBI = LibStub("LibDBIcon-1.0", true)
     local anchorFrame ---@type Frame
 
-    local TooltipHelpText = format(
+    local TooltipHelpTextMinimap = format(
+        "%s%s\n%s%s",
+        ns.MARKUP_ICONS.LeftButton.markupPadRight or format("|cffffff55<%s>|r ", L.MINIMAP_SHORTCUT_HELP_LEFT_CLICK),
+        L.MINIMAP_SHORTCUT_HELP_OPEN_MENU,
+        ns.MARKUP_ICONS.RightButton.markupPadRight or format("|cffffff55<%s>|r ", L.MINIMAP_SHORTCUT_HELP_RIGHT_CLICK),
+        L.MINIMAP_SHORTCUT_HELP_SETTINGS
+    )
+
+    local TooltipHelpTextCompartment = format(
         "%s%s\n%s%s",
         ns.MARKUP_ICONS.LeftButton.markupPadRight or format("|cffffff55<%s>|r ", L.MINIMAP_SHORTCUT_HELP_LEFT_CLICK),
         L.MINIMAP_SHORTCUT_HELP_SEARCH,
         ns.MARKUP_ICONS.RightButton.markupPadRight or format("|cffffff55<%s>|r ", L.MINIMAP_SHORTCUT_HELP_RIGHT_CLICK),
         L.MINIMAP_SHORTCUT_HELP_SETTINGS
     )
+
+    ---@param option ShortcutsMenuOption
+    local function GetOptionText(option)
+        return option.icon and format("%s%s", option.icon, option.text) or option.text
+    end
 
     ---@return string? name, string? realm
     local function GetSearchInfo()
@@ -15705,6 +15827,36 @@ do
         return name, realm
     end
 
+    local function ToggleSearchFrame()
+        if search:IsShown() then
+            search:Hide()
+        else
+            search:Show()
+            if not search:SearchHasProfile() then
+                search:SearchAndShowProfile(ns.PLAYER_REGION, ns.PLAYER_REALM, ns.PLAYER_NAME)
+            end
+            local name, realm = GetSearchInfo()
+            if name and realm then
+                search:SearchAndShowProfile(ns.PLAYER_REGION, realm, name)
+            end
+        end
+    end
+
+    local function ToggleBuildsFrame()
+        if not builds or not builds:IsEnabled() then
+            return
+        end
+        builds:ToggleBuildsFrame()
+    end
+
+    ---@param frame Frame
+    ---@return boolean
+    local function IsFrameMinimapButton(frame)
+        local parent = frame:GetParent()
+        local parentName = parent and parent:GetName()
+        return parentName and parentName:find("Minimap") and true or false
+    end
+
     function shortcuts:GetMinimapIconDB()
         return config:Get("minimapIcon") ---@type MinimapIconDB
     end
@@ -15712,7 +15864,11 @@ do
     ---@param frame Frame
     function shortcuts:OnButtonEnter(frame)
         GameTooltip:SetOwner(frame, "ANCHOR_TOPRIGHT", -frame:GetWidth(), 0)
-        GameTooltip:AddLine(TooltipHelpText)
+        if IsFrameMinimapButton(frame) then
+            GameTooltip:AddLine(TooltipHelpTextMinimap)
+        else
+            GameTooltip:AddLine(TooltipHelpTextCompartment)
+        end
         GameTooltip:Show()
         if profile:IsProfileShown() then
             return
@@ -15735,23 +15891,20 @@ do
     ---@param frame Frame
     ---@param button mouseButton
     function shortcuts:OnButtonClick(frame, button)
-        -- TODO: builds (if loaded, or maybe regardless? change this to open a dropdown menu on click with the options to toggle settings, search, and the builds frame)
         if button == "RightButton" then
             settings:Toggle()
             return
         end
-        if search:IsShown() then
-            search:Hide()
-        else
-            search:Show()
-            if not search:SearchHasProfile() then
-                search:SearchAndShowProfile(ns.PLAYER_REGION, ns.PLAYER_REALM, ns.PLAYER_NAME)
+        if IsFrameMinimapButton(frame) then
+            self:InitializeMenu(frame)
+            if self.DropDownMenu2 then
+                DropDownUtil:ToggleMenu(self.DropDownMenu2, nil, frame)
+            elseif self.DropDownMenu then
+                DropDownUtil:ToggleDropDown(self.DropDownMenu, frame, 0, 0)
             end
-            local name, realm = GetSearchInfo()
-            if name and realm then
-                search:SearchAndShowProfile(ns.PLAYER_REGION, realm, name)
-            end
+            return
         end
+        ToggleSearchFrame()
         if frame:IsVisible() then
             self:OnButtonEnter(frame)
         end
@@ -15762,7 +15915,7 @@ do
             return
         end
         self.dataBroker = LDB:NewDataObject(addonName, {
-            text = "Raider.IO",
+            text = L.RAIDERIO,
             type = "launcher",
             icon = "Interface\\AddOns\\RaiderIO\\icons\\logo",
             OnEnter = function(...) self:OnButtonEnter(...) end,
@@ -15779,6 +15932,75 @@ do
         config:Set("minimapIcon", db) -- force save the initial settings in the SV file
         LDBI:Register(addonName, self.dataBroker, db)
         self.dbIcon = LDBI:IsRegistered(addonName)
+    end
+
+    ---@class ShortcutsMenuOption
+    ---@field public icon? string
+    ---@field public text string
+    ---@field public func fun(option: ShortcutsMenuOption)
+    ---@field public show? fun(option: ShortcutsMenuOption): boolean
+
+    ---@param owner Frame
+    function shortcuts:InitializeMenu(owner)
+        if self.DropDownMenu or self.DropDownMenu2 then
+            return
+        end
+        ---@type ShortcutsMenuOption[]
+        self.dropDownOptions = {
+            {
+                icon = ns.MARKUP_ICONS.GroupFinder.markupPadRight,
+                text = L.MINIMAP_SHORTCUT_HELP_SEARCH,
+                func = ToggleSearchFrame,
+            },
+            {
+                icon = ns.MARKUP_ICONS.Specialization.markupPadRight,
+                text = L.MINIMAP_SHORTCUT_MENU_BUILDS,
+                func = ToggleBuildsFrame,
+                show = function() return builds and builds:IsEnabled() and true or false end,
+            },
+        }
+        if DropDownUtil:IsMenuSupported() then
+            self.DropDownMenu2 = DropDownUtil:CreateMenu(owner, function(_, ...) self:InitializeMenuButtons(...) end)
+        else
+            self.DropDownMenu = DropDownUtil:CreateDropDown(owner, self.InitializeDropDownButtons)
+        end
+    end
+
+    ---@param rootDescription WowStyle1DropdownTemplateRootDescriptionPolyfill
+    function shortcuts:InitializeMenuButtons(rootDescription)
+        for _, option in ipairs(self.dropDownOptions) do
+            if not option.show or option:show() then
+                local text = GetOptionText(option)
+                rootDescription:CreateButton(text, function() option:func() end)
+            end
+        end
+    end
+
+    ---@param dropDownList DropDownList
+    ---@param level number
+    ---@param menuList? string
+    function shortcuts:InitializeDropDownButtons(dropDownList, level, menuList)
+        if level ~= 1 then
+            return
+        end
+        local info = UIDropDownMenu_CreateInfo() ---@type UIDropDownMenuInfoPolyfill
+        info.func = self.DropDownButtonOnClick
+        info.arg1 = self
+        for _, option in ipairs(self.dropDownOptions) do
+            if not option.show or option:show() then
+                info.arg2 = option
+                info.text = GetOptionText(option)
+                UIDropDownMenu_AddButton(info, level)
+            end
+        end
+    end
+
+    ---@param self { arg1: ShortcutsModule, arg2: ShortcutsMenuOption } | UIDropDownMenuInfoPolyfill
+    function shortcuts.DropDownButtonOnClick(self)
+        local parent = self.arg1
+        local option = self.arg2
+        option:func()
+        DropDownUtil:CloseDropDown(parent.DropDownMenu)
     end
 
     function shortcuts:ShowIcon()
@@ -15833,6 +16055,7 @@ do
     end
 
     function shortcuts:OnLoad()
+        self:Enable()
         anchorFrame = CreateFrame("Frame", nil, UIParent)
         anchorFrame:SetSize(1, 1)
         self:UpdateState()
