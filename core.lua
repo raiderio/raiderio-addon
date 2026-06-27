@@ -249,8 +249,8 @@ local DropDownUtil do
     ---@alias WowStyle1DropdownTemplateGeneratorFunctionPolyfill fun(owner: WowStyle1DropdownTemplatePolyfill, rootDescription: WowStyle1DropdownTemplateRootDescriptionPolyfill)
     ---@alias WowStyle1DropdownTemplateTooltipHandlerPolyfill fun(tooltip: GameTooltip, elementDescription: WowStyle1DropdownTemplateElementDescriptionPolyfill)
     ---@alias WowStyle1DropdownTemplateButtonBindingPolyfill fun(data: any)
-    ---@alias WowStyle1DropdownTemplateRadioIsSelectedPolyfill fun(index: number): boolean?
-    ---@alias WowStyle1DropdownTemplateRadioSetSelectedPolyfill fun(index: number)
+    ---@alias WowStyle1DropdownTemplateIsSelectedPolyfill fun(index: number): boolean?
+    ---@alias WowStyle1DropdownTemplateSetSelectedPolyfill fun(index: number)
 
     ---@class WowStyle1DropdownTemplateMenuAnchorPolyfill
     ---@field public point FramePoint
@@ -259,7 +259,10 @@ local DropDownUtil do
     ---@field public x number
     ---@field public y number
 
+    ---@alias WowStyle1DropdownTemplateEventPolyfill { OnMenuOpen: "OnMenuOpen", OnMenuClose: "OnMenuClose", OnUpdate: "OnUpdate" }
+
     ---@class WowStyle1DropdownTemplatePolyfill : Button
+    ---@field public Event WowStyle1DropdownTemplateEventPolyfill
     ---@field public intrinsic "DropdownButton"
     ---@field public menu? Frame @The menu frame when the menu is being shown.
     ---@field public menuAnchor WowStyle1DropdownTemplateMenuAnchorPolyfill
@@ -280,24 +283,28 @@ local DropDownUtil do
     ---@field public SetMenuAnchor fun(self: WowStyle1DropdownTemplatePolyfill, anchor: WowStyle1DropdownTemplateMenuAnchorPolyfill)
     ---@field public SetMouseWheelEnabled fun(self: WowStyle1DropdownTemplatePolyfill, enabled?: boolean)
     ---@field public SetMenuOpen fun(self: WowStyle1DropdownTemplatePolyfill, open?: boolean)
-    ---@field public OpenMenu fun(self: WowStyle1DropdownTemplatePolyfill, ownerRegion: Region, menuDescription: WowStyle1DropdownTemplateRootDescriptionPolyfill, anchor: WowStyle1DropdownTemplateMenuAnchorPolyfill)
+    ---@field public OpenMenu fun(self: WowStyle1DropdownTemplatePolyfill, ownerRegion?: Region, menuDescription?: WowStyle1DropdownTemplateRootDescriptionPolyfill, anchor?: WowStyle1DropdownTemplateMenuAnchorPolyfill)
     ---@field public CloseMenu fun(self: WowStyle1DropdownTemplatePolyfill)
     ---@field public SetSelectionText fun(self: WowStyle1DropdownTemplatePolyfill) @TODO
     ---@field public SetSelectionTranslator fun(self: WowStyle1DropdownTemplatePolyfill) @TODO
-    ---@field public GetSelectionData fun(self: WowStyle1DropdownTemplatePolyfill) @TODO
+    ---@field public CollectSelectionData fun(self: WowStyle1DropdownTemplatePolyfill): previousRadio: WowStyle1DropdownTemplateRootDescriptionRadioPolyfill?, nextRadio: WowStyle1DropdownTemplateRootDescriptionRadioPolyfill?, selections: WowStyle1DropdownTemplateRootDescriptionRadioPolyfill[]
+    ---@field public GetSelectionData fun(self: WowStyle1DropdownTemplatePolyfill): previousRadio: WowStyle1DropdownTemplateRootDescriptionRadioPolyfill?
     ---@field public SetText fun(self: WowStyle1DropdownTemplatePolyfill, text?: string)
     ---@field public GetText fun(self: WowStyle1DropdownTemplatePolyfill): string?
     ---@field public GetUpdateText fun(self: WowStyle1DropdownTemplatePolyfill): string?
     ---@field public SetTooltip fun(self: WowStyle1DropdownTemplatePolyfill, tooltipFunction?: WowStyle1DropdownTemplateTooltipHandlerPolyfill)
+    ---@field public RegisterCallback fun(self: WowStyle1DropdownTemplatePolyfill, event: string, func: fun(owner: Frame, previousRadio: WowStyle1DropdownTemplateRootDescriptionRadioPolyfill?, nextRadio: WowStyle1DropdownTemplateRootDescriptionRadioPolyfill?, selections: WowStyle1DropdownTemplateRootDescriptionRadioPolyfill[]), owner: Frame, ...: any)
+    ---@field public RegisterCallbackWithHandle fun(self: WowStyle1DropdownTemplatePolyfill, event: string, func: function, owner: number, ...: any): { Unregister: fun() }
+    ---@field public UnregisterCallback fun(self: WowStyle1DropdownTemplatePolyfill, event: string, owner: number)
 
     ---@class WowStyle1DropdownTemplateRootDescriptionPolyfill
     ---@field public AddInitializer fun(owner: WowStyle1DropdownTemplatePolyfill, elementDescription?: WowStyle1DropdownTemplateElementDescriptionPolyfill, menu?: any)
-    ---@field public CreateButton fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill, text?: string, binding?: WowStyle1DropdownTemplateButtonBindingPolyfill): WowStyle1DropdownTemplateRootDescriptionCheckboxPolyfill
-    ---@field public CreateCheckbox fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill) TODO
+    ---@field public CreateButton fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill, text?: string, binding?: WowStyle1DropdownTemplateButtonBindingPolyfill): WowStyle1DropdownTemplateRootDescriptionButtonPolyfill
+    ---@field public CreateCheckbox fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill, text?: string, isSelected: WowStyle1DropdownTemplateIsSelectedPolyfill, setSelected: WowStyle1DropdownTemplateSetSelectedPolyfill): WowStyle1DropdownTemplateRootDescriptionCheckboxPolyfill
     ---@field public CreateColorSwatch fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill) TODO
     ---@field public CreateDivider fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill) TODO
     ---@field public CreateFrame fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill) TODO
-    ---@field public CreateRadio fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill, text?: string, isSelected: WowStyle1DropdownTemplateRadioIsSelectedPolyfill, setSelected: WowStyle1DropdownTemplateRadioSetSelectedPolyfill, index: number): WowStyle1DropdownTemplateRootDescriptionRadioPolyfill
+    ---@field public CreateRadio fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill, text?: string, isSelected: WowStyle1DropdownTemplateIsSelectedPolyfill, setSelected: WowStyle1DropdownTemplateSetSelectedPolyfill, index: number): WowStyle1DropdownTemplateRootDescriptionRadioPolyfill
     ---@field public CreateSpacer fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill) TODO
     ---@field public CreateTemplate fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill) TODO
     ---@field public CreateTitle fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill, text?: string)
@@ -307,17 +314,21 @@ local DropDownUtil do
     ---@field public SetTooltip fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill, tooltipFunction?: WowStyle1DropdownTemplateTooltipHandlerPolyfill)
     ---@field public SetTitleAndTextTooltip fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill) TODO
 
-    ---@class WowStyle1DropdownTemplateRootDescriptionCheckboxPolyfill : WowStyle1DropdownTemplateRootDescriptionPolyfill
+    ---@class WowStyle1DropdownTemplateRootDescriptionChildPolyfill : WowStyle1DropdownTemplateRootDescriptionPolyfill
     ---@field public defaultResponse number `MenuResponse.Refresh = 2`
-    ---@field public SetResponder fun(self: WowStyle1DropdownTemplateRootDescriptionCheckboxPolyfill, responseOrCallback: number | (fun(data, menuInputData, menu): number))
+    ---@field public SetResponder fun(self: WowStyle1DropdownTemplateRootDescriptionChildPolyfill, responseOrCallback: number | (fun(data, menuInputData, menu): number))
 
-    ---@class WowStyle1DropdownTemplateRootDescriptionRadioPolyfill : WowStyle1DropdownTemplateRootDescriptionPolyfill
-    ---@field public isRadio true
-    ---@field public soundKit number
-
-    ---@class WowStyle1DropdownTemplateElementDescriptionPolyfill : WowStyle1DropdownTemplateRootDescriptionPolyfill
+    ---@class WowStyle1DropdownTemplateElementDescriptionPolyfill : WowStyle1DropdownTemplateRootDescriptionChildPolyfill
     ---@field public text string
     ---@field public data number
+
+    ---@class WowStyle1DropdownTemplateRootDescriptionButtonPolyfill : WowStyle1DropdownTemplateElementDescriptionPolyfill
+
+    ---@class WowStyle1DropdownTemplateRootDescriptionCheckboxPolyfill : WowStyle1DropdownTemplateElementDescriptionPolyfill
+
+    ---@class WowStyle1DropdownTemplateRootDescriptionRadioPolyfill : WowStyle1DropdownTemplateElementDescriptionPolyfill
+    ---@field public isRadio true
+    ---@field public soundKit number
 
     DropDownUtil = {}
 
@@ -329,15 +340,17 @@ local DropDownUtil do
         PlaySound(SOUNDKIT.IG_CHAT_EMOTE_BUTTON)
     end
 
-    ---@generic T
+    ---@generic T, A
     ---@param owner T
     ---@param generatorFunction fun(owner: T, rootDescription: WowStyle1DropdownTemplateRootDescriptionPolyfill)
     ---@param dynamicMenuOptions? DropDownUtilDynamicMenuOption[]
-    function DropDownUtil:CreateMenu(owner, generatorFunction, dynamicMenuOptions)
+    ---@param dynamicMenuArgs? A
+    function DropDownUtil:CreateMenu(owner, generatorFunction, dynamicMenuOptions, dynamicMenuArgs)
         local menu = CreateFrame("DropdownButton", nil, owner, "WowStyle1DropdownTemplate") ---@class WowStyle1DropdownTemplatePolyfill
         menu.DynamicMenuType = "menu"
         menu.DynamicMenuOwner = owner
         menu.DynamicMenuOptions = dynamicMenuOptions
+        menu.DynamicMenuArgs = dynamicMenuArgs
         menu:SetupMenu(generatorFunction)
         return menu
     end
@@ -437,11 +450,16 @@ local DropDownUtil do
     ---@field public icon? number | string | fun(option: DropDownUtilDynamicMenuOption): (number | string)?
     ---@field public text? string | fun(option: DropDownUtilDynamicMenuOption): string?
     ---@field public func? fun(option: DropDownUtilDynamicMenuOption)
-    ---@field public show? boolean | fun(option: DropDownUtilDynamicMenuOption): boolean
+    ---@field public show? boolean | fun(option: DropDownUtilDynamicMenuOption): boolean?
     ---@field public separator? boolean
     ---@field public unclickable? boolean
+    ---@field public checkable? boolean
+    ---@field public checked? boolean | fun(option: DropDownUtilDynamicMenuOption): boolean?
+    ---@field public radiogroup? string
     ---@field public menulist? string
-    ---@field public options? DropDownUtilDynamicMenuOption[] @NYI
+    ---@field public options? DropDownUtilDynamicMenuOption[]
+    ---@field public arg1? any
+    ---@field public arg2? any
 
     ---@param option DropDownUtilDynamicMenuOption
     ---@return string
@@ -470,10 +488,12 @@ local DropDownUtil do
     ---@param dropDownStyle? "MENU"|"DROPDOWN"
     function DropDownUtil:CreateDynamicMenu(owner, options, dropDownStyle)
         if self:IsMenuSupported() then
+            ---@type { checkedIndice: table<number, true?>, radioGroupIndex: table<string, number?> }
+            local args = { checkedIndice = {},  radioGroupIndex = {} }
             ---@param rootDescription WowStyle1DropdownTemplateRootDescriptionPolyfill
             ---@param useOptions? DropDownUtilDynamicMenuOption[]
             local function func(_, rootDescription, useOptions)
-                for _, option in ipairs(useOptions or options) do
+                for index, option in ipairs(useOptions or options) do
                     local show = option.show
                     if type(show) == "function" then
                         show = show(option)
@@ -486,6 +506,39 @@ local DropDownUtil do
                             if option.unclickable then
                                 text = format("|cffFFFFFF%s|r", text)
                                 rootDescription:CreateTitle(text)
+                            elseif option.checkable then
+                                rootDescription:CreateCheckbox(
+                                    text,
+                                    function()
+                                        local temp = option.checked
+                                        if type(temp) == "function" then
+                                            temp = temp(option)
+                                        end
+                                        if temp ~= nil and args.checkedIndice[index] == nil then
+                                            args.checkedIndice[index] = temp
+                                        end
+                                        return temp
+                                    end,
+                                    function()
+                                        local temp = option.checked
+                                        if type(temp) == "function" then
+                                            return temp(option)
+                                        end
+                                        option.checked = not temp
+                                        args.checkedIndice[index] = option.checked
+                                    end
+                                )
+                            elseif option.radiogroup then
+                                rootDescription:CreateRadio(
+                                    text,
+                                    function(index)
+                                        return args.radioGroupIndex[option.radiogroup] == index
+                                    end,
+                                    function(index)
+                                        args.radioGroupIndex[option.radiogroup] = index
+                                    end,
+                                    index
+                                )
                             else
                                 local optionFunc = option.func and function() option:func() end or nil
                                 local buttonDescription = rootDescription:CreateButton(text, optionFunc)
@@ -497,7 +550,7 @@ local DropDownUtil do
                     end
                 end
             end
-            return self:CreateMenu(owner, func, options)
+            return self:CreateMenu(owner, func, options, args)
         end
         ---@param button { arg1: UIDropDownMenuTemplatePolyfill, arg2: DropDownUtilDynamicMenuOption }
         local function onClick(button)
@@ -9817,11 +9870,11 @@ if IS_RETAIL then
             local replayMenu = rootDescription:CreateButton(L.REPLAY_MENU_REPLAY)
             do
                 local mapID, _, otherMapIDs = replayFrame:GetKeystone()
-                ---@type WowStyle1DropdownTemplateRadioIsSelectedPolyfill
+                ---@type WowStyle1DropdownTemplateIsSelectedPolyfill
                 local function isSelected(index)
                     return currentReplay == replays[index]
                 end
-                ---@type WowStyle1DropdownTemplateRadioSetSelectedPolyfill
+                ---@type WowStyle1DropdownTemplateSetSelectedPolyfill
                 local function setSelected(index)
                     local replay = replays[index]
                     self:OnMenuOptionClick("replay", replay)
@@ -9846,11 +9899,11 @@ if IS_RETAIL then
             local timingMenu = rootDescription:CreateButton(L.REPLAY_MENU_TIMING)
             do
                 local currentTiming = replayFrame:GetTiming()
-                ---@type WowStyle1DropdownTemplateRadioIsSelectedPolyfill
+                ---@type WowStyle1DropdownTemplateIsSelectedPolyfill
                 local function isSelected(index)
                     return currentTiming == ReplayFrameTimings[index]
                 end
-                ---@type WowStyle1DropdownTemplateRadioSetSelectedPolyfill
+                ---@type WowStyle1DropdownTemplateSetSelectedPolyfill
                 local function setSelected(index)
                     local timing = ReplayFrameTimings[index]
                     self:OnMenuOptionClick("timing", timing)
@@ -9863,11 +9916,11 @@ if IS_RETAIL then
             local styleMenu = rootDescription:CreateButton(L.REPLAY_MENU_STYLE)
             do
                 local currentStyle = replayFrame:GetStyle()
-                ---@type WowStyle1DropdownTemplateRadioIsSelectedPolyfill
+                ---@type WowStyle1DropdownTemplateIsSelectedPolyfill
                 local function isSelected(index)
                     return currentStyle == ReplayFrameStyles[index]
                 end
-                ---@type WowStyle1DropdownTemplateRadioSetSelectedPolyfill
+                ---@type WowStyle1DropdownTemplateSetSelectedPolyfill
                 local function setSelected(index)
                     local style = ReplayFrameStyles[index]
                     self:OnMenuOptionClick("style", style)
@@ -14842,11 +14895,11 @@ do
                     break
                 end
             end
-            ---@type WowStyle1DropdownTemplateRadioIsSelectedPolyfill
+            ---@type WowStyle1DropdownTemplateIsSelectedPolyfill
             local function isSelected(index)
                 return currentIndex == index
             end
-            ---@type WowStyle1DropdownTemplateRadioSetSelectedPolyfill
+            ---@type WowStyle1DropdownTemplateSetSelectedPolyfill
             local function setSelected(index)
                 local option = self.options[index]
                 currentIndex = index
@@ -15762,12 +15815,13 @@ do
 end
 
 -- builds.lua
--- dependencies: module, config
+-- dependencies: module, config, util
 if IS_RETAIL then
 
     ---@class BuildsModule : Module
     local builds = ns:NewModule("Builds") ---@type BuildsModule
     local config = ns:GetModule("Config") ---@type ConfigModule
+    local util = ns:GetModule("Util") ---@type UtilModule
 
     ---@class TitledPanelMixinPolyfill
     ---@field public SetTitleColor fun(self: TitledPanelMixinPolyfill, color: ColorMixin)
@@ -15866,6 +15920,27 @@ if IS_RETAIL then
         for i = 1, 20 do dataProvider:Insert({ index = i, left = format("Left %d", i), right = format("Right %d", i) }) end
     end
 
+    local frame ---@type BuildsFrame?
+    local updatingMenus = false
+
+    ---@param owner WowStyle1DropdownTemplatePolyfill
+    ---@param selections WowStyle1DropdownTemplateRootDescriptionRadioPolyfill[]
+    local function updateBuildFrameAndProvider(owner, _, _, selections)
+        if not frame then
+            return
+        end
+        if updatingMenus then
+            return
+        end
+        updatingMenus = true
+        if owner == frame.InstanceMenu then
+            frame.DifficultyMenu:OpenMenu()
+            frame.DifficultyMenu:CloseMenu()
+            frame.DifficultyMenu:SetEnabled(#selections > 0)
+        end
+        updatingMenus = false
+    end
+
     ---@param button BuildsDataProviderBuildButton
     local function updateBuildButton(button)
         local elementData = button.elementData
@@ -15873,7 +15948,7 @@ if IS_RETAIL then
         button.RightLabel:SetText(elementData.right) -- TODO
     end
 
-    local buildsButtonHeight = 40
+    local buildsButtonHeight = 60
 
     ---@param button BuildsDataProviderBuildButton
     ---@param elementData BuildsDataProviderBuildElementData
@@ -15947,6 +16022,142 @@ if IS_RETAIL then
         local function closeFrame()
             builds:HideBuildsFrame()
         end
+        ---@type DropDownUtilDynamicMenuOption[]
+        local instanceOptions = {
+            {
+                text = "Raids",
+                unclickable = true,
+            },
+            {
+                text = "Imperator Averzin",
+                radiogroup = "instance",
+                arg1 = "raid",
+                arg2 = 1,
+            },
+            {
+                text = "Vorasius",
+                radiogroup = "instance",
+                arg1 = "raid",
+                arg2 = 2,
+            },
+            {
+                text = "Fallen-King Salhadaar",
+                radiogroup = "instance",
+                arg1 = "raid",
+                arg2 = 3,
+            },
+            {
+                text = "Vaelgor & Ezzorak",
+                radiogroup = "instance",
+                arg1 = "raid",
+                arg2 = 4,
+            },
+            {
+                text = "Lightblinded Vanguard",
+                radiogroup = "instance",
+                arg1 = "raid",
+                arg2 = 5,
+            },
+            {
+                text = "Crown of the Cosmos",
+                radiogroup = "instance",
+                arg1 = "raid",
+                arg2 = 6,
+            },
+            {
+                text = "Chimaerus the Undreamt Got",
+                radiogroup = "instance",
+                arg1 = "raid",
+                arg2 = 7,
+            },
+            {
+                text = "Belo'ren, Child of Al'ar",
+                radiogroup = "instance",
+                arg1 = "raid",
+                arg2 = 8,
+            },
+            {
+                text = "Midnight Falls",
+                radiogroup = "instance",
+                arg1 = "raid",
+                arg2 = 9,
+            },
+        }
+        instanceOptions[#instanceOptions + 1] = {
+            text = "Mythic+",
+            unclickable = true,
+        }
+        for _, dungeon in ipairs(util:GetSortedDungeons()) do
+            instanceOptions[#instanceOptions + 1] = {
+                text = format("%s (%s)", dungeon.shortNameLocale, dungeon.name),
+                radiogroup = "instance",
+                arg1 = "dungeon",
+                arg2 = dungeon.index,
+            }
+        end
+        self.InstanceMenu = DropDownUtil:CreateDynamicMenu(self, instanceOptions)
+        self.InstanceMenu:SetDefaultText("Select instance...") -- TODO
+        self.InstanceMenu:SetWidth(255 + 115)
+        self.InstanceMenu:SetPoint("LEFT", self.TopTileStreaks, "LEFT", 10, 0)
+        self.InstanceMenu:RegisterCallback(self.InstanceMenu.Event.OnUpdate, updateBuildFrameAndProvider, self.InstanceMenu)
+        local function getSelectedInstance()
+            local _, _, selections = self.InstanceMenu:CollectSelectionData()
+            local selected = selections[1]
+            if not selected then
+                return
+            end
+            local index = selected.data
+            return instanceOptions[index], index
+        end
+        local function isSelectedInstanceRaid()
+            local selectedInstance = getSelectedInstance()
+            return selectedInstance and selectedInstance.arg1 == "raid" and true or false
+        end
+        local function isSelectedInstanceDungeon()
+            local selectedInstance = getSelectedInstance()
+            return selectedInstance and selectedInstance.arg1 == "dungeon" and true or false
+        end
+        self.DifficultyMenu = DropDownUtil:CreateDynamicMenu(self, {
+            {
+                text = "Normal",
+                show = isSelectedInstanceRaid,
+                radiogroup = "raid",
+            },
+            {
+                text = "Heroic",
+                show = isSelectedInstanceRaid,
+                radiogroup = "raid",
+            },
+            {
+                text = "Mythic",
+                show = isSelectedInstanceRaid,
+                radiogroup = "raid",
+            },
+            {
+                text = "+2 to +9",
+                show = isSelectedInstanceDungeon,
+                radiogroup = "dungeon",
+            },
+            {
+                text = "+10 to +15",
+                show = isSelectedInstanceDungeon,
+                radiogroup = "dungeon",
+            },
+            {
+                text = "+16 to +19",
+                show = isSelectedInstanceDungeon,
+                radiogroup = "dungeon",
+            },
+            {
+                text = "+20 and above",
+                show = isSelectedInstanceDungeon,
+                radiogroup = "dungeon",
+            },
+        })
+        self.DifficultyMenu:SetDefaultText("Difficulty") -- TODO
+        self.DifficultyMenu:SetWidth(140)
+        self.DifficultyMenu:SetPoint("LEFT", self.InstanceMenu, "RIGHT", 10, 0)
+        self.DifficultyMenu:RegisterCallback(self.DifficultyMenu.Event.OnUpdate, updateBuildFrameAndProvider, self.DifficultyMenu)
         self.CloseButton:HookScript("OnClick", closeFrame)
         self.CancelButton = CreateFrame("Button", nil, self, "SharedButtonSmallTemplate")
         self.CancelButton:SetSize(80, 22)
@@ -15967,8 +16178,6 @@ if IS_RETAIL then
         ScrollUtil.InitScrollBoxListWithScrollBar(self.ScrollBox, self.ScrollBar, view)
         self.ScrollBox:SetDataProvider(dataProvider)
     end
-
-    local frame ---@type BuildsFrame?
 
     local function getFrame()
         if frame then
@@ -16020,6 +16229,7 @@ if IS_RETAIL then
     function builds:OnLoad()
         self:Enable()
         updateDataProvider()
+        self:ShowBuildsFrame() -- DEBUG
     end
 
 end
@@ -16199,18 +16409,19 @@ do
                         unclickable = true,
                     },
                     {
-                        text = L.MINIMAP_SHORTCUT_MENU_BUILDS,
-                        show = AreBuildsAvailable,
-                        func = ToggleBuildsFrame,
-                    },
-                    {
-                        separator = true,
+                        text = "SEAT +22 (Auto)", -- TODO
                         show = HasActiveBuild,
+                        unclickable = true,
                     },
                     {
                         text = L.MINIMAP_SHORTCUT_MENU_COPY_BUILD,
                         show = HasActiveBuild,
                         func = ShowCopyActiveBuild,
+                    },
+                    {
+                        text = L.MINIMAP_SHORTCUT_MENU_BUILDS,
+                        show = AreBuildsAvailable,
+                        func = ToggleBuildsFrame,
                     },
                 })
             end
