@@ -308,7 +308,8 @@ local DropDownUtil do
     ---@field public SetTitleAndTextTooltip fun(self: WowStyle1DropdownTemplateRootDescriptionPolyfill) TODO
 
     ---@class WowStyle1DropdownTemplateRootDescriptionCheckboxPolyfill : WowStyle1DropdownTemplateRootDescriptionPolyfill
-    ---@field public defaultResponse number `2`
+    ---@field public defaultResponse number `MenuResponse.Refresh = 2`
+    ---@field public SetResponder fun(self: WowStyle1DropdownTemplateRootDescriptionCheckboxPolyfill, responseOrCallback: number | (fun(data, menuInputData, menu): number))
 
     ---@class WowStyle1DropdownTemplateRootDescriptionRadioPolyfill : WowStyle1DropdownTemplateRootDescriptionPolyfill
     ---@field public isRadio true
@@ -331,8 +332,12 @@ local DropDownUtil do
     ---@generic T
     ---@param owner T
     ---@param generatorFunction fun(owner: T, rootDescription: WowStyle1DropdownTemplateRootDescriptionPolyfill)
-    function DropDownUtil:CreateMenu(owner, generatorFunction)
+    ---@param dynamicMenuOptions? DropDownUtilDynamicMenuOption[]
+    function DropDownUtil:CreateMenu(owner, generatorFunction, dynamicMenuOptions)
         local menu = CreateFrame("DropdownButton", nil, owner, "WowStyle1DropdownTemplate") ---@class WowStyle1DropdownTemplatePolyfill
+        menu.DynamicMenuType = "menu"
+        menu.DynamicMenuOwner = owner
+        menu.DynamicMenuOptions = dynamicMenuOptions
         menu:SetupMenu(generatorFunction)
         return menu
     end
@@ -340,10 +345,19 @@ local DropDownUtil do
     ---@generic T, L
     ---@param owner T
     ---@param initialize fun(self: UIDropDownMenuTemplatePolyfill, level: number, menuList?: L)
-    ---@param style? "MENU"
-    function DropDownUtil:CreateDropDown(owner, initialize, style)
+    ---@param dynamicMenuOptions? DropDownUtilDynamicMenuOption[]
+    ---@param style? "MENU"|"DROPDOWN"
+    function DropDownUtil:CreateDropDown(owner, initialize, dynamicMenuOptions, style)
         local menu = CreateFrame("Frame", nil, owner, "UIDropDownMenuTemplate") ---@class UIDropDownMenuTemplatePolyfill
-        UIDropDownMenu_Initialize(menu, initialize, style or "MENU")
+        menu.DynamicMenuType = "dropdown"
+        menu.DynamicMenuOwner = owner
+        menu.DynamicMenuOptions = dynamicMenuOptions
+        if style == "DROPDOWN" then
+            style = nil
+        else
+            style = "MENU"
+        end
+        UIDropDownMenu_Initialize(menu, initialize, style)
         return menu
     end
 
@@ -416,6 +430,129 @@ local DropDownUtil do
             self:CloseDropDown(dropDownMenu)
         else
             self:OpenDropDown(dropDownMenu, anchor, anchorX, anchorY)
+        end
+    end
+
+    ---@class DropDownUtilDynamicMenuOption
+    ---@field public icon? number | string | fun(option: DropDownUtilDynamicMenuOption): (number | string)?
+    ---@field public text? string | fun(option: DropDownUtilDynamicMenuOption): string?
+    ---@field public func? fun(option: DropDownUtilDynamicMenuOption)
+    ---@field public show? boolean | fun(option: DropDownUtilDynamicMenuOption): boolean
+    ---@field public separator? boolean
+    ---@field public unclickable? boolean
+    ---@field public menulist? string
+    ---@field public options? DropDownUtilDynamicMenuOption[] @NYI
+
+    ---@param option DropDownUtilDynamicMenuOption
+    ---@return string
+    local function GetDynamicMenuOptionText(option)
+        local icon = option.icon
+        local text = option.text
+        if not icon and not text then
+            return ""
+        end
+        if type(icon) == "function" then
+            icon = icon(option)
+        end
+        if type(text) == "function" then
+            text = text(option)
+        end
+        if icon and text then
+            return format("%s%s", icon, text)
+        end
+        return text or icon or ""
+    end
+
+    local dropDownDividerTextureMarkup = "|T918860:0:13|t"
+
+    ---@param owner Frame
+    ---@param options DropDownUtilDynamicMenuOption[]
+    ---@param dropDownStyle? "MENU"|"DROPDOWN"
+    function DropDownUtil:CreateDynamicMenu(owner, options, dropDownStyle)
+        if self:IsMenuSupported() then
+            ---@param rootDescription WowStyle1DropdownTemplateRootDescriptionPolyfill
+            ---@param useOptions? DropDownUtilDynamicMenuOption[]
+            local function func(_, rootDescription, useOptions)
+                for _, option in ipairs(useOptions or options) do
+                    local show = option.show
+                    if type(show) == "function" then
+                        show = show(option)
+                    end
+                    if show ~= false then
+                        if option.separator then
+                            rootDescription:CreateDivider()
+                        else
+                            local text = GetDynamicMenuOptionText(option)
+                            if option.unclickable then
+                                text = format("|cffFFFFFF%s|r", text)
+                                rootDescription:CreateTitle(text)
+                            else
+                                local optionFunc = option.func and function() option:func() end or nil
+                                local buttonDescription = rootDescription:CreateButton(text, optionFunc)
+                                if option.options then
+                                    func(_, buttonDescription, option.options)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            return self:CreateMenu(owner, func, options)
+        end
+        ---@param button { arg1: UIDropDownMenuTemplatePolyfill, arg2: DropDownUtilDynamicMenuOption }
+        local function onClick(button)
+            local parent = button.arg1
+            local option = button.arg2
+            if option.func then
+                option:func()
+            end
+            self:CloseDropDown(parent)
+        end
+        ---@param parent UIDropDownMenuTemplatePolyfill
+        ---@param level number
+        ---@param menuList? string
+        local function func(parent, level, menuList)
+            local info = UIDropDownMenu_CreateInfo() ---@type UIDropDownMenuInfoPolyfill
+            info.func = onClick
+            info.arg1 = parent
+            for _, option in ipairs(options) do
+                if option.menulist == menuList then
+                    local show = option.show
+                    if type(show) == "function" then
+                        show = show(option)
+                    end
+                    if show ~= false then
+                        info.arg2 = option
+                        if option.separator then
+                            info.text = dropDownDividerTextureMarkup
+                        else
+                            info.text = GetDynamicMenuOptionText(option)
+                        end
+                        info.notClickable = option.separator or option.unclickable
+                        info.notCheckable = true
+                        info.disabled = false
+                        UIDropDownMenu_AddButton(info, level)
+                    end
+                end
+            end
+        end
+        return self:CreateDropDown(owner, func, options, dropDownStyle)
+    end
+
+    ---@param menu WowStyle1DropdownTemplatePolyfill | UIDropDownMenuTemplatePolyfill
+    ---@param anchorPoint? FramePoint
+    ---@param anchorRelativePoint? Region
+    ---@param anchorRelativeTo? FramePoint
+    ---@param anchorX? number
+    ---@param anchorY? number
+    function DropDownUtil:ToggleDynamicMenu(menu, anchorPoint, anchorRelativePoint, anchorRelativeTo, anchorX, anchorY)
+        if anchorRelativePoint == nil then
+            anchorRelativePoint = menu.DynamicMenuOwner
+        end
+        if menu.DynamicMenuType == "menu" then
+            self:ToggleMenu(menu, anchorPoint, anchorRelativePoint, anchorRelativeTo, anchorX, anchorY)
+        elseif menu.DynamicMenuType == "dropdown" then
+            self:ToggleDropDown(menu, anchorRelativePoint, anchorX, anchorY)
         end
     end
 
@@ -960,18 +1097,6 @@ do
             atlas = "newplayertutorial-icon-mouse-rightbutton",
             atlasWidth = 12,
             atlasHeight = 16,
-        },
-        ---@class MarkupIcons
-        Specialization = {
-            atlas = "ui-hud-micromenu-spectalents-up",
-            atlasWidth = 16,
-            atlasHeight = 20.5,
-        },
-        ---@class MarkupIcons
-        GroupFinder = {
-            atlas = "ui-hud-micromenu-groupfinder-up",
-            atlasWidth = 16,
-            atlasHeight = 20.5,
         },
     }
 
@@ -15701,10 +15826,45 @@ if IS_RETAIL then
 
     ---@generic T
     ---@class DataProviderPolyfill<T>
-    ---@field public Find fun(self: DataProviderPolyfill, index: number): T
+    ---@field public Enumerate fun(self: DataProviderPolyfill, indexBegin?: number, indexEnd?: number): fun(): index: number, elementData: T
+    ---@field public EnumerateEntireRange fun(self: DataProviderPolyfill): fun(): index: number, elementData: T
+    ---@field public ReverseEnumerate fun(self: DataProviderPolyfill, indexBegin?: number, indexEnd?: number): fun(): index: number, elementData: T
+    ---@field public ReverseEnumerateEntireRange fun(self: DataProviderPolyfill): fun(): index: number, elementData: T
+    ---@field public GetCollection fun(self: DataProviderPolyfill): T[]
     ---@field public GetSize fun(self: DataProviderPolyfill): number
-    ---@field public ForEach fun(self: DataProviderPolyfill, callback: fun(elementData: T))
-    ---@field public Insert fun(self: DataProviderPolyfill, elementData: T)
+    ---@field public IsEmpty fun(self: DataProviderPolyfill): boolean
+    ---@field public InsertAtIndex fun(self: DataProviderPolyfill, elementData: T, insertIndex: number)
+    ---@field public Insert fun(self: DataProviderPolyfill, ...: T)
+    ---@field public InsertTable fun(self: DataProviderPolyfill, tbl: T[])
+    ---@field public InsertTableRange fun(self: DataProviderPolyfill, tbl: T[], indexBegin: number, indexEnd: number)
+    ---@field public MoveElementDataToIndex fun(self: DataProviderPolyfill, elementData: T, newIndex: number)
+    ---@field public Remove fun(self: DataProviderPolyfill, ...: T)
+    ---@field public RemoveAllByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?)
+    ---@field public RemoveByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?)
+    ---@field public RemoveIndex fun(self: DataProviderPolyfill, index: number)
+    ---@field public RemoveIndexRange fun(self: DataProviderPolyfill, indexBegin: number, indexEnd: number)
+    ---@field public ReplaceAtIndex fun(self: DataProviderPolyfill, index: number, newElementData: T)
+    ---@field public SetSortComparator fun(self: DataProviderPolyfill, sortComparator: fun(a: T, b: T): number, skipSort: boolean?)
+    ---@field public ClearSortComparator fun(self: DataProviderPolyfill)
+    ---@field public HasSortComparator fun(self: DataProviderPolyfill): boolean
+    ---@field public Sort fun(sortComparator: fun(a: T, b: T): number)
+    ---@field public Find fun(self: DataProviderPolyfill, index: number): T
+    ---@field public FindLast fun(self: DataProviderPolyfill): elementData: T?
+    ---@field public FindIndex fun(self: DataProviderPolyfill, elementData: T): index: number?, elementData: T
+    ---@field public FindByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?): index: number?, elementData: T?
+    ---@field public FindElementDataByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?): elementData: T?
+    ---@field public FindIndexByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?): index: number?
+    ---@field public ForEach fun(self: DataProviderPolyfill, func: fun(elementData: T))
+    ---@field public ReverseForEach fun(self: DataProviderPolyfill, func: fun(elementData: T))
+    ---@field public Flush fun(self: DataProviderPolyfill)
+
+    ---@type DataProviderPolyfill<BuildsDataProviderBuildElementData>
+    local dataProvider = CreateDataProvider()
+
+    -- TODO
+    local function updateDataProvider()
+        for i = 1, 20 do dataProvider:Insert({ index = i, left = format("Left %d", i), right = format("Right %d", i) }) end
+    end
 
     ---@param button BuildsDataProviderBuildButton
     local function updateBuildButton(button)
@@ -15805,9 +15965,7 @@ if IS_RETAIL then
         local pad, spacing = 2, nil
         view:SetPadding(pad, pad, pad, pad, spacing)
         ScrollUtil.InitScrollBoxListWithScrollBar(self.ScrollBox, self.ScrollBar, view)
-        local dataProvider = CreateDataProvider() ---@type DataProviderPolyfill<BuildsDataProviderBuildElementData>
         self.ScrollBox:SetDataProvider(dataProvider)
-        for i = 1, 100 do dataProvider:Insert({ index = i, left = format("Left %d", i), right = format("Right %d", i) }) end -- TODO
     end
 
     local frame ---@type BuildsFrame?
@@ -15847,12 +16005,21 @@ if IS_RETAIL then
         end
     end
 
+    -- TODO
+    function builds:GetActiveBuild()
+        local activeBuildImportString = 1
+        return dataProvider:FindElementDataByPredicate(function(elementData)
+            return elementData.index == activeBuildImportString
+        end)
+    end
+
     function builds:CanLoad()
         return config:IsEnabled()
     end
 
     function builds:OnLoad()
         self:Enable()
+        updateDataProvider()
     end
 
 end
@@ -15890,26 +16057,6 @@ do
         ns.MARKUP_ICONS.RightButton.markupPadRight or format("|cffffff55<%s>|r ", L.MINIMAP_SHORTCUT_HELP_RIGHT_CLICK),
         L.MINIMAP_SHORTCUT_HELP_SETTINGS
     )
-
-    ---@param option ShortcutsMenuOption
-    ---@return string
-    local function GetOptionText(option)
-        local icon = option.icon
-        local text = option.text
-        if not icon and not text then
-            return ""
-        end
-        if type(icon) == "function" then
-            icon = icon(option)
-        end
-        if type(text) == "function" then
-            text = text(option)
-        end
-        if icon and text then
-            return format("%s%s", icon, text)
-        end
-        return text or icon or ""
-    end
 
     ---@return string?
     local function GetCurrentSpecIcon()
@@ -15965,6 +16112,30 @@ do
         builds:ToggleBuildsFrame()
     end
 
+    local function AreBuildsAvailable()
+        return builds and builds:IsEnabled() and true or false
+    end
+
+    local function GetActiveBuild()
+        if not AreBuildsAvailable() then
+            return
+        end
+        return builds and builds:GetActiveBuild()
+    end
+
+    local function HasActiveBuild()
+        return GetActiveBuild() ~= nil
+    end
+
+    -- TODO
+    local function ShowCopyActiveBuild()
+        local build = GetActiveBuild()
+        if not build then
+            return
+        end
+        print(build.index, build.left, build.right)
+    end
+
     ---@param frame Frame
     ---@return boolean
     local function IsFrameMinimapButton(frame)
@@ -16012,12 +16183,38 @@ do
             return
         end
         if IsFrameMinimapButton(frame) then
-            self:InitializeMenu(frame)
-            if self.DropDownMenu2 then
-                DropDownUtil:ToggleMenu(self.DropDownMenu2, nil, frame)
-            elseif self.DropDownMenu then
-                DropDownUtil:ToggleDropDown(self.DropDownMenu, frame, 0, 0)
+            if not self.DynamicMenu then
+                self.DynamicMenu = DropDownUtil:CreateDynamicMenu(frame, {
+                    {
+                        text = L.MINIMAP_SHORTCUT_HELP_SEARCH,
+                        func = ToggleSearchFrame,
+                    },
+                    {
+                        separator = true,
+                    },
+                    {
+                        icon = GetCurrentSpecIcon,
+                        text = GetCurrentSpecAndClassName,
+                        show = function() return util:IsTalentUIAvailable() or GetCurrentSpecAndClassName() or GetCurrentSpecIcon() end,
+                        unclickable = true,
+                    },
+                    {
+                        text = L.MINIMAP_SHORTCUT_MENU_BUILDS,
+                        show = AreBuildsAvailable,
+                        func = ToggleBuildsFrame,
+                    },
+                    {
+                        separator = true,
+                        show = HasActiveBuild,
+                    },
+                    {
+                        text = L.MINIMAP_SHORTCUT_MENU_COPY_BUILD,
+                        show = HasActiveBuild,
+                        func = ShowCopyActiveBuild,
+                    },
+                })
             end
+            DropDownUtil:ToggleDynamicMenu(self.DynamicMenu)
             return
         end
         ToggleSearchFrame()
@@ -16048,103 +16245,6 @@ do
         config:Set("minimapIcon", db) -- force save the initial settings in the SV file
         LDBI:Register(addonName, self.dataBroker, db)
         self.dbIcon = LDBI:IsRegistered(addonName)
-    end
-
-    ---@class ShortcutsMenuOption
-    ---@field public icon? string|fun(option: ShortcutsMenuOption): string?
-    ---@field public text? string|fun(option: ShortcutsMenuOption): string?
-    ---@field public func? fun(option: ShortcutsMenuOption)
-    ---@field public show? fun(option: ShortcutsMenuOption): boolean
-    ---@field public separator? boolean
-    ---@field public unclickable? boolean
-
-    ---@param owner Frame
-    function shortcuts:InitializeMenu(owner)
-        if self.DropDownMenu or self.DropDownMenu2 then
-            return
-        end
-        ---@type ShortcutsMenuOption[]
-        self.dropDownOptions = {
-            {
-                icon = ns.MARKUP_ICONS.GroupFinder.markupPadRight,
-                text = L.MINIMAP_SHORTCUT_HELP_SEARCH,
-                func = ToggleSearchFrame,
-            },
-            {
-                separator = true,
-            },
-            {
-                icon = GetCurrentSpecIcon,
-                text = GetCurrentSpecAndClassName,
-                show = function() return util:IsTalentUIAvailable() or GetCurrentSpecAndClassName() or GetCurrentSpecIcon() end,
-                unclickable = true,
-            },
-            {
-                icon = ns.MARKUP_ICONS.Specialization.markupPadRight,
-                text = L.MINIMAP_SHORTCUT_MENU_BUILDS,
-                func = ToggleBuildsFrame,
-                show = function() return builds and builds:IsEnabled() and true or false end,
-            },
-        }
-        if DropDownUtil:IsMenuSupported() then
-            self.DropDownMenu2 = DropDownUtil:CreateMenu(owner, function(_, ...) self:InitializeMenuButtons(...) end)
-        else
-            self.DropDownMenu = DropDownUtil:CreateDropDown(owner, self.InitializeDropDownButtons)
-        end
-    end
-
-    ---@param rootDescription WowStyle1DropdownTemplateRootDescriptionPolyfill
-    function shortcuts:InitializeMenuButtons(rootDescription)
-        for _, option in ipairs(self.dropDownOptions) do
-            if not option.show or option:show() then
-                if option.separator then
-                    rootDescription:CreateDivider()
-                else
-                    local text = GetOptionText(option)
-                    if option.unclickable then
-                        text = format("|cffFFFFFF%s|r", text)
-                        rootDescription:CreateTitle(text)
-                    else
-                        local func = option.func and function() option:func() end or nil
-                        rootDescription:CreateButton(text, func)
-                    end
-                end
-            end
-        end
-    end
-
-    ---@param dropDownList DropDownList
-    ---@param level number
-    ---@param menuList? string
-    function shortcuts:InitializeDropDownButtons(dropDownList, level, menuList)
-        if level ~= 1 then
-            return
-        end
-        local info = UIDropDownMenu_CreateInfo() ---@type UIDropDownMenuInfoPolyfill
-        info.func = self.DropDownButtonOnClick
-        info.arg1 = self
-        for _, option in ipairs(self.dropDownOptions) do
-            if not option.show or option:show() then
-                info.arg2 = option
-                info.text = GetOptionText(option)
-                info.notClickable = option.separator
-                info.notCheckable = option.separator
-                UIDropDownMenu_AddButton(info, level)
-            end
-        end
-    end
-
-    ---@param self { arg1: ShortcutsModule, arg2: ShortcutsMenuOption } | UIDropDownMenuInfoPolyfill
-    function shortcuts.DropDownButtonOnClick(self)
-        local parent = self.arg1
-        local option = self.arg2
-        if option.func then
-            option:func()
-        end
-        if option.separator then
-            return
-        end
-        DropDownUtil:CloseDropDown(parent.DropDownMenu)
     end
 
     function shortcuts:ShowIcon()
