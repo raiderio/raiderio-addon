@@ -15627,8 +15627,9 @@ do
     function shortcuts:OnButtonClick(frame, button)
         if button == "RightButton" then
             local talents = ns:GetModule("TalentBuilds") ---@type TalentBuildsModule
-            -- Image #4: right-click opens a context menu with talent-build quick actions (+ Settings).
-            if MenuUtil and MenuUtil.CreateContextMenu and talents and talents:IsEnabled() and config:Get("enableTalentMinimap") then
+            local canOpenTalentMenu = MenuUtil and MenuUtil.CreateContextMenu and talents and talents:IsEnabled()
+                and config:Get("enableTalentBrowser") and config:Get("enableTalentMinimap")
+            if canOpenTalentMenu then
                 MenuUtil.CreateContextMenu(frame, function(_, rootDescription)
                     rootDescription:CreateTitle("Raider.IO")
                     rootDescription:CreateButton(L.TALENTS_OPEN_BROWSER, function()
@@ -15753,6 +15754,18 @@ do
 
 end
 
+local function HasTalentRows(cell)
+    return type(cell) == "table" and cell[1] ~= nil
+end
+
+local function GetMplusBracketTable(specData, dungeonId)
+    local mplus = specData and specData.mplus
+    if not mplus then
+        return nil
+    end
+    return (dungeonId and mplus[tostring(dungeonId)]) or mplus["all"]
+end
+
 -- talentbuilds.lua (retail) — recommended talent builds: shared data/context/display core + loadout manager
 -- dependencies: module, callback, config, util, provider
 do
@@ -15774,6 +15787,92 @@ do
 
     -- difficultyID -> our difficulty key. Data ships heroic + mythic only (normal maps to nil = no data).
     local DIFFICULTY_KEY = { [16] = "mythic", [15] = "heroic" }
+    local RAID_DIFFICULTY_ORDER = { "mythic", "heroic" }
+    local RAIDERIO_SPECS_URL = "https://raider.io/specs"
+    local encounterNameCache = {}
+    local encounterNamesCachedByRaid = {}
+    local allEncounterNamesCached = false
+    local BUILD_DEFINITIONS = {
+        { kind = "recommended", labelKey = "TALENTS_RECOMMENDED", buildIndex = 4, runsIndex = 5, scoreIndex = 6 },
+        { kind = "default", labelKey = "TALENTS_DEFAULT", buildIndex = 7, runsIndex = 8, scoreIndex = 9 },
+    }
+
+    local function GetRaidDifficultyCell(difficultyTable, preferredDifficulty)
+        if not difficultyTable then
+            return nil
+        end
+        if preferredDifficulty and HasTalentRows(difficultyTable[preferredDifficulty]) then
+            return difficultyTable[preferredDifficulty]
+        end
+        for _, difficulty in ipairs(RAID_DIFFICULTY_ORDER) do
+            local cell = difficultyTable[difficulty]
+            if HasTalentRows(cell) then
+                return cell
+            end
+        end
+    end
+
+    local function EnsureEncounterJournalAPI()
+        if EJ_GetEncounterInfo and EJ_GetEncounterInfoByIndex and EJ_SelectInstance then
+            return true
+        end
+        if C_AddOns and C_AddOns.LoadAddOn then
+            pcall(C_AddOns.LoadAddOn, "Blizzard_EncounterJournal")
+        end
+        return EJ_GetEncounterInfo and EJ_GetEncounterInfoByIndex and EJ_SelectInstance
+    end
+
+    local function CacheEncounterNamesForJournalInstance(journalInstanceID)
+        if not (journalInstanceID and EnsureEncounterJournalAPI()) then
+            return
+        end
+        local previousInstanceID = EncounterJournal and EncounterJournal.instanceID
+        EJ_SelectInstance(journalInstanceID)
+        local index = 1
+        while true do
+            local name, _, journalEncounterID = EJ_GetEncounterInfoByIndex(index)
+            if not (journalEncounterID and journalEncounterID > 0) then
+                break
+            end
+            -- EJ_GetEncounterInfo returns the localized encounter name plus the DungeonEncounter id used by
+            -- ENCOUNTER_START/END and by db_talent_builds.lua raid cells.
+            local _, _, _, _, _, _, dungeonEncounterID = EJ_GetEncounterInfo(journalEncounterID)
+            if name and dungeonEncounterID then
+                encounterNameCache[tostring(dungeonEncounterID)] = name
+            end
+            index = index + 1
+        end
+        if previousInstanceID and previousInstanceID ~= journalInstanceID then
+            EJ_SelectInstance(previousInstanceID)
+        end
+    end
+
+    function talents:CacheEncounterNamesForRaid(raid)
+        if not (raid and raid.id) or encounterNamesCachedByRaid[raid.id] then
+            return
+        end
+        if not (EnsureEncounterJournalAPI() and C_EncounterJournal and C_EncounterJournal.GetInstanceForGameMap) then
+            return
+        end
+        encounterNamesCachedByRaid[raid.id] = true
+        local instanceMapIds = raid.instance_map_ids or {}
+        for i = 1, #instanceMapIds do
+            local ok, journalInstanceID = pcall(C_EncounterJournal.GetInstanceForGameMap, instanceMapIds[i])
+            if ok and journalInstanceID then
+                CacheEncounterNamesForJournalInstance(journalInstanceID)
+            end
+        end
+    end
+
+    function talents:CacheAllEncounterNames()
+        if allEncounterNamesCached then
+            return
+        end
+        allEncounterNamesCached = true
+        for _, raid in ipairs(util:GetSortedRaids()) do
+            self:CacheEncounterNamesForRaid(raid)
+        end
+    end
 
     -- last raid encounter the player engaged, for raid auto-context (set on ENCOUNTER_START)
     local lastEncounter ---@type table|nil
@@ -15802,6 +15901,27 @@ do
         return data.specs[tostring(specID)]
     end
 
+    -- "min-max" -> min, max
+    local function ParseBracket(key)
+        local lo, hi = key:match("^(%d+)%-(%d+)$")
+        if lo then
+            return tonumber(lo), tonumber(hi)
+        end
+    end
+
+    local function UrlEncode(value)
+        return tostring(value):gsub("([^%w%-_%.~])", function(char)
+            return format("%%%02X", string.byte(char))
+        end)
+    end
+
+    local function AddQueryParam(params, key, value)
+        if value == nil or value == "" then
+            return
+        end
+        params[#params + 1] = format("%s=%s", UrlEncode(key), UrlEncode(value))
+    end
+
     ---@param specID number
     ---@param buildIdx number
     ---@return string|nil
@@ -15817,17 +15937,74 @@ do
         return (specData.prefix or "") .. suffix
     end
 
+    ---@param routeKey string
+    ---@param id number|string|nil
+    ---@return string|nil
+    function talents:GetRouteValue(routeKey, id)
+        if id == nil then
+            return nil
+        end
+        local data = self:GetData()
+        local routes = data and data.routes
+        local values = routes and routes[routeKey]
+        return values and values[tostring(id)] or nil
+    end
+
+    ---@param specID number|string
+    ---@return string|nil
+    function talents:GetSpecPageSlug(specID)
+        return self:GetRouteValue("specPageSlugs", specID)
+    end
+
+    ---@param ctx TalentContext
+    ---@param buildIdx number
+    ---@return string|nil
+    function talents:GetBuildUrl(ctx, buildIdx)
+        if not (ctx and ctx.specID and buildIdx) then
+            return nil
+        end
+        local specSlug = self:GetSpecPageSlug(ctx.specID)
+        local loadout = self:GetFullLoadout(ctx.specID, buildIdx)
+        if not (specSlug and loadout) then
+            return nil
+        end
+
+        local data = self:GetData()
+        local routes = data and data.routes
+        local params = {}
+
+        AddQueryParam(params, "utm_source", "addon")
+        if ctx.kind == "raid" then
+            AddQueryParam(params, "activity", "raid")
+            AddQueryParam(params, "raid", self:GetRouteValue("raids", ctx.raidId))
+            AddQueryParam(params, "difficulty", ctx.difficulty)
+            AddQueryParam(params, "encounterSlug", self:GetRouteValue("encounters", ctx.encounterId))
+        else
+            AddQueryParam(params, "activity", "mythic-plus")
+            AddQueryParam(params, "season", routes and routes.season)
+            AddQueryParam(params, "dungeon", self:GetRouteValue("dungeons", ctx.dungeonId))
+            local minLevel, maxLevel
+            if ctx.bracket then
+                minLevel, maxLevel = ParseBracket(ctx.bracket)
+            end
+            AddQueryParam(params, "minMythicLevel", minLevel)
+            AddQueryParam(params, "maxMythicLevel", maxLevel)
+        end
+
+        AddQueryParam(params, "loadout", loadout)
+
+        return format("%s/%s/talents?%s", RAIDERIO_SPECS_URL, specSlug, table.concat(params, "&"))
+    end
+
     function talents:HasDataForCurrentSpec()
         local specID = self:GetCurrentSpecID()
         return specID ~= nil and self:GetSpecData(specID) ~= nil
     end
 
-    -- "min-max" -> min, max
-    local function ParseBracket(key)
-        local lo, hi = key:match("^(%d+)%-(%d+)$")
-        if lo then
-            return tonumber(lo), tonumber(hi)
-        end
+    ---@param difficultyID number|nil
+    ---@return string|nil
+    function talents:GetRaidDifficultyKey(difficultyID)
+        return difficultyID and DIFFICULTY_KEY[difficultyID] or nil
     end
 
     ---@param bracketTable table|nil @specData.mplus[dungeonKey]
@@ -15838,25 +16015,34 @@ do
             return nil
         end
         if keyLevel then
-            for key in pairs(bracketTable) do
-                if key ~= "all" then
+            local bestKey, bestMin, bestMax
+            for key, cell in pairs(bracketTable) do
+                if key ~= "all" and HasTalentRows(cell) then
                     local lo, hi = ParseBracket(key)
-                    if lo and keyLevel >= lo and keyLevel <= hi then
-                        return key
+                    local inRange = lo and keyLevel >= lo and keyLevel <= hi
+                    local isBetterMatch = inRange
+                        and (not bestKey or lo > bestMin or (lo == bestMin and hi < bestMax))
+                    if isBetterMatch then
+                        bestKey, bestMin, bestMax = key, lo, hi
                     end
                 end
+            end
+            if bestKey then
+                return bestKey
             end
         end
         -- no key level (or no matching bracket): prefer an explicit "all", then the site default "10-99",
         -- then any available bracket, so a contextless "browse my spec" view still resolves a cell.
-        if bracketTable["all"] then
+        if HasTalentRows(bracketTable["all"]) then
             return "all"
         end
-        if bracketTable["10-99"] then
+        if HasTalentRows(bracketTable["10-99"]) then
             return "10-99"
         end
-        for key in pairs(bracketTable) do
-            return key
+        for key, cell in pairs(bracketTable) do
+            if HasTalentRows(cell) then
+                return key
+            end
         end
         return nil
     end
@@ -15890,7 +16076,7 @@ do
                 if lastEncounter and IsEncounterInProgress and IsEncounterInProgress() then
                     return { kind = "raid", specID = specID, raidId = raid.id, encounterId = lastEncounter.id, difficulty = lastEncounter.difficulty }
                 end
-                return { kind = "raid", specID = specID, raidId = raid.id, difficulty = DIFFICULTY_KEY[difficultyID] }
+                return { kind = "raid", specID = specID, raidId = raid.id, difficulty = self:GetRaidDifficultyKey(difficultyID) }
             end
         elseif instanceType == "party" and instanceMapID then
             local dungeon = util:GetDungeonByInstanceMapID(instanceMapID)
@@ -15934,9 +16120,10 @@ do
                 end
                 -- An explicitly selected bracket (from the UI) wins when this dungeon has it; otherwise derive
                 -- it from the active keystone level, then fall back to the all-keys aggregate.
-                local bracketKey = (ctx.bracket and bt[ctx.bracket] and ctx.bracket)
+                local bracketKey = (ctx.bracket and HasTalentRows(bt[ctx.bracket]) and ctx.bracket)
                     or self:GetBracketForLevel(bt, ctx.keyLevel)
-                return (bracketKey and bt[bracketKey]) or bt["all"] or nil
+                local cell = bracketKey and bt[bracketKey]
+                return (HasTalentRows(cell) and cell) or (HasTalentRows(bt["all"]) and bt["all"]) or nil
             end
             return (ctx.dungeonId and pick(tostring(ctx.dungeonId))) or pick("all")
         end
@@ -15946,20 +16133,25 @@ do
         end
         local diff = ctx.difficulty
         local function pickEnc(rt, encKey)
-            local dt = rt[encKey]
-            if not dt then
-                return nil
-            end
-            return (diff and dt[diff]) or dt["mythic"] or dt["heroic"] or nil
+            return GetRaidDifficultyCell(rt[encKey], diff)
         end
         local function pickRaid(raidKey)
             local rt = raid[raidKey]
             if not rt then
                 return nil
             end
-            return (ctx.encounterId and pickEnc(rt, tostring(ctx.encounterId))) or pickEnc(rt, "all")
+            if ctx.encounterId then
+                return pickEnc(rt, tostring(ctx.encounterId))
+            end
+            return pickEnc(rt, "all")
         end
-        return (ctx.raidId and pickRaid(tostring(ctx.raidId))) or pickRaid("all")
+        if ctx.raidId then
+            local cell = pickRaid(tostring(ctx.raidId))
+            if ctx.encounterId or cell then
+                return cell
+            end
+        end
+        return pickRaid("all")
     end
 
     ---@param kind string @"mplus"|"raid"
@@ -16015,27 +16207,32 @@ do
             local row = cell[i]
             local heroTreeId, popularity, treeRuns = row[1], row[2], row[3]
             local name, icon = self:GetHeroTreeInfo(specData, heroTreeId)
-            local function buildSlot(buildIdx, runs, score)
-                if not buildIdx then
-                    return nil
-                end
-                return {
-                    idx = buildIdx,
-                    loadout = self:GetFullLoadout(ctx.specID, buildIdx),
-                    runs = runs,
-                    scoreText = self:FormatScore(ctx.kind, score),
-                    treeSharePct = (treeRuns and treeRuns > 0 and runs) and (runs / treeRuns * 100) or nil,
-                }
-            end
-            rows[#rows + 1] = {
+            local displayRow = {
                 heroTreeId = heroTreeId,
                 heroTreeName = name,
                 heroTreeIcon = icon,
                 heroTreeRuns = treeRuns,
                 popularityPct = popularity and (popularity * 100) or nil,
-                recommended = buildSlot(row[4], row[5], row[6]),
-                default = buildSlot(row[7], row[8], row[9]),
+                builds = {},
             }
+            for _, def in ipairs(BUILD_DEFINITIONS) do
+                local buildIdx = row[def.buildIndex]
+                if buildIdx then
+                    local runs, score = row[def.runsIndex], row[def.scoreIndex]
+                    local slot = {
+                        idx = buildIdx,
+                        kind = def.kind,
+                        label = L[def.labelKey],
+                        loadout = self:GetFullLoadout(ctx.specID, buildIdx),
+                        runs = runs,
+                        scoreText = self:FormatScore(ctx.kind, score),
+                        treeSharePct = (treeRuns and treeRuns > 0 and runs) and (runs / treeRuns * 100) or nil,
+                    }
+                    displayRow.builds[#displayRow.builds + 1] = slot
+                    displayRow[def.kind] = slot
+                end
+            end
+            rows[#rows + 1] = displayRow
         end
         return rows
     end
@@ -16045,29 +16242,38 @@ do
     ---@param specID number
     function talents:HasMplusData(specID)
         local specData = self:GetSpecData(specID)
-        return (specData and specData.mplus and next(specData.mplus) ~= nil) and true or false
+        return specData ~= nil and specData.mplus ~= nil and next(specData.mplus) ~= nil
     end
 
     ---@param specID number
     function talents:HasRaidData(specID)
         local specData = self:GetSpecData(specID)
-        return (specData and specData.raid and next(specData.raid) ~= nil) and true or false
+        return specData ~= nil and specData.raid ~= nil and next(specData.raid) ~= nil
     end
 
-    -- Boss name from the shipped lookup (ns.talentBuilds.encounters), else a generic fallback.
+    -- Boss names come from the client's Encounter Journal so they use the player's locale.
     ---@param encounterId number|string
+    ---@param raidId number|string|nil
     ---@return string
-    function talents:GetEncounterName(encounterId)
-        local data = self:GetData()
-        local name = data and data.encounters and data.encounters[tostring(encounterId)]
-        return name or format(L.TALENTS_ENCOUNTER_FALLBACK or "Boss %s", tostring(encounterId))
+    function talents:GetEncounterName(encounterId, raidId)
+        local key = tostring(encounterId)
+        local name = encounterNameCache[key]
+        if not name and raidId then
+            self:CacheEncounterNamesForRaid(util:GetRaidByID(tonumber(raidId)))
+            name = encounterNameCache[key]
+        end
+        if not name and not raidId then
+            self:CacheAllEncounterNames()
+            name = encounterNameCache[key]
+        end
+        return name or format(L.TALENTS_ENCOUNTER_FALLBACK, tostring(encounterId))
     end
 
     ---@param key string
     ---@return string
     function talents:BracketLabel(key)
         if key == "all" then
-            return L.TALENTS_ALL_KEYS or "All Keys"
+            return L.TALENTS_ALL_KEYS
         end
         local lo, hi = ParseBracket(key)
         if lo and hi then
@@ -16079,11 +16285,19 @@ do
         return key
     end
 
+    local function BracketSortValue(key)
+        if key == "all" then
+            return -1
+        end
+        local lo = ParseBracket(key)
+        return lo or 0
+    end
+
     ---@param diff string
     ---@return string
     function talents:DifficultyLabel(diff)
-        if diff == "mythic" then return L.TALENTS_DIFFICULTY_MYTHIC or "Mythic" end
-        if diff == "heroic" then return L.TALENTS_DIFFICULTY_HEROIC or "Heroic" end
+        if diff == "mythic" then return L.TALENTS_DIFFICULTY_MYTHIC end
+        if diff == "heroic" then return L.TALENTS_DIFFICULTY_HEROIC end
         return diff
     end
 
@@ -16114,18 +16328,17 @@ do
     function talents:GetMplusBrackets(specID, dungeonId)
         local specData = self:GetSpecData(specID)
         local out = {}
-        local bt = specData and specData.mplus
-            and (specData.mplus[dungeonId and tostring(dungeonId)] or specData.mplus["all"])
+        local bt = GetMplusBracketTable(specData, dungeonId)
         if not bt then
             return out
         end
-        for key in pairs(bt) do
-            out[#out + 1] = { key = key, label = self:BracketLabel(key) }
+        for key, cell in pairs(bt) do
+            if HasTalentRows(cell) then
+                out[#out + 1] = { key = key, label = self:BracketLabel(key) }
+            end
         end
         table.sort(out, function(a, b)
-            local la = (a.key == "all") and -1 or (ParseBracket(a.key) or 0)
-            local lb = (b.key == "all") and -1 or (ParseBracket(b.key) or 0)
-            return la < lb
+            return BracketSortValue(a.key) < BracketSortValue(b.key)
         end)
         return out
     end
@@ -16156,13 +16369,13 @@ do
     function talents:GetRaidEncounters(specID, raidId)
         local specData = self:GetSpecData(specID)
         local out = {}
-        local rt = specData and specData.raid and specData.raid[raidId and tostring(raidId)]
+        local rt = raidId and specData and specData.raid and specData.raid[tostring(raidId)]
         if not rt then
             return out
         end
         for key in pairs(rt) do
             if key ~= "all" then
-                out[#out + 1] = { id = tonumber(key), name = self:GetEncounterName(key) }
+                out[#out + 1] = { id = tonumber(key), name = self:GetEncounterName(key, raidId) }
             end
         end
         table.sort(out, function(a, b) return (a.id or 0) < (b.id or 0) end)
@@ -16176,14 +16389,22 @@ do
     ---@return string[]
     function talents:GetRaidDifficulties(specID, raidId, encounterId)
         local specData = self:GetSpecData(specID)
-        local rt = specData and specData.raid and specData.raid[raidId and tostring(raidId)]
-        local dt = rt and (rt[encounterId and tostring(encounterId)] or rt["all"])
+        local rt = raidId and specData and specData.raid and specData.raid[tostring(raidId)]
         local out = {}
+        local dt
+        if encounterId then
+            dt = rt and rt[tostring(encounterId)]
+            if not GetRaidDifficultyCell(dt) then
+                return out
+            end
+        else
+            dt = rt and rt["all"]
+        end
         if not dt then
             return out
         end
-        for _, diff in ipairs({ "mythic", "heroic" }) do
-            if dt[diff] then
+        for _, diff in ipairs(RAID_DIFFICULTY_ORDER) do
+            if HasTalentRows(dt[diff]) then
                 out[#out + 1] = diff
             end
         end
@@ -16195,6 +16416,21 @@ do
         local talentBrowser = ns:GetModule("TalentBrowser") ---@type TalentBrowserModule
         if talentBrowser and talentBrowser:IsEnabled() then
             talentBrowser:Open(descriptor or self:ResolveContext())
+        end
+    end
+
+    ---@param ctx TalentContext|nil
+    ---@return table|nil slot
+    function talents:GetRecommendedBuild(ctx)
+        local cell = ctx and self:GetCellFor(ctx)
+        local rows = cell and self:GetDisplayRows(ctx, cell)
+        if not rows then
+            return nil
+        end
+        for _, row in ipairs(rows) do
+            if row.recommended and row.recommended.idx then
+                return row.recommended
+            end
         end
     end
 
@@ -16231,19 +16467,21 @@ do
         end,
     }
 
-    ---@param loadout string
-    function talents:ShowCopyPopup(loadout)
-        util:ShowStaticPopupDialog(COPY_TALENT_POPUP, L.TALENTS_COPY_BUILD_INSTRUCTION, loadout)
+    ---@param text string
+    ---@param instruction string|nil
+    function talents:ShowCopyPopup(text, instruction)
+        util:ShowStaticPopupDialog(COPY_TALENT_POPUP, instruction or L.TALENTS_COPY_BUILD_INSTRUCTION, text)
     end
 
     function talents:CanLoadNow()
         return not InCombatLockdown()
     end
 
-    -- Remove any prior "RaiderIO (Auto)" loadout so we only ever keep one managed slot
-    -- (also keeps us well under the 40-loadout/spec limit).
+    -- Remove prior "RaiderIO (Auto)" loadouts so we keep one managed slot without deleting
+    -- the config Blizzard is actively applying.
     ---@param specID number
-    function talents:DeleteManagedLoadout(specID)
+    ---@param keepConfigID number|nil
+    function talents:DeleteManagedLoadout(specID, keepConfigID)
         if not (C_ClassTalents and C_ClassTalents.GetConfigIDsBySpecID and C_ClassTalents.DeleteConfig) then
             return
         end
@@ -16254,7 +16492,7 @@ do
         for i = 1, #ids do
             local configID = ids[i]
             local info = C_Traits and C_Traits.GetConfigInfo and C_Traits.GetConfigInfo(configID)
-            if info and info.name == MANAGED_LOADOUT_NAME then
+            if configID ~= keepConfigID and info and info.name == MANAGED_LOADOUT_NAME then
                 pcall(C_ClassTalents.DeleteConfig, configID)
             end
         end
@@ -16338,6 +16576,9 @@ do
         end
     end
 
+    -- Forward-declared because the failure handler is defined before MarkApplyStarted.
+    local pendingApply = nil
+
     -- A commit was rejected (CONFIG_COMMIT_FAILED) — most often the transient "You can't do that right now"
     -- right after the config is created/loaded. The frame reverts the staging on failure, so we re-load the
     -- existing managed config and re-commit after a short backoff, up to a few times. This auto-does what the
@@ -16383,6 +16624,32 @@ do
         return ClassTalentImportExportMixin ~= nil
     end
 
+    ---@return table|nil talentFrame
+    ---@return boolean ready
+    function talents:PrepareTalentFrame()
+        local tf = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
+        if not tf then
+            return nil, false
+        end
+        -- OnShow normally registers this; headless imports need it so Blizzard auto-loads the new config.
+        if tf.RegisterEvent then
+            pcall(tf.RegisterEvent, tf, "TRAIT_CONFIG_CREATED")
+        end
+        if tf.RefreshConfigID then
+            pcall(tf.RefreshConfigID, tf)
+        end
+        local hasConfig = tf.HasValidConfig and tf:HasValidConfig() == true
+        if not hasConfig then
+            return tf, false
+        end
+        local hasTreeInfo = not tf.GetTreeInfo or tf:GetTreeInfo() ~= nil
+        if not hasTreeInfo and tf.UpdateTreeInfo then
+            pcall(tf.UpdateTreeInfo, tf, true) -- skipButtonUpdates: populate treeInfo without visible UI work.
+            hasTreeInfo = not tf.GetTreeInfo or tf:GetTreeInfo() ~= nil
+        end
+        return tf, hasTreeInfo
+    end
+
     -- Persist "what we last applied" so IsBuildActive can mark the row, then notify surfaces to refresh.
     -- Optimistic: the actual commit is async (see LoadBuild); the tracked TRAIT_CONFIG_UPDATED event
     -- refreshes again once the server confirms.
@@ -16405,6 +16672,7 @@ do
     ---@param loadout string
     ---@return boolean shown
     function talents:ShowNativeImportDialog(loadout)
+        self:PrepareTalentFrame()
         local dialog = ClassTalentLoadoutImportDialog
         if not (dialog and dialog.ShowDialog) then
             return false
@@ -16440,7 +16708,6 @@ do
     -- pendingApply = { specID, buildIdx, loadout, retries, committing }. `committing` flips true once a commit
     -- has actually been initiated, so a TRAIT_CONFIG_UPDATED fired merely for the config's create/populate
     -- doesn't get mistaken for a successful apply (which would skip the retry on a failed commit).
-    local pendingApply = nil
     function talents:IsApplyInFlight()
         return applyInFlight
     end
@@ -16475,6 +16742,10 @@ do
         end
         self:MarkApplyFinished()
         self:RecordApplied(rec.specID, rec.buildIdx, rec.loadout)
+        local activeConfigID = C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+        if activeConfigID then
+            self:DeleteManagedLoadout(rec.specID, activeConfigID)
+        end
     end
 
     -- Apply a build by delegating to Blizzard's OWN frame importer, PlayerSpellsFrame.TalentsFrame:ImportLoadout.
@@ -16482,8 +16753,8 @@ do
     -- is open made the frame apply the new config before the server populated it -> empty tree / no hero spec.
     -- The frame's importer decodes against its loaded tree, sets the populated-check so it waits for the server,
     -- and auto-applies (autoApply=true is hardcoded in OnTraitConfigCreateFinished). It works whether the
-    -- window is shown or merely loaded (EnsureImporter warms its config via OnLoad). Retries briefly while the
-    -- frame's config warms up; falls back to the pre-filled native dialog if it never becomes ready or is rejected.
+    -- window is shown or merely loaded (PrepareTalentFrame refreshes config/treeInfo while hidden). Retries briefly
+    -- while the frame warms up; falls back to the pre-filled native dialog if it never becomes ready or is rejected.
     ---@param attempt number|nil
     function talents:TryFrameImport(specID, buildIdx, loadout, attempt)
         attempt = attempt or 1
@@ -16491,34 +16762,26 @@ do
             self:MarkApplyFinished()
             return
         end
-        local tf = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame
-        local hasConfig = tf and tf.ImportLoadout and tf.HasValidConfig and tf:HasValidConfig() == true
-        if hasConfig then
-            -- The frame only loads its tree (talentTreeInfo) when the window is visible (LoadTalentTree bails
-            -- on `not IsVisible()`), so a hidden frame's GetTreeInfo() is nil and ImportLoadout errors at
-            -- "treeInfo.ID". UpdateTreeInfo itself doesn't check visibility, so force it to populate treeInfo
-            -- headlessly; then the frame importer decodes + waits for populate + auto-applies, window closed.
-            if tf.GetTreeInfo and not tf:GetTreeInfo() and tf.UpdateTreeInfo then
-                pcall(tf.UpdateTreeInfo, tf, true) -- skipButtonUpdates: only set treeInfo, no UI work
+        local tf, ready = self:PrepareTalentFrame()
+        if ready and tf.ImportLoadout then
+            local activeConfigID = C_ClassTalents and C_ClassTalents.GetActiveConfigID and C_ClassTalents.GetActiveConfigID()
+            if activeConfigID then
+                self:DeleteManagedLoadout(specID, activeConfigID)
             end
-            if tf.GetTreeInfo and tf:GetTreeInfo() then
-                -- Disable the commit cast bar right before the commit fires, so it doesn't taint.
-                self:ReduceCommitTaint()
-                -- Keep exactly one managed slot, then let the frame import + auto-apply.
-                self:DeleteManagedLoadout(specID)
-                local ok, success = pcall(tf.ImportLoadout, tf, loadout, MANAGED_LOADOUT_NAME)
-                TalentDbg("frame ImportLoadout ok=%s success=%s", tostring(ok), tostring(success))
-                if ok and success then
-                    -- Created + auto-applying. DriveApply ensures it actually commits (Blizzard sometimes only
-                    -- stages), confirms on TRAIT_CONFIG_UPDATED, and auto-retries on CONFIG_COMMIT_FAILED.
-                    self:DriveApply(specID, buildIdx, loadout, 1)
-                    return
-                end
-                -- Frame rejected the string -> let the player apply via Blizzard's own (untainted) dialog.
-                self:MarkApplyFinished()
-                self:FallbackApply(loadout)
+            -- Disable the commit cast bar right before the commit fires, so it doesn't taint.
+            self:ReduceCommitTaint()
+            local ok, success = pcall(tf.ImportLoadout, tf, loadout, MANAGED_LOADOUT_NAME)
+            TalentDbg("frame ImportLoadout ok=%s success=%s", tostring(ok), tostring(success))
+            if ok and success then
+                -- Created + auto-applying. DriveApply ensures it actually commits (Blizzard sometimes only
+                -- stages), confirms on TRAIT_CONFIG_UPDATED, and auto-retries on CONFIG_COMMIT_FAILED.
+                self:DriveApply(specID, buildIdx, loadout, 1)
                 return
             end
+            -- Frame rejected the string -> let the player apply via Blizzard's own (untainted) dialog.
+            self:MarkApplyFinished()
+            self:FallbackApply(loadout)
+            return
         end
         if attempt < 20 then -- ~2s for the frame's config/tree to warm up after loading the addon
             C_Timer.After(0.1, function()
@@ -16548,7 +16811,7 @@ do
     -- frame never becomes usable or rejects the string, it degrades to the pre-filled dialog, then a copy popup.
     ---@param specID number
     ---@param buildIdx number
-    ---@return boolean started, string|nil reason -- reason: "combat"|"offspec"|"nodata"|"no_importer"
+    ---@return boolean started, string|nil reason -- reason: "combat"|"offspec"|"nodata"|"busy"|"no_importer"
     function talents:LoadBuild(specID, buildIdx)
         if InCombatLockdown() then
             return false, "combat"
@@ -16579,6 +16842,15 @@ do
         return true
     end
 
+    function talents:LoadBuildAndNotify(specID, buildIdx)
+        local ok, reason = self:LoadBuild(specID, buildIdx)
+        if not ok and reason == "combat" then
+            ns.Print(L.TALENTS_COMBAT_BLOCKED)
+        end
+        callback:SendEvent("RAIDERIO_TALENTS_CHANGED")
+        return ok, reason
+    end
+
     -- Best-effort "already loaded" check: did we last apply this build for this spec? Inherently fuzzy
     -- because Blizzard export strings are not canonical and the player can edit talents afterwards.
     ---@param specID number
@@ -16586,7 +16858,7 @@ do
     function talents:IsBuildActive(specID, buildIdx)
         local store = config:Get("talentLastApplied")
         local rec = store and store[tostring(specID)]
-        return rec ~= nil and rec.idx == buildIdx
+        return rec ~= nil and rec.idx == buildIdx and rec.loadout == self:GetFullLoadout(specID, buildIdx)
     end
 
     local TRACKED_EVENTS = { "PLAYER_SPECIALIZATION_CHANGED", "TRAIT_CONFIG_UPDATED", "CONFIG_COMMIT_FAILED", "ENCOUNTER_START", "ENCOUNTER_END", "CHALLENGE_MODE_START", "CHALLENGE_MODE_COMPLETED" }
@@ -16594,7 +16866,7 @@ do
     local function OnEvent(event, ...)
         if event == "ENCOUNTER_START" then
             local encounterID, _, difficultyID = ...
-            lastEncounter = { id = encounterID, difficulty = DIFFICULTY_KEY[difficultyID] }
+            lastEncounter = { id = encounterID, difficulty = talents:GetRaidDifficultyKey(difficultyID) }
         elseif event == "ENCOUNTER_END" then
             lastEncounter = nil
         elseif event == "TRAIT_CONFIG_UPDATED" then
@@ -16643,26 +16915,101 @@ do
     local currentDescriptor ---@type TalentContext|nil
 
     -- Layout metrics. The frame is a fixed width; height grows to fit the rows in Refresh.
-    local FRAME_W = 530
-    local CONTENT_TOP = 74 -- distance from the frame top edge to the top of the row list
-    local ROW_H = 36
-    local ROW_STEP = 40
-    local ICON_SIZE = 32
-    local HERO_COL_W = 130
-    local BUILD_COL_W = 208
+    local FRAME_W = 700
+    local CONTENT_TOP = 104 -- distance from the frame top edge to the top of the row list
+    local ROW_H = 50
+    local ROW_STEP = 54
+    local ICON_SIZE = 40
+    local HERO_COL_W = 190
+    local BUILD_COL_W = 300
+    local ACTION_W = 92
+    local TITLE_ICON_SIZE = 18
+    local CLASS_ICON_TEXTURE = "Interface\\GLUES\\CHARACTERCREATE\\UI-CHARACTERCREATE-CLASSES"
+    local TALENT_BROWSER_BACKDROP = {
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true,
+        tileSize = 16,
+        edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    }
 
-    -- Pick the bracket key whose range contains keyLevel, from an enumerated bracket list.
-    local function BracketKeyForLevel(brackets, keyLevel)
-        if not keyLevel then
-            return nil
+    local function SetTooltipBackdrop(target, alpha)
+        if target.SetBackdrop then
+            target:SetBackdrop(TALENT_BROWSER_BACKDROP)
+            target:SetBackdropColor(0, 0, 0, alpha or 0.9)
+            target:SetBackdropBorderColor(1, 1, 1, 0.3)
         end
-        for _, b in ipairs(brackets) do
-            local lo, hi = b.key:match("^(%d+)%-(%d+)$")
-            lo, hi = tonumber(lo), tonumber(hi)
-            if lo and keyLevel >= lo and keyLevel <= hi then
-                return b.key
+    end
+
+    local function SetControlText(button, text)
+        if button.text then
+            button.text:SetText(text or "")
+        elseif button.SetText then
+            button:SetText(text or "")
+        end
+    end
+
+    local function SetControlEnabled(button, enabled)
+        enabled = enabled and true or false
+        button:SetEnabled(enabled)
+        local color = enabled and 1 or 0.5
+        if button.text then
+            button.text:SetTextColor(color, color, color)
+        end
+        if button.indicator then
+            button.indicator:SetVertexColor(color, color, color)
+        end
+        if button.SetBackdropBorderColor then
+            button:SetBackdropBorderColor(1, 1, 1, enabled and 0.3 or 0.12)
+        end
+    end
+
+    local function StyleControlButton(button, width, hasIndicator)
+        button:SetSize(width, 22)
+        SetTooltipBackdrop(button, 1)
+        button.text = button:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        button.text:SetPoint("LEFT", button, "LEFT", 8, 0)
+        button.text:SetPoint("RIGHT", button, "RIGHT", hasIndicator and -22 or -8, 0)
+        button.text:SetJustifyH("LEFT")
+        button.text:SetWordWrap(false)
+        if hasIndicator then
+            button.indicator = button:CreateTexture(nil, "ARTWORK")
+            button.indicator:SetPoint("RIGHT", button, "RIGHT", -3, 0)
+            button.indicator:SetSize(16, 16)
+            button.indicator:SetAtlas("auctionhouse-ui-dropdown-arrow-up", false)
+        end
+        button:SetScript("OnEnter", function(self)
+            if self.SetBackdropBorderColor then
+                self:SetBackdropBorderColor(1, 0.82, 0, 0.8)
             end
+        end)
+        button:SetScript("OnLeave", function(self)
+            if self.SetBackdropBorderColor then
+                if self.isActiveControl then
+                    self:SetBackdropBorderColor(1, 0.82, 0, 0.8)
+                else
+                    self:SetBackdropBorderColor(1, 1, 1, self:IsEnabled() and 0.3 or 0.12)
+                end
+            end
+        end)
+    end
+
+    local function SetTitleTexture(texture, icon)
+        texture:SetTexture(icon)
+        texture:SetTexCoord(0, 1, 0, 1)
+        texture:Show()
+    end
+
+    local function SetTitleClassIcon(texture, classFile)
+        local coords = CLASS_ICON_TCOORDS[classFile]
+        if not coords then
+            texture:Hide()
+            return
         end
+        texture:SetTexture(CLASS_ICON_TEXTURE)
+        texture:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+        texture:Show()
     end
 
     -- Fill in / repair the descriptor so its kind, context, and bracket/difficulty are all valid for the
@@ -16683,9 +17030,13 @@ do
             return ctx
         end
         -- Resolve the mode to one that actually has data.
-        if ctx.kind == "raid" and not hasR then ctx.kind = "mplus" end
-        if ctx.kind ~= "raid" and not hasM then ctx.kind = "raid" end
-        if ctx.kind ~= "raid" then ctx.kind = "mplus" end
+        if ctx.kind == "raid" and hasR then
+            ctx.kind = "raid"
+        elseif hasM then
+            ctx.kind = "mplus"
+        else
+            ctx.kind = "raid"
+        end
 
         if ctx.kind == "raid" then
             ctx.dungeonId, ctx.bracket, ctx.keyLevel = nil, nil, nil
@@ -16694,49 +17045,96 @@ do
                 ctx.raidId = raids[1] and raids[1].id or nil
             end
             local diffs = talents:GetRaidDifficulties(specID, ctx.raidId, ctx.encounterId)
-            local ok = false
-            for _, d in ipairs(diffs) do if d == ctx.difficulty then ok = true break end end
-            if not ok then ctx.difficulty = diffs[1] end
+            if not util:TableContains(diffs, ctx.difficulty) then
+                ctx.difficulty = diffs[1]
+            end
         else
             ctx.raidId, ctx.encounterId, ctx.difficulty = nil, nil, nil
-            local brackets = talents:GetMplusBrackets(specID, ctx.dungeonId)
-            local has = {}
-            for _, b in ipairs(brackets) do has[b.key] = true end
-            if not ctx.bracket or not has[ctx.bracket] then
-                ctx.bracket = BracketKeyForLevel(brackets, ctx.keyLevel)
-                    or (has["all"] and "all")
-                    or (brackets[1] and brackets[1].key)
-                    or nil
+            local specData = talents:GetSpecData(specID)
+            local bt = GetMplusBracketTable(specData, ctx.dungeonId)
+            if not (ctx.bracket and bt and HasTalentRows(bt[ctx.bracket])) then
+                ctx.bracket = talents:GetBracketForLevel(bt, ctx.keyLevel)
             end
         end
         return ctx
     end
 
-    -- A row = one build (a hero tree's Recommended or Default variant). Self-contained per the prototype:
-    -- icon + hero name/stats (left), build name/stats (middle), Load + copy (right), all clipped to the row.
+    local OpenBuildActionsMenu
+
+    local function LoadBuildAndRefresh(specID, buildIdx)
+        talents:LoadBuildAndNotify(specID, buildIdx)
+        if browser:IsShown() then
+            browser:Refresh()
+        end
+    end
+
+    ---@type InternalStaticPopupDialog
+    local CONFIRM_TALENT_APPLY_POPUP = {
+        id = "RAIDERIO_CONFIRM_TALENT_APPLY",
+        text = L.TALENTS_APPLY_CONFIRM,
+        button1 = L.TALENTS_LOAD,
+        button2 = CANCEL,
+        preferredIndex = 3,
+        timeout = 0,
+        whileDead = true,
+        hideOnEscape = true,
+        OnAccept = function(self)
+            local data = self.data
+            if data then
+                LoadBuildAndRefresh(data.specID, data.buildIdx)
+            end
+        end,
+        OnHide = function(self)
+            self.data = nil
+        end,
+    }
+
+    local function IsSlotActive(ctx, slot)
+        return ctx and ctx.specID and slot and slot.idx and talents:IsBuildActive(ctx.specID, slot.idx)
+    end
+
+    local function ConfirmLoadBuild(ctx, slot)
+        if not (ctx and ctx.specID and slot and slot.idx) or IsSlotActive(ctx, slot) then
+            return
+        end
+        local popup = util:ShowStaticPopupDialog(CONFIRM_TALENT_APPLY_POPUP, slot.label)
+        if popup then
+            popup.data = { specID = ctx.specID, buildIdx = slot.idx }
+        end
+    end
+
+    -- A row = one build from a hero tree. The row owns its display fields and a single actions dropdown.
     local function GetRow(index)
         frame.rows = frame.rows or {}
         local row = frame.rows[index]
         if row then
             return row
         end
-        row = CreateFrame("Frame", nil, frame.content)
+        row = CreateFrame("Frame", nil, frame.content, BackdropTemplateMixin and "BackdropTemplate")
         row:SetHeight(ROW_H)
         row:EnableMouse(true)
-        row.hl = row:CreateTexture(nil, "BACKGROUND")
+        row.bg = row:CreateTexture(nil, "BACKGROUND")
+        row.bg:SetAllPoints()
+        row.bg:SetColorTexture(0, 0, 0, 0.5)
+        row.hl = row:CreateTexture(nil, "BORDER")
         row.hl:SetAllPoints()
         row.hl:SetColorTexture(1, 1, 1, 0.06)
         row.hl:Hide()
         row:SetScript("OnEnter", function(self) self.hl:Show() end)
         row:SetScript("OnLeave", function(self) self.hl:Hide() end)
+        row:SetScript("OnMouseUp", function(self, button)
+            if button == "LeftButton" then
+                ConfirmLoadBuild(self.ctx, self.slot)
+            end
+        end)
 
         row.icon = row:CreateTexture(nil, "ARTWORK")
         row.icon:SetSize(ICON_SIZE, ICON_SIZE)
-        row.icon:SetPoint("LEFT", 2, 0)
-        row.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+        row.icon:SetPoint("LEFT", 8, 0)
+        row.icon:SetTexCoord(0, 1, 0, 1)
 
         row.heroName = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        row.heroName:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 8, -1)
+        row.heroName:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 10, -7)
         row.heroName:SetWidth(HERO_COL_W)
         row.heroName:SetJustifyH("LEFT")
         row.heroName:SetWordWrap(false)
@@ -16745,43 +17143,18 @@ do
         row.heroStats:SetWidth(HERO_COL_W)
         row.heroStats:SetJustifyH("LEFT")
         row.heroStats:SetWordWrap(false)
-
-        -- right cluster, anchored from the right edge: copy/link, then the Load button
-        row.linkBtn = CreateFrame("Button", nil, row)
-        row.linkBtn:SetSize(18, 18)
-        row.linkBtn:SetPoint("RIGHT", -4, 0)
-        row.linkBtn:SetNormalTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up")
-        row.linkBtn:SetPushedTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Down")
-        row.linkBtn:SetDisabledTexture("Interface\\Buttons\\UI-SpellbookIcon-NextPage-Disabled")
-        row.linkBtn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight")
-        row.linkBtn:SetScript("OnClick", function(self)
-            if self.loadout then talents:ShowCopyPopup(self.loadout) end
-        end)
-        row.linkBtn:SetScript("OnEnter", function(self)
-            row.hl:Show()
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:SetText(L.TALENTS_COPY_BUILD or "Copy build string")
-            GameTooltip:Show()
-        end)
-        row.linkBtn:SetScript("OnLeave", function() row.hl:Hide() GameTooltip:Hide() end)
-
-        row.loadBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-        row.loadBtn:SetSize(64, 20)
-        row.loadBtn:SetPoint("RIGHT", row.linkBtn, "LEFT", -6, 0)
-        row.loadBtn:SetScript("OnClick", function(self)
-            if self.slot and self.specID then
-                local ok, reason = talents:LoadBuild(self.specID, self.slot.idx)
-                if not ok and reason == "combat" then
-                    ns.Print(L.TALENTS_COMBAT_BLOCKED)
-                end
-                if browser:IsShown() then
-                    browser:Refresh()
-                end
+        row.actionBtn = CreateFrame("Button", nil, row, BackdropTemplateMixin and "BackdropTemplate")
+        StyleControlButton(row.actionBtn, ACTION_W, true)
+        row.actionBtn:SetPoint("RIGHT", -8, 0)
+        SetControlText(row.actionBtn, L.TALENTS_ACTIONS)
+        row.actionBtn:SetScript("OnClick", function(self)
+            if OpenBuildActionsMenu then
+                OpenBuildActionsMenu(self)
             end
         end)
 
         row.buildName = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-        row.buildName:SetPoint("TOPLEFT", row, "TOPLEFT", 42 + HERO_COL_W + 10, -1)
+        row.buildName:SetPoint("TOPLEFT", row.heroName, "TOPRIGHT", 12, 0)
         row.buildName:SetWidth(BUILD_COL_W)
         row.buildName:SetJustifyH("LEFT")
         row.buildName:SetWordWrap(false)
@@ -16799,15 +17172,65 @@ do
         return frame ~= nil and frame:IsShown()
     end
 
-    -- Mode toggle (M+ / Raid) button visual state: active = locked-pushed, no-data = disabled.
+    -- Mode toggle (M+ / Raid) button visual state.
     local function SetToggle(btn, active, hasData)
         if not hasData then
-            btn:SetEnabled(false)
-            btn:SetButtonState("NORMAL", false)
+            btn.isActiveControl = false
+            SetControlEnabled(btn, false)
             return
         end
-        btn:SetEnabled(true)
-        btn:SetButtonState(active and "PUSHED" or "NORMAL", active and true or false)
+        btn.isActiveControl = active and true or false
+        SetControlEnabled(btn, true)
+        if btn.text then
+            btn.text:SetTextColor(active and 1 or 0.85, active and 0.82 or 0.85, active and 0 or 0.85)
+        end
+        if btn.SetBackdropBorderColor then
+            btn:SetBackdropBorderColor(1, active and 0.82 or 1, active and 0 or 1, active and 0.8 or 0.3)
+        end
+    end
+
+    local function SetRowIcon(row, icon)
+        if not icon then
+            row.icon:Hide()
+            return
+        end
+        row.icon:SetTexCoord(0, 1, 0, 1)
+        if type(icon) == "string" and row.icon.SetAtlas then
+            row.icon:SetAtlas(icon, false)
+        else
+            row.icon:SetTexture(icon)
+        end
+        row.icon:Show()
+    end
+
+    local function FormatHeroStats(hero)
+        local stats = hero.popularityPct and format("%.1f%%", hero.popularityPct) or ""
+        if hero.heroTreeRuns then
+            stats = format("%s (%s)", stats, BreakUpLargeNumbers(hero.heroTreeRuns))
+        end
+        return stats
+    end
+
+    local function FormatBuildStats(slot)
+        local detail = {}
+        if slot.scoreText then detail[#detail + 1] = slot.scoreText end
+        if slot.runs then detail[#detail + 1] = format("%s %s", BreakUpLargeNumbers(slot.runs), L.TALENTS_RUNS) end
+        local stats = slot.treeSharePct and format("%.0f%% %s", slot.treeSharePct, L.TALENTS_HERO_TREE_SHARE) or ""
+        if #detail > 0 then
+            stats = (stats ~= "" and (stats .. "  ") or "") .. "(" .. table.concat(detail, ", ") .. ")"
+        end
+        return stats
+    end
+
+    local function UpdateTitle()
+        if not (frame and currentDescriptor and currentDescriptor.specID) then
+            return
+        end
+        local _, specName, _, specIcon = GetSpecializationInfoByID(currentDescriptor.specID)
+        local className, classFile = UnitClass("player")
+        SetTitleClassIcon(frame.titleClassIcon, classFile)
+        SetTitleTexture(frame.titleSpecIcon, specIcon)
+        frame.titleSpec:SetText(format("%s %s", specName, className))
     end
 
     -- Reflect currentDescriptor in the header controls (toggle state + dropdown labels).
@@ -16815,6 +17238,7 @@ do
         if not frame then
             return
         end
+        UpdateTitle()
         local ctx = currentDescriptor
         local specID = ctx and ctx.specID
         local hasM = specID and talents:HasMplusData(specID) or false
@@ -16822,22 +17246,27 @@ do
         SetToggle(frame.mplusBtn, ctx and ctx.kind == "mplus", hasM)
         SetToggle(frame.raidBtn, ctx and ctx.kind == "raid", hasR)
         if not ctx then
-            frame.contextBtn:SetText("")
-            frame.bracketBtn:SetText("")
-            frame.contextBtn:SetEnabled(false)
-            frame.bracketBtn:SetEnabled(false)
+            SetControlText(frame.contextBtn, "")
+            SetControlText(frame.bracketBtn, "")
+            SetControlEnabled(frame.contextBtn, false)
+            SetControlEnabled(frame.bracketBtn, false)
             return
         end
-        frame.contextBtn:SetEnabled(true)
-        frame.bracketBtn:SetEnabled(true)
+        SetControlEnabled(frame.contextBtn, true)
+        SetControlEnabled(frame.bracketBtn, true)
         if ctx.kind == "raid" then
-            frame.contextBtn:SetText(ctx.encounterId and talents:GetEncounterName(ctx.encounterId) or L.TALENTS_ALL_ENCOUNTERS)
-            frame.bracketBtn:SetText(ctx.difficulty and talents:DifficultyLabel(ctx.difficulty) or "")
+            SetControlText(frame.contextBtn, ctx.encounterId and talents:GetEncounterName(ctx.encounterId, ctx.raidId) or L.TALENTS_ALL_ENCOUNTERS)
+            SetControlText(frame.bracketBtn, ctx.difficulty and talents:DifficultyLabel(ctx.difficulty) or "")
         else
             local dungeon = ctx.dungeonId and util:GetDungeonByID(ctx.dungeonId)
-            frame.contextBtn:SetText((dungeon and dungeon.name) or L.TALENTS_ALL_DUNGEONS)
-            frame.bracketBtn:SetText(ctx.bracket and talents:BracketLabel(ctx.bracket) or "")
+            SetControlText(frame.contextBtn, (dungeon and dungeon.name) or L.TALENTS_ALL_DUNGEONS)
+            SetControlText(frame.bracketBtn, ctx.bracket and talents:BracketLabel(ctx.bracket) or "")
         end
+    end
+
+    local function RefreshControlsAndRows()
+        UpdateControls()
+        browser:Refresh()
     end
 
     function browser:Refresh()
@@ -16847,14 +17276,10 @@ do
         local ctx = currentDescriptor
         local cell = ctx and talents:GetCellFor(ctx) or nil
         local heroRows = (ctx and cell) and talents:GetDisplayRows(ctx, cell) or {}
-        -- Flatten to one row per build (Recommended / Default), as in the prototype.
         local buildRows = {}
-        for _, hr in ipairs(heroRows) do
-            if hr.recommended then
-                buildRows[#buildRows + 1] = { hero = hr, label = L.TALENTS_RECOMMENDED, slot = hr.recommended }
-            end
-            if hr.default then
-                buildRows[#buildRows + 1] = { hero = hr, label = L.TALENTS_DEFAULT, slot = hr.default }
+        for _, hero in ipairs(heroRows) do
+            for _, slot in ipairs(hero.builds) do
+                buildRows[#buildRows + 1] = { hero = hero, slot = slot }
             end
         end
         frame.empty:SetShown(#buildRows == 0)
@@ -16867,33 +17292,20 @@ do
             row:ClearAllPoints()
             row:SetPoint("TOPLEFT", frame.content, "TOPLEFT", 0, y)
             row:SetPoint("TOPRIGHT", frame.content, "TOPRIGHT", 0, y)
-            if hero.heroTreeIcon then
-                row.icon:SetTexture(hero.heroTreeIcon)
-                row.icon:Show()
-            else
-                row.icon:Hide()
-            end
+            row.ctx = ctx
+            row.slot = slot
+            SetRowIcon(row, hero.heroTreeIcon)
             row.heroName:SetText(hero.heroTreeName or L.TALENTS_HERO_TREE_FALLBACK)
-            local heroStats = hero.popularityPct and format("%.1f%%", hero.popularityPct) or ""
-            if hero.heroTreeRuns then
-                heroStats = format("%s (%s)", heroStats, BreakUpLargeNumbers(hero.heroTreeRuns))
-            end
-            row.heroStats:SetText(heroStats)
-            row.buildName:SetText(data.label)
-            local detail = {}
-            if slot.scoreText then detail[#detail + 1] = slot.scoreText end
-            if slot.runs then detail[#detail + 1] = format("%s %s", BreakUpLargeNumbers(slot.runs), L.TALENTS_RUNS or "runs") end
-            local stats = slot.treeSharePct and format("%.0f%% %s", slot.treeSharePct, L.TALENTS_HERO_TREE_SHARE) or ""
-            if #detail > 0 then
-                stats = (stats ~= "" and (stats .. "  ") or "") .. "(" .. table.concat(detail, ", ") .. ")"
-            end
-            row.buildStats:SetText(stats)
-            local active = ctx and talents:IsBuildActive(ctx.specID, slot.idx)
-            row.loadBtn.specID = ctx and ctx.specID
-            row.loadBtn.slot = slot
-            row.loadBtn:SetText(active and L.TALENTS_LOADED or L.TALENTS_LOAD)
-            row.loadBtn:SetEnabled(talents:CanLoadNow() and not active)
-            row.linkBtn.loadout = slot.loadout
+            row.heroStats:SetText(FormatHeroStats(hero))
+            row.buildName:SetText(slot.label)
+            row.buildStats:SetText(FormatBuildStats(slot))
+            local active = IsSlotActive(ctx, slot)
+            row.actionBtn.ctx = ctx
+            row.actionBtn.slot = slot
+            row.actionBtn.loadout = slot.loadout
+            row.actionBtn.url = ctx and talents:GetBuildUrl(ctx, slot.idx) or nil
+            SetControlEnabled(row.actionBtn, true)
+            SetControlText(row.actionBtn, active and L.TALENTS_LOADED or L.TALENTS_ACTIONS)
             row:Show()
             y = y - ROW_STEP
         end
@@ -16916,8 +17328,7 @@ do
         if kind == "raid" and not talents:HasRaidData(ctx.specID) then return end
         if kind == "mplus" and not talents:HasMplusData(ctx.specID) then return end
         currentDescriptor = NormalizeDescriptor({ kind = kind, specID = ctx.specID })
-        UpdateControls()
-        self:Refresh()
+        RefreshControlsAndRows()
     end
 
     function browser:SetMplusContext(dungeonId)
@@ -16926,8 +17337,7 @@ do
         ctx.dungeonId = dungeonId
         ctx.keyLevel = nil -- explicit selection overrides the auto keystone level
         currentDescriptor = NormalizeDescriptor(ctx)
-        UpdateControls()
-        self:Refresh()
+        RefreshControlsAndRows()
     end
 
     function browser:SetRaidContext(raidId, encounterId)
@@ -16936,8 +17346,7 @@ do
         ctx.raidId = raidId
         ctx.encounterId = encounterId
         currentDescriptor = NormalizeDescriptor(ctx)
-        UpdateControls()
-        self:Refresh()
+        RefreshControlsAndRows()
     end
 
     function browser:SetBracket(key)
@@ -16945,16 +17354,14 @@ do
         if not ctx then return end
         ctx.bracket = key
         ctx.keyLevel = nil
-        UpdateControls()
-        self:Refresh()
+        RefreshControlsAndRows()
     end
 
     function browser:SetDifficulty(diff)
         local ctx = currentDescriptor
         if not ctx then return end
         ctx.difficulty = diff
-        UpdateControls()
-        self:Refresh()
+        RefreshControlsAndRows()
     end
 
     -- Dropdown menu builders -------------------------------------------------------------------------------
@@ -17017,6 +17424,35 @@ do
         end)
     end
 
+    OpenBuildActionsMenu = function(button)
+        local ctx = button.ctx
+        local slot = button.slot
+        if not (MenuUtil and MenuUtil.CreateContextMenu and ctx and ctx.specID and slot) then
+            return
+        end
+        local specID = ctx.specID
+        MenuUtil.CreateContextMenu(button, function(_, root)
+            root:CreateTitle(slot.label)
+            if IsSlotActive(ctx, slot) then
+                root:CreateTitle(L.TALENTS_LOADED)
+            else
+                root:CreateButton(L.TALENTS_LOAD, function()
+                    LoadBuildAndRefresh(specID, slot.idx)
+                end)
+            end
+            if button.loadout then
+                root:CreateButton(L.TALENTS_COPY_BUILD, function()
+                    talents:ShowCopyPopup(button.loadout)
+                end)
+            end
+            if button.url then
+                root:CreateButton(L.TALENTS_COPY_RAIDERIO_LINK, function()
+                    talents:ShowCopyPopup(button.url, L.TALENTS_COPY_LINK_INSTRUCTION)
+                end)
+            end
+        end)
+    end
+
     local function EnsureFrame()
         if frame then
             return
@@ -17031,43 +17467,79 @@ do
         frame:RegisterForDrag("LeftButton")
         frame:SetScript("OnDragStart", frame.StartMoving)
         frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-        if frame.SetBackdrop then
-            frame:SetBackdrop({
-                bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
-                edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-                tile = true, tileSize = 32, edgeSize = 32,
-                insets = { left = 8, right = 8, top = 8, bottom = 8 },
-            })
+        SetTooltipBackdrop(frame, 0.82)
+        if frame.SetBackdropBorderColor then
+            frame:SetBackdropBorderColor(0.8, 0.8, 0.8, 0.55)
         end
-        frame.title = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-        frame.title:SetPoint("TOP", 0, -12)
-        frame.title:SetText("Raider.IO")
         local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
         close:SetPoint("TOPRIGHT", -6, -6)
+        frame.titleLogo = frame:CreateTexture(nil, "ARTWORK")
+        frame.titleLogo:SetSize(TITLE_ICON_SIZE, TITLE_ICON_SIZE)
+        frame.titleLogo:SetPoint("TOPLEFT", 16, -13)
+        frame.titleLogo:SetTexture("Interface\\AddOns\\RaiderIO\\icons\\logo")
+        frame.titleLogo:SetTexCoord(0, 1, 0, 1)
+        frame.title = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+        frame.title:SetPoint("LEFT", frame.titleLogo, "RIGHT", 6, 0)
+        frame.title:SetText(L.TALENTS_OPEN_BROWSER .. ":")
+        frame.title:SetTextColor(1, 0.82, 0)
+        frame.titleClassIcon = frame:CreateTexture(nil, "ARTWORK")
+        frame.titleClassIcon:SetSize(TITLE_ICON_SIZE, TITLE_ICON_SIZE)
+        frame.titleClassIcon:SetPoint("LEFT", frame.title, "RIGHT", 8, 0)
+        frame.titleSpecIcon = frame:CreateTexture(nil, "ARTWORK")
+        frame.titleSpecIcon:SetSize(TITLE_ICON_SIZE, TITLE_ICON_SIZE)
+        frame.titleSpecIcon:SetPoint("LEFT", frame.titleClassIcon, "RIGHT", 4, 0)
+        frame.titleSpec = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightLarge")
+        frame.titleSpec:SetPoint("LEFT", frame.titleSpecIcon, "RIGHT", 6, 0)
+        frame.titleSpec:SetPoint("RIGHT", close, "LEFT", -8, 0)
+        frame.titleSpec:SetJustifyH("LEFT")
+        frame.titleSpec:SetWordWrap(false)
 
         -- Header controls: [M+][Raid] toggle | context dropdown | bracket/difficulty dropdown.
-        local CTRL_Y = -40
-        frame.mplusBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        frame.mplusBtn:SetSize(46, 22)
+        local CTRL_Y = -46
+        frame.mplusBtn = CreateFrame("Button", nil, frame, BackdropTemplateMixin and "BackdropTemplate")
+        StyleControlButton(frame.mplusBtn, 48, false)
         frame.mplusBtn:SetPoint("TOPLEFT", 16, CTRL_Y)
-        frame.mplusBtn:SetText(L.TALENTS_MODE_MPLUS)
+        SetControlText(frame.mplusBtn, L.TALENTS_MODE_MPLUS)
         frame.mplusBtn:SetScript("OnClick", function() browser:SetKind("mplus") end)
-        frame.raidBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        frame.raidBtn:SetSize(46, 22)
-        frame.raidBtn:SetPoint("LEFT", frame.mplusBtn, "RIGHT", 2, 0)
-        frame.raidBtn:SetText(L.TALENTS_MODE_RAID)
+        frame.raidBtn = CreateFrame("Button", nil, frame, BackdropTemplateMixin and "BackdropTemplate")
+        StyleControlButton(frame.raidBtn, 56, false)
+        frame.raidBtn:SetPoint("LEFT", frame.mplusBtn, "RIGHT", 4, 0)
+        SetControlText(frame.raidBtn, L.TALENTS_MODE_RAID)
         frame.raidBtn:SetScript("OnClick", function() browser:SetKind("raid") end)
 
-        frame.bracketBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        frame.bracketBtn:SetSize(130, 22)
+        frame.bracketBtn = CreateFrame("Button", nil, frame, BackdropTemplateMixin and "BackdropTemplate")
+        StyleControlButton(frame.bracketBtn, 132, true)
         frame.bracketBtn:SetPoint("TOPRIGHT", -16, CTRL_Y)
         frame.bracketBtn:SetScript("OnClick", function(self) OpenBracketMenu(self) end)
 
-        frame.contextBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-        frame.contextBtn:SetHeight(22)
+        frame.contextBtn = CreateFrame("Button", nil, frame, BackdropTemplateMixin and "BackdropTemplate")
+        StyleControlButton(frame.contextBtn, 360, true)
         frame.contextBtn:SetPoint("LEFT", frame.raidBtn, "RIGHT", 8, 0)
         frame.contextBtn:SetPoint("RIGHT", frame.bracketBtn, "LEFT", -8, 0)
         frame.contextBtn:SetScript("OnClick", function(self) OpenContextMenu(self) end)
+
+        frame.header = CreateFrame("Frame", nil, frame)
+        frame.header:SetHeight(20)
+        frame.header:SetPoint("TOPLEFT", 16, -78)
+        frame.header:SetPoint("TOPRIGHT", -16, -78)
+        frame.header.bg = frame.header:CreateTexture(nil, "BACKGROUND")
+        frame.header.bg:SetAllPoints()
+        frame.header.bg:SetColorTexture(0, 0, 0, 0.5)
+        frame.heroHeader = frame.header:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+        frame.heroHeader:SetPoint("LEFT", 8, 0)
+        frame.heroHeader:SetWidth(ICON_SIZE + HERO_COL_W + 10)
+        frame.heroHeader:SetJustifyH("LEFT")
+        frame.heroHeader:SetText(L.TALENTS_HERO_TREE_FALLBACK)
+        frame.buildHeader = frame.header:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+        frame.buildHeader:SetPoint("LEFT", frame.heroHeader, "RIGHT", 12, 0)
+        frame.buildHeader:SetWidth(BUILD_COL_W)
+        frame.buildHeader:SetJustifyH("LEFT")
+        frame.buildHeader:SetText(L.TALENTS_OPEN_BROWSER)
+        frame.actionHeader = frame.header:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+        frame.actionHeader:SetPoint("RIGHT", -8, 0)
+        frame.actionHeader:SetWidth(ACTION_W)
+        frame.actionHeader:SetJustifyH("RIGHT")
+        frame.actionHeader:SetText(L.TALENTS_ACTIONS)
 
         frame.content = CreateFrame("Frame", nil, frame)
         frame.content:SetPoint("TOPLEFT", 16, -CONTENT_TOP)
@@ -17077,8 +17549,16 @@ do
         frame.empty:SetText(L.TALENTS_NO_DATA)
         frame.empty:Hide()
         table.insert(UISpecialFrames, "RaiderIO_TalentBrowserFrame") -- close on Escape
-        callback:RegisterEvent(function() if browser:IsShown() then browser:Refresh() end end,
-            "RAIDERIO_TALENTS_CHANGED", "PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED")
+        callback:RegisterEvent(function(event)
+            if not browser:IsShown() then
+                return
+            end
+            if event == "PLAYER_SPECIALIZATION_CHANGED" then
+                currentDescriptor = NormalizeDescriptor(talents:ResolveContext() or talents:GetDefaultContext())
+                UpdateControls()
+            end
+            browser:Refresh()
+        end, "RAIDERIO_TALENTS_CHANGED", "PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED", "PLAYER_SPECIALIZATION_CHANGED")
     end
 
     ---@param descriptor TalentContext|nil
@@ -17134,7 +17614,7 @@ do
 
     local function UpdateButton()
         if button then
-            button:SetShown(talents:HasDataForCurrentSpec())
+            button:SetShown(config:Get("enableTalentBrowser") and talents:HasDataForCurrentSpec())
         end
     end
 
@@ -17162,7 +17642,7 @@ do
     end
 
     function module:CanLoad()
-        return IS_RETAIL and config:IsEnabled() and talents:IsEnabled() and config:Get("enableTalentFrameButton")
+        return IS_RETAIL and config:IsEnabled() and talents:IsEnabled() and config:Get("enableTalentBrowser") and config:Get("enableTalentFrameButton")
     end
 
     function module:OnLoad()
@@ -17181,7 +17661,7 @@ do
 
 end
 
--- talentjournal.lua (retail) — Encounter Journal per-boss talent builds button
+    -- talentjournal.lua (retail) — Encounter Journal dungeon/raid talent builds dropdown
 -- dependencies: module, callback, config, util, TalentBuilds. NOTE: anchor + EJ id resolution need in-game tuning.
 do
 
@@ -17192,71 +17672,135 @@ do
     local util = ns:GetModule("Util") ---@type UtilModule
     local talents = ns:GetModule("TalentBuilds") ---@type TalentBuildsModule
 
-    local button ---@type Button|nil
+    local button ---@type WowStyle1DropdownTemplatePolyfill|nil
     local hooked = false
 
-    function module:OpenForCurrentEncounter()
-        if not (EncounterJournal and EncounterJournal.encounterID and EJ_GetEncounterInfo) then
-            talents:OpenBrowser()
-            return
+    ---@return TalentContext|nil
+    local function GetDescriptorForMap(specID, mapID, dungeonEncounterID)
+        local raid = mapID and util:GetRaidByInstanceMapID(mapID)
+        if raid then
+            local difficulties = talents:GetRaidDifficulties(specID, raid.id, dungeonEncounterID)
+            if #difficulties == 0 then
+                return
+            end
+            local difficulty = talents:GetRaidDifficultyKey(EJ_GetDifficulty and EJ_GetDifficulty() or nil)
+            if not util:TableContains(difficulties, difficulty) then
+                difficulty = difficulties[1]
+            end
+            return {
+                kind = "raid",
+                specID = specID,
+                raidId = raid.id,
+                encounterId = dungeonEncounterID,
+                difficulty = difficulty,
+            }
         end
-        -- EJ_GetEncounterInfo: name, desc, bossID, rootSectionID, link, journalInstanceID, dungeonEncounterID, mapID
-        local _, _, _, _, _, _, dungeonEncounterID, mapID = EJ_GetEncounterInfo(EncounterJournal.encounterID)
+        local dungeon = mapID and util:GetDungeonByInstanceMapID(mapID)
+        if dungeon then
+            return { kind = "mplus", specID = specID, dungeonId = dungeon.id }
+        end
+    end
+
+    ---@return TalentContext|nil
+    local function GetCurrentJournalDescriptor()
         local specID = talents:GetCurrentSpecID()
-        if not specID or not dungeonEncounterID then
-            talents:OpenBrowser()
+        if not specID then
             return
         end
-        local raid = mapID and util:GetRaidByInstanceMapID(mapID) or nil
-        local descriptor = {
-            kind = "raid",
-            specID = specID,
-            raidId = raid and raid.id or nil,
-            encounterId = dungeonEncounterID,
-            difficulty = "mythic", -- TODO: read EJ-selected difficulty in-game; panel can offer a toggle
-        }
+        if EncounterJournal and EncounterJournal.encounterID and EJ_GetEncounterInfo then
+            -- EJ_GetEncounterInfo: name, desc, bossID, rootSectionID, link, journalInstanceID, dungeonEncounterID, mapID
+            local _, _, _, _, _, _, dungeonEncounterID, mapID = EJ_GetEncounterInfo(EncounterJournal.encounterID)
+            local descriptor = GetDescriptorForMap(specID, mapID, dungeonEncounterID)
+            if descriptor or (mapID and util:GetRaidByInstanceMapID(mapID)) then
+                return descriptor
+            end
+        end
+        if EncounterJournal and EncounterJournal.instanceID and EJ_GetInstanceInfo then
+            local mapID = select(10, EJ_GetInstanceInfo(EncounterJournal.instanceID))
+            return GetDescriptorForMap(specID, mapID)
+        end
+    end
+
+    local function GetCurrentBuildDescriptor()
+        local descriptor = GetCurrentJournalDescriptor()
+        if descriptor and HasTalentRows(talents:GetCellFor(descriptor)) then
+            return descriptor
+        end
+    end
+
+    local function UpdateButton()
+        if button then
+            button:SetShown(IS_RETAIL and config:Get("enableTalentBrowser") and GetCurrentBuildDescriptor() ~= nil)
+        end
+    end
+
+    function module:OpenForCurrentJournalSelection()
+        local descriptor = GetCurrentBuildDescriptor()
+        if not descriptor then
+            return
+        end
         local talentBrowser = ns:GetModule("TalentBrowser") ---@type TalentBrowserModule
         if talentBrowser and talentBrowser:IsEnabled() then
             talentBrowser:Open(descriptor)
         end
     end
 
-    local function EnsureButton()
-        if button or not EncounterJournal then
+    local function BuildTalentMenu(_, root)
+        local descriptor = GetCurrentBuildDescriptor()
+        if not descriptor then
             return
         end
-        local parent = (EncounterJournal.encounter and EncounterJournal.encounter.info) or EncounterJournal
-        button = CreateFrame("Button", "RaiderIO_EJTalentButton", parent, "UIPanelButtonTemplate")
-        button:SetSize(140, 20)
-        button:SetText(L.TALENTS_EJ_BUTTON)
-        button:SetFrameStrata("HIGH")
-        button:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -10, -10) -- TODO: tune anchor in-game
-        button:SetScript("OnClick", function()
-            module:OpenForCurrentEncounter()
+        local recommended = talents:GetRecommendedBuild(descriptor)
+        if recommended then
+            root:CreateButton(L.TALENTS_LOAD_RECOMMENDED, function()
+                talents:LoadBuildAndNotify(descriptor.specID, recommended.idx)
+            end)
+        end
+        root:CreateButton(L.TALENTS_SHOW_BUILDS, function()
+            module:OpenForCurrentJournalSelection()
         end)
     end
 
+    local function EnsureButton()
+        if button or not (EncounterJournal and EncounterJournal.encounter and EncounterJournal.encounter.info) then
+            return
+        end
+        local parent = EncounterJournal.encounter.info
+        button = DropDownUtil:CreateMenu(parent, BuildTalentMenu)
+        button:SetSize(165, 26)
+        button:SetFrameStrata("HIGH")
+        button:SetPoint("RIGHT", parent.difficulty, "LEFT", -8, 0)
+        button:SetDefaultText(L.TALENTS_FRAME_BUTTON)
+        button:SetText(L.TALENTS_FRAME_BUTTON)
+        UpdateButton()
+    end
+
     local function HookEJ()
-        if hooked or not _G.EncounterJournal_DisplayEncounter then
+        if hooked or not (_G.EncounterJournal_DisplayEncounter and _G.EncounterJournal_DisplayInstance) then
             return
         end
         hooked = true
         hooksecurefunc("EncounterJournal_DisplayEncounter", function()
             EnsureButton()
-            if button then
-                button:SetShown(IS_RETAIL and talents:HasDataForCurrentSpec())
-            end
+            UpdateButton()
+        end)
+        hooksecurefunc("EncounterJournal_DisplayInstance", function()
+            EnsureButton()
+            UpdateButton()
         end)
     end
 
     local function OnEvent(event, name)
         if event == "ADDON_LOADED" and name == "Blizzard_EncounterJournal" then
             HookEJ()
+        else
+            EnsureButton()
+            UpdateButton()
         end
     end
 
     function module:CanLoad()
-        return IS_RETAIL and config:IsEnabled() and talents:IsEnabled() and config:Get("enableTalentJournal")
+        return IS_RETAIL and config:IsEnabled() and talents:IsEnabled() and config:Get("enableTalentBrowser") and config:Get("enableTalentJournal")
     end
 
     function module:OnLoad()
@@ -17267,7 +17811,7 @@ do
         if C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("Blizzard_EncounterJournal") then
             HookEJ()
         end
-        callback:RegisterEvent(OnEvent, "ADDON_LOADED")
+        callback:RegisterEvent(OnEvent, "ADDON_LOADED", "PLAYER_SPECIALIZATION_CHANGED", "EJ_DIFFICULTY_UPDATE")
     end
 
 end
