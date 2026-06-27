@@ -193,17 +193,58 @@ local DropDownUtil do
     ---@class UIDropDownMenuTemplatePolyfill : Frame
 
     ---@class UIDropDownMenuInfoPolyfill
-    ---@field public checked boolean
-    ---@field public text string
-    ---@field public hasArrow boolean
-    ---@field public notCheckable boolean
-    ---@field public tooltipTitle? string
-    ---@field public tooltipText? string
-    ---@field public tooltipOnButton? boolean
-    ---@field public menuList any
-    ---@field public func? fun(self: UIDropDownMenuInfoPolyfill)
-    ---@field public arg1 any
-    ---@field public arg2 any
+    ---@field public text string @The text of the button
+    ---@field public value? any @The value that UIDROPDOWNMENU_MENU_VALUE is set to when the button is clicked
+    ---@field public func? fun(self: UIDropDownMenuInfoPolyfill) @The function that is called when you click the button
+    ---@field public checked? boolean|fun():boolean? @Check the button if true or function returns true
+    ---@field public isNotRadio? boolean @Check the button uses radial image if false check box image if true
+    ---@field public isTitle? boolean @If it's a title the button is disabled and the font color is set to yellow
+    ---@field public disabled? boolean @Disable the button and show an invisible button that still traps the mouseover event so menu doesn't time out
+    ---@field public tooltipWhileDisabled? boolean @Show the tooltip, even when the button is disabled.
+    ---@field public hasArrow? boolean @Show the expand arrow for multilevel menus
+    ---@field public arrowXOffset? number @Number of pixels to shift the button's icon to the left or right (positive numbers shift right, negative numbers shift left).
+    ---@field public hasColorSwatch? boolean @Show color swatch or not, for color selection
+    ---@field public r? number @Red color value of the color swatch (0-255)
+    ---@field public g? number @Green color value of the color swatch (0-255)
+    ---@field public b? number @Blue color value of the color swatch (0-255)
+    ---@field public colorCode? string @"|cAARRGGBB" embedded hex value of the button text color. Only used when button is enabled
+    ---@field public swatchFunc? fun() @Function called by the color picker on color change
+    ---@field public hasOpacity? boolean @Show the opacity slider on the colorpicker frame
+    ---@field public opacity? number @Percentatge of the opacity, 1.0 is fully shown, 0 is transparent
+    ---@field public opacityFunc? fun() @Function called by the opacity slider when you change its value
+    ---@field public cancelFunc? fun(prevValue: any) @Function called by the colorpicker when you click the cancel button (it takes the previous values as its argument)
+    ---@field public notClickable? boolean @Disable the button and color the font white
+    ---@field public notCheckable? boolean @Shrink the size of the buttons and don't display a check box
+    ---@field public owner? Frame @Dropdown frame that "owns" the current dropdownlist
+    ---@field public keepShownOnClick? boolean @Don't hide the dropdownlist after a button is clicked
+    ---@field public tooltipTitle? string @Title of the tooltip shown on mouseover
+    ---@field public tooltipText? string @Text of the tooltip shown on mouseover
+    ---@field public tooltipWarning? string @Warning-style text of the tooltip shown on mouseover
+    ---@field public tooltipInstruction? string @Instruction-style text of the tooltip shown on mouseover
+    ---@field public tooltipOnButton? boolean @Show the tooltip attached to the button instead of as a Newbie tooltip.
+    ---@field public tooltipBackdropStyle? backdropInfo @Optional Backdrop style of the tooltip shown on mouseover
+    ---@field public tooltipAnchor? TooltipAnchor @Pass a custom tooltip anchor (Default is "ANCHOR_RIGHT")
+    ---@field public justifyH? JustifyHorizontal @Justify button text (Might only support "CENTER")
+    ---@field public arg1? any @This is the first argument used by info.func
+    ---@field public arg2? any @This is the second argument used by info.func
+    ---@field public fontObject? FontObject @font object replacement for Normal and Highlight
+    ---@field public menuList? table @This contains an array of info tables to be displayed as a child menu
+    ---@field public menuListDisplayMode? "MENU" @If menuList is set, show the sub drop down with an override display mode.
+    ---@field public noClickSound? boolean @Set to 1 to suppress the sound when clicking the button. The sound only plays if .func is set.
+    ---@field public padding? number @Number of pixels to pad the text on the right side
+    ---@field public topPadding? number @Extra spacing between buttons.
+    ---@field public leftPadding? number @Number of pixels to pad the button on the left side
+    ---@field public minWidth? number @Minimum width for this line
+    ---@field public customFrame? Frame @Allows this button to be a completely custom frame, should inherit from UIDropDownCustomMenuEntryTemplate and override appropriate methods.
+    ---@field public icon? number|string @An icon for the button.
+    ---@field public iconXOffset? number @Number of pixels to shift the button's icon to the left or right (positive numbers shift right, negative numbers shift left).
+    ---@field public iconTooltipTitle? string @Title of the tooltip shown on icon mouseover
+    ---@field public iconTooltipText? string @Text of the tooltip shown on icon mouseover
+    ---@field public iconTooltipBackdropStyle? backdropInfo @Optional Backdrop style of the tooltip shown on icon mouseover
+    ---@field public mouseOverIcon? number|string @An override icon when a button is moused over.
+    ---@field public ignoreAsMenuSelection? boolean @Never set the menu text/icon to this, even when this button is checked
+    ---@field public registerForRightClick? boolean @Register dropdown buttons for right clicks
+    ---@field public registerForAnyClick? boolean @Register dropdown buttons for any clicks
 
     ---@alias WowStyle1DropdownTemplateGeneratorFunctionPolyfill fun(owner: WowStyle1DropdownTemplatePolyfill, rootDescription: WowStyle1DropdownTemplateRootDescriptionPolyfill)
     ---@alias WowStyle1DropdownTemplateTooltipHandlerPolyfill fun(tooltip: GameTooltip, elementDescription: WowStyle1DropdownTemplateElementDescriptionPolyfill)
@@ -3385,6 +3426,46 @@ do
             return false, seasonID
         end
         return true, seasonID
+    end
+
+    ---@param specIndex? number
+    ---@return number? specId, string? name, number? icon, string? role
+    function util:GetSpecialization(specIndex)
+        if not C_SpecializationInfo or not C_SpecializationInfo.GetSpecialization then
+            return
+        end
+        if not specIndex then
+            specIndex = C_SpecializationInfo.GetSpecialization()
+        end
+        if not specIndex then
+            return
+        end
+        local specId, name, _, icon, role = C_SpecializationInfo.GetSpecializationInfo(specIndex)
+        return specId, name, icon, role
+    end
+
+    ---@return boolean?
+    function util:IsTalentUIAvailable()
+        if not C_SpecializationInfo or not C_SpecializationInfo.CanPlayerUseTalentUI then
+            return
+        end
+        return (C_SpecializationInfo.CanPlayerUseTalentUI())
+    end
+
+    ---@return boolean?
+    function util:IsHeroTalentUIAvailable()
+        if not C_ClassTalents or not C_ClassTalents.GetHeroTalentSpecsForClassSpec then
+            return
+        end
+        local subTreeIDs, heroSpecUnlockLevel = C_ClassTalents.GetHeroTalentSpecsForClassSpec()
+        if not subTreeIDs or #subTreeIDs == 0 or not heroSpecUnlockLevel then
+            return false
+        end
+        local level = UnitLevel("player")
+        if issecretvalue(level) then
+            return true
+        end
+        return level >= heroSpecUnlockLevel
     end
 
 end
@@ -15811,8 +15892,43 @@ do
     )
 
     ---@param option ShortcutsMenuOption
+    ---@return string
     local function GetOptionText(option)
-        return option.icon and format("%s%s", option.icon, option.text) or option.text
+        local icon = option.icon
+        local text = option.text
+        if not icon and not text then
+            return ""
+        end
+        if type(icon) == "function" then
+            icon = icon(option)
+        end
+        if type(text) == "function" then
+            text = text(option)
+        end
+        if icon and text then
+            return format("%s%s", icon, text)
+        end
+        return text or icon or ""
+    end
+
+    ---@return string?
+    local function GetCurrentSpecIcon()
+        local _, _, icon = util:GetSpecialization()
+        if not icon then
+            return
+        end
+        local padRight = util:GetTextPaddingTexture(5)
+        return format("|T%s:14:14|t%s", icon, padRight)
+    end
+
+    ---@return string?
+    local function GetCurrentSpecAndClassName()
+        local _, specName = util:GetSpecialization()
+        local className = UnitClass("player")
+        if specName and className then
+            return format("%s %s", specName, className)
+        end
+        return specName or className
     end
 
     ---@return string? name, string? realm
@@ -15830,15 +15946,15 @@ do
     local function ToggleSearchFrame()
         if search:IsShown() then
             search:Hide()
-        else
-            search:Show()
-            if not search:SearchHasProfile() then
-                search:SearchAndShowProfile(ns.PLAYER_REGION, ns.PLAYER_REALM, ns.PLAYER_NAME)
-            end
-            local name, realm = GetSearchInfo()
-            if name and realm then
-                search:SearchAndShowProfile(ns.PLAYER_REGION, realm, name)
-            end
+            return
+        end
+        search:Show()
+        if not search:SearchHasProfile() then
+            search:SearchAndShowProfile(ns.PLAYER_REGION, ns.PLAYER_REALM, ns.PLAYER_NAME)
+        end
+        local name, realm = GetSearchInfo()
+        if name and realm then
+            search:SearchAndShowProfile(ns.PLAYER_REGION, realm, name)
         end
     end
 
@@ -15935,10 +16051,12 @@ do
     end
 
     ---@class ShortcutsMenuOption
-    ---@field public icon? string
-    ---@field public text string
-    ---@field public func fun(option: ShortcutsMenuOption)
+    ---@field public icon? string|fun(option: ShortcutsMenuOption): string?
+    ---@field public text? string|fun(option: ShortcutsMenuOption): string?
+    ---@field public func? fun(option: ShortcutsMenuOption)
     ---@field public show? fun(option: ShortcutsMenuOption): boolean
+    ---@field public separator? boolean
+    ---@field public unclickable? boolean
 
     ---@param owner Frame
     function shortcuts:InitializeMenu(owner)
@@ -15951,6 +16069,15 @@ do
                 icon = ns.MARKUP_ICONS.GroupFinder.markupPadRight,
                 text = L.MINIMAP_SHORTCUT_HELP_SEARCH,
                 func = ToggleSearchFrame,
+            },
+            {
+                separator = true,
+            },
+            {
+                icon = GetCurrentSpecIcon,
+                text = GetCurrentSpecAndClassName,
+                show = function() return util:IsTalentUIAvailable() or GetCurrentSpecAndClassName() or GetCurrentSpecIcon() end,
+                unclickable = true,
             },
             {
                 icon = ns.MARKUP_ICONS.Specialization.markupPadRight,
@@ -15970,8 +16097,18 @@ do
     function shortcuts:InitializeMenuButtons(rootDescription)
         for _, option in ipairs(self.dropDownOptions) do
             if not option.show or option:show() then
-                local text = GetOptionText(option)
-                rootDescription:CreateButton(text, function() option:func() end)
+                if option.separator then
+                    rootDescription:CreateDivider()
+                else
+                    local text = GetOptionText(option)
+                    if option.unclickable then
+                        text = format("|cffFFFFFF%s|r", text)
+                        rootDescription:CreateTitle(text)
+                    else
+                        local func = option.func and function() option:func() end or nil
+                        rootDescription:CreateButton(text, func)
+                    end
+                end
             end
         end
     end
@@ -15990,6 +16127,8 @@ do
             if not option.show or option:show() then
                 info.arg2 = option
                 info.text = GetOptionText(option)
+                info.notClickable = option.separator
+                info.notCheckable = option.separator
                 UIDropDownMenu_AddButton(info, level)
             end
         end
@@ -15999,7 +16138,12 @@ do
     function shortcuts.DropDownButtonOnClick(self)
         local parent = self.arg1
         local option = self.arg2
-        option:func()
+        if option.func then
+            option:func()
+        end
+        if option.separator then
+            return
+        end
         DropDownUtil:CloseDropDown(parent.DropDownMenu)
     end
 
