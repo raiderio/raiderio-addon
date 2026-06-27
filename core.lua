@@ -15883,6 +15883,11 @@ do
         return ns.talentBuilds
     end
 
+    function talents:GetRoutes()
+        local data = self:GetData()
+        return data and data.routes or nil
+    end
+
     ---@return number|nil
     function talents:GetCurrentSpecID()
         if PlayerUtil and PlayerUtil.GetCurrentSpecID then
@@ -15944,8 +15949,7 @@ do
         if id == nil then
             return nil
         end
-        local data = self:GetData()
-        local routes = data and data.routes
+        local routes = self:GetRoutes()
         local values = routes and routes[routeKey]
         return values and values[tostring(id)] or nil
     end
@@ -16301,7 +16305,7 @@ do
         return diff
     end
 
-    -- M+ dungeons that have data for this spec, sorted by name. The "All dungeons" option is added by the UI.
+    -- M+ dungeons that have data for this spec, in db_dungeons.lua order. The "All dungeons" option is added by the UI.
     ---@param specID number
     ---@return table[] @{ {id=number, name=string}, ... }
     function talents:GetMplusDungeons(specID)
@@ -16310,14 +16314,33 @@ do
         if not (specData and specData.mplus) then
             return out
         end
-        for key in pairs(specData.mplus) do
+        local seen = {}
+        local function addDungeon(key)
             if key ~= "all" then
+                if seen[key] then
+                    return
+                end
+                seen[key] = true
                 local id = tonumber(key)
                 local dungeon = id and util:GetDungeonByID(id)
-                out[#out + 1] = { id = id, name = (dungeon and dungeon.name) or key }
+                out[#out + 1] = { id = id, name = (dungeon and dungeon.name) or self:GetRouteValue("dungeons", key) or key }
             end
         end
-        table.sort(out, function(a, b) return (a.name or "") < (b.name or "") end)
+        local index = 1
+        while true do
+            local dungeon = util:GetDungeonByIndex(index)
+            if not dungeon then
+                break
+            end
+            local key = tostring(dungeon.id)
+            if specData.mplus[key] then
+                addDungeon(key)
+            end
+            index = index + 1
+        end
+        for key in pairs(specData.mplus) do
+            addDungeon(key)
+        end
         return out
     end
 
@@ -16352,12 +16375,42 @@ do
         if not (specData and specData.raid) then
             return out
         end
-        for key in pairs(specData.raid) do
+        local routes = self:GetRoutes()
+        local routeRaids = routes and routes.raids
+        local seen = {}
+        local function addRaid(key)
+            if seen[key] then
+                return
+            end
+            seen[key] = true
             local id = tonumber(key)
             local raid = id and util:GetRaidByID(id)
-            out[#out + 1] = { id = id, name = (raid and raid.name) or key }
+            out[#out + 1] = {
+                id = id,
+                name = (raid and raid.name) or self:GetRouteValue("raids", key) or key,
+                hasData = specData.raid[key] ~= nil,
+            }
         end
-        table.sort(out, function(a, b) return (a.id or 0) < (b.id or 0) end)
+        local index = 1
+        while true do
+            local raid = util:GetRaidByIndex(index)
+            if not raid then
+                break
+            end
+            local key = tostring(raid.id)
+            if specData.raid[key] or (routeRaids and routeRaids[key]) then
+                addRaid(key)
+            end
+            index = index + 1
+        end
+        for key in pairs(specData.raid) do
+            addRaid(key)
+        end
+        if routeRaids then
+            for key in pairs(routeRaids) do
+                addRaid(key)
+            end
+        end
         return out
     end
 
@@ -16370,16 +16423,44 @@ do
         local specData = self:GetSpecData(specID)
         local out = {}
         local rt = raidId and specData and specData.raid and specData.raid[tostring(raidId)]
-        if not rt then
+        local routes = self:GetRoutes()
+        local encounterOrder = routes and routes.encounterOrder and routes.encounterOrder[tostring(raidId)]
+        if not rt and type(encounterOrder) ~= "table" then
             return out
         end
-        for key in pairs(rt) do
+        local seen = {}
+        local function addEncounter(key)
             if key ~= "all" then
+                if seen[key] then
+                    return
+                end
+                seen[key] = true
                 out[#out + 1] = { id = tonumber(key), name = self:GetEncounterName(key, raidId) }
             end
         end
-        table.sort(out, function(a, b) return (a.id or 0) < (b.id or 0) end)
+        local hasEncounterOrder = type(encounterOrder) == "table" and #encounterOrder > 0
+        if hasEncounterOrder then
+            for i = 1, #encounterOrder do
+                addEncounter(tostring(encounterOrder[i]))
+            end
+        end
+        if rt then
+            for key in pairs(rt) do
+                addEncounter(key)
+            end
+        end
+        if not hasEncounterOrder then
+            table.sort(out, function(a, b) return (a.id or 0) < (b.id or 0) end)
+        end
         return out
+    end
+
+    ---@param specID number
+    ---@param raidId number|nil
+    ---@return table|nil encounter
+    function talents:GetSingleRaidEncounter(specID, raidId)
+        local encounters = self:GetRaidEncounters(specID, raidId)
+        return #encounters == 1 and encounters[1] or nil
     end
 
     -- Difficulties available for a raid encounter (or its all-bosses aggregate), in Mythic-then-Heroic order.
@@ -17042,7 +17123,17 @@ do
             ctx.dungeonId, ctx.bracket, ctx.keyLevel = nil, nil, nil
             if not ctx.raidId then
                 local raids = talents:GetRaids(specID)
-                ctx.raidId = raids[1] and raids[1].id or nil
+                for _, raid in ipairs(raids) do
+                    if raid.hasData then
+                        ctx.raidId = raid.id
+                        break
+                    end
+                end
+                ctx.raidId = ctx.raidId or (raids[1] and raids[1].id) or nil
+            end
+            if not ctx.encounterId then
+                local encounter = talents:GetSingleRaidEncounter(specID, ctx.raidId)
+                ctx.encounterId = encounter and encounter.id or nil
             end
             local diffs = talents:GetRaidDifficulties(specID, ctx.raidId, ctx.encounterId)
             if not util:TableContains(diffs, ctx.difficulty) then
@@ -17376,10 +17467,13 @@ do
                 root:CreateTitle(L.TALENTS_SELECT_ENCOUNTER)
                 for _, r in ipairs(talents:GetRaids(specID)) do
                     root:CreateTitle(r.name)
-                    root:CreateRadio(L.TALENTS_ALL_ENCOUNTERS,
-                        function() return ctx.raidId == r.id and ctx.encounterId == nil end,
-                        function() browser:SetRaidContext(r.id, nil) end)
-                    for _, e in ipairs(talents:GetRaidEncounters(specID, r.id)) do
+                    local encounters = talents:GetRaidEncounters(specID, r.id)
+                    if #encounters ~= 1 then
+                        root:CreateRadio(L.TALENTS_ALL_ENCOUNTERS,
+                            function() return ctx.raidId == r.id and ctx.encounterId == nil end,
+                            function() browser:SetRaidContext(r.id, nil) end)
+                    end
+                    for _, e in ipairs(encounters) do
                         root:CreateRadio(e.name,
                             function() return ctx.raidId == r.id and ctx.encounterId == e.id end,
                             function() browser:SetRaidContext(r.id, e.id) end)
@@ -17679,6 +17773,10 @@ do
     local function GetDescriptorForMap(specID, mapID, dungeonEncounterID)
         local raid = mapID and util:GetRaidByInstanceMapID(mapID)
         if raid then
+            if not dungeonEncounterID then
+                local encounter = talents:GetSingleRaidEncounter(specID, raid.id)
+                dungeonEncounterID = encounter and encounter.id or nil
+            end
             local difficulties = talents:GetRaidDifficulties(specID, raid.id, dungeonEncounterID)
             if #difficulties == 0 then
                 return
