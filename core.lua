@@ -20,7 +20,8 @@ local ScrollBoxUtil do
     ScrollBoxUtil = {}
 
     ---@class CallbackRegistryMixin
-    ---@field public RegisterCallback fun(event: string|any, callback: fun())
+    ---@field public Event table<string, string>
+    ---@field public RegisterCallback fun(self: CallbackRegistryMixin, event: string|any, callback: fun())
 
     ---@class ScrollBoxBaseMixin : CallbackRegistryMixin, Frame
     ---@field public GetFrames fun(): Frame[]
@@ -512,6 +513,7 @@ local DropDownUtil do
     ---@field public options? DropDownUtilDynamicMenuOption[]
     ---@field public arg1? any
     ---@field public arg2? any
+    ---@field public arg3? any
 
     ---@param option DropDownUtilDynamicMenuOption
     ---@return string
@@ -876,6 +878,8 @@ do
     ---@field public SCORE_TIERS_SIMPLE_PREV table<number, ScoreTierSimple>
     ---@field public previousScoreTiersSimple table<number, ScoreTierSimple> @DEPRECATED
     ---@field public CUSTOM_TITLES table<number, RecruitmentTitle>
+    ---@field public talentBuilds? TalentBuilds
+    ---@field public TALENT_BUILDS TalentBuilds
     ---@field public CLIENT_CHARACTERS table<string, CharacterCollection>
     ---@field public CLIENT_RECENT_CHARACTERS table<string, RecentCharacterCollection>
     ---@field public CLIENT_COLORS table<number, ScoreColor>
@@ -1714,6 +1718,54 @@ do
     ---@return table<number, RecruitmentTitle>
     function ns:GetRecruitmentTitles()
         return ns.CUSTOM_TITLES
+    end
+
+    ---@alias TalentBuildsSpecID string The spec ID as a string. Such as `"62"` for `62` (Arcane Mage).
+    ---@alias TalentBuildsHeroID string The hero ID as a string. Such as `"39"` for `39` (Sunfury).
+    ---@alias TalentBuildsDungeonKey "all"|string The dungeon ID as a string. Such as `"4813"` for `4813` (Pit of Saron).
+    ---@alias TalentBuildsRaidKey string The raid ID as a string. Such as `"8062"` for `8062` (Sporefall).
+    ---@alias TalentBuildsDungeonDifficultyKey "6-9"|"10-99"|"15-99"|"20-99"|string The bracket keys.
+    ---@alias TalentBuildsRaidEncounterKey "all"|string The encounter ID as a string. Such as `"3176"` for `3176` (Imperator Averzian).
+    ---@alias TalentBuildsRaidDifficultyKey "mythic"|"heroic"|"normal"|string The encounter difficulty keys.
+
+    ---@class TalentBuilds
+    ---@field public date string UTC timestamp such as `2026-06-27T04:20:51Z`
+    ---@field public routes TalentBuildsRoutes The season data about specs, dungeons, raids, and sorting.
+    ---@field public specs table<TalentBuildsSpecID, TalentBuildsSpec> The season data about the specs and their talent builds and stats.
+
+    ---@class TalentBuildsRoutes
+    ---@field public season string `season-mn-1`
+    ---@field public specPageSlugs table<string, string> `{ ["62"] = "arcane-mage", ... }`
+    ---@field public dungeons table<string, string> `{ ["4813"] = "pit-of-saron", ... }`
+    ---@field public raids table<string, string> `{ ["16340"] = "tier-mn-1", ... }`
+    ---@field public encounters table<string, string> `{ ["3159"] = "rotmire", ["3176"] = "imperator-averzian", ... }`
+    ---@field public encounterOrder table<string, string[]> `{ ["16340"] = { "3176", "3177", "3178", ... }, ... }`
+
+    ---@class TalentBuildsSpec
+    ---@field prefix string The talent import string prefix such as `C4DAAAAAAAAAAAAAAAAAAAAAA`.
+    ---@field builds string[] Table over partial talent import strings. Each has to be prefixed with the `prefix` to produce the full import string.
+    ---@field heroTrees table<TalentBuildsHeroID, TalentBuildsHeroTree>
+    ---@field mplus table<TalentBuildsDungeonKey, table<TalentBuildsDungeonDifficultyKey, TalentBuildsStats[]>>
+    ---@field raid table<TalentBuildsRaidKey, table<TalentBuildsRaidEncounterKey, table<TalentBuildsRaidDifficultyKey, TalentBuildsStats[]>>>
+
+    ---@class TalentBuildsHeroTree
+    ---@field public name string `Sunfury`
+    ---@field public slug string `sunfury`
+
+    ---@class TalentBuildsStats
+    ---@field public [1] number heroTreeId (`40`)
+    ---@field public [2] number popularityShare (`0.0 to 1.0`)
+    ---@field public [3] number heroTreeRunCount (`229`)
+    ---@field public [4]? number recommendedBuildIndex (`6`)
+    ---@field public [5]? number recommendedBuildRunCount (`106`)
+    ---@field public [6]? number recommendedScore (`235898`)
+    ---@field public [7]? number defaultBuildIndex (`8`)
+    ---@field public [8]? number defaultBuildRunCount (`25`)
+    ---@field public [9]? number defaultScore (`297527`)
+
+    ---@return TalentBuilds
+    function ns:GetTalentBuilds()
+        return ns.TALENT_BUILDS or ns.talentBuilds or {} -- DEPRECATED: ns.talentBuilds + FALLBACK
     end
 
 end
@@ -3461,9 +3513,10 @@ do
     ---@param frame Frame
     ---@param icon CustomIcon
     ---@param layer? DrawLayer
-    function util:CreateTextureFromIcon(frame, icon, layer)
+    ---@param subLevel? number
+    function util:CreateTextureFromIcon(frame, icon, layer, subLevel)
         local info = icon("Texture") ---@type CustomIconTexture
-        local texture = frame:CreateTexture(nil, layer)
+        local texture = frame:CreateTexture(nil, layer, nil, subLevel)
         texture:SetTexture(info.texture)
         texture:SetTexCoord(info.texCoord[1], info.texCoord[2], info.texCoord[3], info.texCoord[4])
         return texture, info
@@ -3513,11 +3566,14 @@ do
     end
 
     ---@generic T
-    ---@alias TableFunc fun(value: T, index: number, tbl: T[], tbl2: T[]): any
+    ---@alias TableMapFunc fun(value: T, index: number, tbl: T[], tbl2: T[]): any
+
+    ---@generic T, K
+    ---@alias TableFilterFunc fun(value: T, index: K, tbl: T[], tbl2: T[]): boolean?
 
     ---@generic T
     ---@param tbl T[]
-    ---@param func TableFunc
+    ---@param func TableMapFunc
     function util:TableMap(tbl, func)
         local temp = {} ---@type any[]
         for k, v in pairs(tbl) do
@@ -3528,7 +3584,7 @@ do
 
     ---@generic T
     ---@param tbl T[]
-    ---@param func TableFunc
+    ---@param func TableMapFunc
     ---@return string
     function util:TableMapConcat(tbl, func, delim)
         local temp = util:TableMap(tbl, func)
@@ -3548,8 +3604,10 @@ do
 
     ---@generic T
     ---@param tbl T[]
+    ---@param dir "asc"|"desc"
     ---@param ... string
-    function util:TableSort(tbl, ...)
+    function util:TableSort(tbl, dir, ...)
+        local asc = dir == "asc"
         local keys = {...}
         if not keys[1] then
             return tbl
@@ -3558,23 +3616,119 @@ do
             local x = type(a)
             local y = type(b)
             if x ~= y then
-                return x < y
+                if asc then
+                    return x < y
+                end
+                return x > y
             elseif x == "number" or x == "string" then
-                return a < b
+                if asc then
+                    return a < b
+                end
+                return a > b
             elseif x == "table" then
                 for _, key in ipairs(keys) do
                     x = a[key]
                     y = b[key]
                     if x ~= nil and y ~= nil then
                         if x ~= y then
+                            if asc then
+                                return x < y
+                            end
                             return x > y
                         end
                     end
                 end
             end
-            return tostring(a) < tostring(b)
+            x = tostring(a)
+            y = tostring(b)
+            if asc then
+                return x < y
+            end
+            return x > y
         end)
         return tbl
+    end
+
+    ---@generic T
+    ---@param tbl T[]
+    ---@param ... string
+    function util:TableSortAsc(tbl, ...)
+        return self:TableSort(tbl, "asc", ...)
+    end
+
+    ---@generic T
+    ---@param tbl T[]
+    ---@param ... string
+    function util:TableSortDesc(tbl, ...)
+        return self:TableSort(tbl, "desc", ...)
+    end
+
+    ---@generic K, V
+    ---@param tbl table<K, V>
+    ---@return K[]
+    function util:TableKeys(tbl)
+        local keys = {}
+        local i = 0
+        for key, _ in pairs(tbl) do
+            i = i + 1
+            keys[i] = key
+        end
+        return keys
+    end
+
+    ---@generic T
+    ---@param tbl T[]
+    ---@param func TableFilterFunc
+    ---@return T[]
+    function util:TableFilter(tbl, func)
+        local isArray = tbl[1] ~= nil
+        local iter, curr, next
+        if isArray then
+            iter, curr, next = ipairs(tbl)
+        else
+            iter, curr, next = pairs(tbl)
+        end
+        local temp = {}
+        local i = 0
+        for k, v in iter, curr, next do
+            if func(v, k, tbl, temp) then
+                if isArray then
+                    i = i + 1
+                    temp[i] = v
+                else
+                    temp[k] = v
+                end
+            end
+        end
+        return temp
+    end
+
+    ---@param str string
+    function util:StringUpperCaseFirstLetterLowerCaseRest(str)
+        if not str or str == "" then
+            return str
+        end
+        local firstEnd = 1
+        local b = str:byte(1)
+        if b >= 0xF0 then
+            firstEnd = 4
+        elseif b >= 0xE0 then
+            firstEnd = 3
+        elseif b >= 0xC0 then
+            firstEnd = 2
+        end
+        local first = str:sub(1, firstEnd)
+        local rest = str:sub(firstEnd + 1)
+        return format("%s%s", first:upper(), rest:lower())
+    end
+
+    ---@param ms? number
+    function util:FormatTimeFromMs(ms)
+        if not ms then
+            return
+        end
+        local totalSeconds = floor(ms/1000)
+        return format("%d:%02d", floor(totalSeconds / 60), totalSeconds % 60)
     end
 
     ---@class AnimationGroupFadeScaleInOut : AnimationGroup
@@ -3667,6 +3821,19 @@ do
         end
         local specId, name, _, icon, role = C_SpecializationInfo.GetSpecializationInfo(specIndex)
         return specId, name, icon, role
+    end
+
+    ---@param subTreeID number
+    ---@param configID? number
+    function util:GetSpecializationSubTreeInfo(subTreeID, configID)
+        if not configID then
+            configID = C_ClassTalents.GetActiveConfigID()
+        end
+        if not configID then
+            return
+        end
+        local subTreeInfo = C_Traits.GetSubTreeInfo(configID, subTreeID)
+        return subTreeInfo
     end
 
     ---@return boolean?
@@ -11767,7 +11934,7 @@ if IS_RETAIL then
     function replay:OnLoad()
         TrimHistoryFromSV()
         replays = ns:GetReplays()
-        util:TableSort(replays, "date", "keystone_run_id")
+        util:TableSortDesc(replays, "date", "keystone_run_id")
         SortReplaysByLevelAndTime(replays)
         hiddenContainer = CreateFrame("Frame")
         hiddenContainer:SetClipsChildren(true)
@@ -15861,12 +16028,13 @@ do
 
 end
 
--- builds.lua
--- dependencies: module, config, util
+-- talentbuilds.lua
+-- dependencies: module, callback, config, util
 if IS_RETAIL then
 
-    ---@class BuildsModule : Module
-    local builds = ns:NewModule("Builds") ---@type BuildsModule
+    ---@class TalentBuildsModule : Module
+    local talentbuilds = ns:NewModule("TalentBuilds") ---@type TalentBuildsModule
+    local callback = ns:GetModule("Callback") ---@type CallbackModule
     local config = ns:GetModule("Config") ---@type ConfigModule
     local util = ns:GetModule("Util") ---@type UtilModule
 
@@ -15916,14 +16084,11 @@ if IS_RETAIL then
 
     ---@class MinimalScrollBarPolyfill : EventFrame
 
-    ---@class BuildsFrame : ButtonFrameTemplatePolyfill
+    ---@class TalentBuildsFrame : ButtonFrameTemplatePolyfill
 
-    ---@class BuildsDataProviderBuildButton : Button
+    ---@class TalentBuildsDataProviderBuildButton : Button, BackdropTemplate
 
-    ---@class BuildsDataProviderBuildElementData
-    ---@field public index number
-    ---@field public left string
-    ---@field public right string
+    ---@alias TalentBuildsDataProviderBuildElementData TalentBuildsCompiledProfileBuild
 
     ---@generic T
     ---@class DataProviderPolyfill<T>
@@ -15945,7 +16110,7 @@ if IS_RETAIL then
     ---@field public RemoveIndex fun(self: DataProviderPolyfill, index: number)
     ---@field public RemoveIndexRange fun(self: DataProviderPolyfill, indexBegin: number, indexEnd: number)
     ---@field public ReplaceAtIndex fun(self: DataProviderPolyfill, index: number, newElementData: T)
-    ---@field public SetSortComparator fun(self: DataProviderPolyfill, sortComparator: fun(a: T, b: T): number, skipSort: boolean?)
+    ---@field public SetSortComparator fun(self: DataProviderPolyfill, sortComparator: fun(a: T, b: T): boolean, skipSort: boolean?)
     ---@field public ClearSortComparator fun(self: DataProviderPolyfill)
     ---@field public HasSortComparator fun(self: DataProviderPolyfill): boolean
     ---@field public Sort fun(sortComparator: fun(a: T, b: T): number)
@@ -15959,8 +16124,294 @@ if IS_RETAIL then
     ---@field public ReverseForEach fun(self: DataProviderPolyfill, func: fun(elementData: T))
     ---@field public Flush fun(self: DataProviderPolyfill)
 
-    ---@type DataProviderPolyfill<BuildsDataProviderBuildElementData>
+    local talentBuilds = ns:GetTalentBuilds()
+
+    ---@class TalentBuildsCompiledProfile
+    ---@field public specID number
+    ---@field public builds TalentBuildsCompiledProfileBuild[]
+
+    ---@class TalentBuildsCompiledProfileBuild
+    ---@field public specID number
+    ---@field public heroID number `stat[1]`
+    ---@field public popPctl number `stat[2]`
+    ---@field public heroCount number `stat[3]`
+    ---@field public recBuildIndex? number `stat[4]`
+    ---@field public recBuildRuns? number `stat[5]`
+    ---@field public recScore? number `stat[6]`
+    ---@field public defBuildIndex? number `stat[7]`
+    ---@field public defBuildRuns? number `stat[8]`
+    ---@field public defScore? number `stat[9]`
+    ---@field public dungeonID? "all"|number @If for dungeon, contains "all" or the dungeon ID.
+    ---@field public dungeonBracket? string @If for dungeon, contains the bracket text.
+    ---@field public raidID? number
+    ---@field public encounterID? "all"|number
+    ---@field public encounterDiff? string|"mythic"|"heroic"|"normal"
+    ---@field public recImportString? string
+    ---@field public defImportString? string
+    ---@field public buildPopText string
+    ---@field public scoreText string
+
+    ---@type TalentBuildsCompiledProfile?
+    local compiledPlayerProfile
+
+    local function compileTalentBuilds()
+        compiledPlayerProfile = nil
+        local playerSpecID = util:GetSpecialization()
+        if not playerSpecID then
+            return
+        end
+        for specId, specData in pairs(talentBuilds.specs) do
+            local specID = tonumber(specId)
+            if specID == playerSpecID then
+                ---@type TalentBuildsCompiledProfile
+                local profile = {
+                    specID = specID,
+                    builds = {},
+                }
+                for raidKey, data in pairs(specData.raid) do
+                    local raidID = tonumber(raidKey)
+                    if raidID then
+                        for dataKey, diffData in pairs(data) do
+                            local encounterID = dataKey == "all" and "all" or tonumber(dataKey) or nil
+                            if encounterID then
+                                for diffKey, stats in pairs(diffData) do
+                                    for _, stat in ipairs(stats) do
+                                        local heroID, popPctl, heroCount, recBuildIndex, recBuildRuns, recScore, defBuildIndex, defBuildRuns, defScore = stat[1], stat[2], stat[3], stat[4], stat[5], stat[6], stat[7], stat[8], stat[9]
+                                        profile.builds[#profile.builds + 1] = {
+                                            specID = specID,
+                                            heroID = heroID,
+                                            popPctl = popPctl,
+                                            heroCount = heroCount,
+                                            recBuildIndex = recBuildIndex,
+                                            recBuildRuns = recBuildRuns,
+                                            recScore = recScore,
+                                            defBuildIndex = defBuildIndex,
+                                            defBuildRuns = defBuildRuns,
+                                            defScore = defScore,
+                                            dungeonID = nil,
+                                            dungeonBracket = nil,
+                                            raidID = raidID,
+                                            encounterID = encounterID,
+                                            encounterDiff = diffKey,
+                                            recImportString = recBuildIndex and format("%s%s", specData.prefix, specData.builds[recBuildIndex]) or nil,
+                                            defImportString = defBuildIndex and format("%s%s", specData.prefix, specData.builds[defBuildIndex]) or nil,
+                                            buildPopText = util:FormatTimeFromMs(recScore or defScore),
+                                            scoreText = util:StringUpperCaseFirstLetterLowerCaseRest(diffKey),
+                                        }
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                local dungeonKeys = util:TableKeys(specData.mplus)
+                for _, dungeonKey in pairs(dungeonKeys) do
+                    local dungeonID = dungeonKey == "all" and "all" or tonumber(dungeonKey) or nil
+                    if dungeonID then
+                        local data = specData.mplus[dungeonKey]
+                        for bracketKey, stats in pairs(data) do
+                            for _, stat in ipairs(stats) do
+                                local heroID, popPctl, heroCount, recBuildIndex, recBuildRuns, recScore, defBuildIndex, defBuildRuns, defScore = stat[1], stat[2], stat[3], stat[4], stat[5], stat[6], stat[7], stat[8], stat[9]
+                                profile.builds[#profile.builds + 1] = {
+                                    specID = specID,
+                                    heroID = heroID,
+                                    popPctl = popPctl,
+                                    heroCount = heroCount,
+                                    recBuildIndex = recBuildIndex,
+                                    recBuildRuns = recBuildRuns,
+                                    recScore = recScore,
+                                    defBuildIndex = defBuildIndex,
+                                    defBuildRuns = defBuildRuns,
+                                    defScore = defScore,
+                                    dungeonID = dungeonID,
+                                    dungeonBracket = bracketKey,
+                                    raidID = nil,
+                                    encounterID = nil,
+                                    encounterDiff = nil,
+                                    recImportString = recBuildIndex and format("%s%s", specData.prefix, specData.builds[recBuildIndex]) or nil,
+                                    defImportString = defBuildIndex and format("%s%s", specData.prefix, specData.builds[defBuildIndex]) or nil,
+                                    buildPopText = format("%.0f%%", (recBuildRuns or defBuildRuns) / heroCount * 100),
+                                    scoreText = format("+%d", recScore or defScore),
+                                }
+                            end
+                        end
+                    end
+                end
+                compiledPlayerProfile = profile
+                break
+            end
+        end
+    end
+
+    ---@type DungeonRaid[]
+    local relevantRaids = {}
+
+    for stringID, _ in pairs(talentBuilds.routes.raids) do
+        local id = tonumber(stringID)
+        if id then
+            local raid = util:GetRaidByID(id)
+            if raid then
+                relevantRaids[#relevantRaids + 1] = raid
+            end
+        end
+    end
+
+    -- The first key is the `Raid ID`, then the sub-table is ordered `Encounter IDs`.
+    ---@type table<number, number[]>
+    local relevantEncounters = {}
+
+    for stringID, encounters in pairs(talentBuilds.routes.encounterOrder) do
+        local id = tonumber(stringID)
+        if id then
+            for _, stringEncounterID in ipairs(encounters) do
+                local encounterID = tonumber(stringEncounterID)
+                if encounterID then
+                    local temp = relevantEncounters[id]
+                    if not temp then
+                        temp =  {}
+                        relevantEncounters[id] = temp
+                    end
+                    temp[#temp + 1] = encounterID
+                end
+            end
+        end
+    end
+
+    -- The first key is the `Encounter ID`, the value is either `Journal Encounter ID` or a table of such (if there are duplicates, which may happen with faction specific encounters).
+    ---@type table<number, number|number[]>
+    local encounterIDToJournalEncounterID = {}
+
+    for i = 1, 10000 do
+        local _, _, journalEncounterID, _, _, _, dungeonEncounterID, _ = EJ_GetEncounterInfo(i)
+        if journalEncounterID and dungeonEncounterID then
+            local temp = encounterIDToJournalEncounterID[dungeonEncounterID]
+            if not temp then
+                encounterIDToJournalEncounterID[dungeonEncounterID] = journalEncounterID
+            elseif type(temp) == "number" then
+                encounterIDToJournalEncounterID[dungeonEncounterID] = { temp, journalEncounterID }
+            else
+                temp[#temp + 1] = journalEncounterID
+            end
+        end
+    end
+
+    ---@param id number
+    local function getJournalEncounterIDFromEncounterID(id)
+        local temp = encounterIDToJournalEncounterID[id]
+        if type(temp) == "table" then
+            temp = temp[1] -- TODO: selects the first one
+        end
+        return temp
+    end
+
+    ---@type DungeonInstance[]
+    local relevantDungeons = {}
+
+    for stringID, _ in pairs(talentBuilds.routes.dungeons) do
+        local id = tonumber(stringID)
+        if id then
+            local dungeon = util:GetDungeonByID(id)
+            if dungeon then
+                relevantDungeons[#relevantDungeons + 1] = dungeon
+            end
+        end
+    end
+
+    util:TableSortAsc(relevantDungeons, "shortName")
+
+    ---@type { key: TalentBuildsRaidDifficultyKey, text: string }[]
+    local relevantEncounterDifficulties = {
+        { key = "all", text = L.BUILDS_ENCOUNTER_DIFFICULY_all },
+        ["all"] = true,
+    }
+
+    ---@type { key: TalentBuildsDungeonDifficultyKey, text: string }[]
+    local relevantDungeonBrackets = {
+        { key = "all", text = L.BUILDS_DUNGEON_BRACKET_all },
+        ["all"] = true,
+    }
+
+    for _, specData in pairs(talentBuilds.specs) do
+        for _, raidData in pairs(specData.raid) do
+            for _, difficultyData in pairs(raidData) do
+                for difficultyKey, _ in pairs(difficultyData) do
+                    if not relevantEncounterDifficulties[difficultyKey] then
+                        relevantEncounterDifficulties[difficultyKey] = true
+                        relevantEncounterDifficulties[#relevantEncounterDifficulties + 1] = {
+                            key = difficultyKey,
+                            text = L[format("BUILDS_ENCOUNTER_DIFFICULY_%s", difficultyKey)],
+                        }
+                    end
+                end
+            end
+        end
+        for _, difficultyData in pairs(specData.mplus) do
+            for difficultyKey, _ in pairs(difficultyData) do
+                if not relevantDungeonBrackets[difficultyKey] then
+                    relevantDungeonBrackets[difficultyKey] = true
+                    relevantDungeonBrackets[#relevantDungeonBrackets + 1] = {
+                        key = difficultyKey,
+                        text = L[format("BUILDS_DUNGEON_BRACKET_%s", difficultyKey)],
+                    }
+                end
+            end
+        end
+    end
+
+    ---@type "all"|TalentBuildsRaidDifficultyKey[]
+    local sortedEncounterDifficulties = {
+        "all",
+        "normal",
+        "heroic",
+        "mythic",
+    }
+
+    ---@type "all"|TalentBuildsDungeonDifficultyKey[]
+    local sortedDungeonBrackets = {
+        "all",
+        "6-9",
+        "10-99",
+        "15-99",
+        "20-99",
+    }
+
+    table.sort(relevantEncounterDifficulties, function(a, b)
+        local x = util:TableContains(sortedEncounterDifficulties, a.key) or 99
+        local y = util:TableContains(sortedEncounterDifficulties, b.key) or 99
+        return x < y
+    end)
+
+    table.sort(relevantDungeonBrackets, function(a, b)
+        local x = util:TableContains(sortedDungeonBrackets, a.key) or 99
+        local y = util:TableContains(sortedDungeonBrackets, b.key) or 99
+        return x < y
+    end)
+
+    ---@type DataProviderPolyfill<TalentBuildsDataProviderBuildElementData>
     local dataProvider = CreateDataProvider()
+
+    dataProvider:SetSortComparator(function(a, b)
+        local aAll = (a.encounterID == "all" and 1 or 0) or (a.dungeonID == "all" and 1 or 0)
+        local bAll = (b.encounterID == "all" and 1 or 0) or (b.dungeonID == "all" and 1 or 0)
+        if aAll ~= bAll then
+            return aAll > bAll
+        end
+        local heroCount = a.heroCount > b.heroCount
+        local x = a.recScore or a.defScore
+        local y = b.recScore or b.defScore
+        if a.raidID and b.raidID then
+            if x == y then
+                return heroCount
+            end
+            return x < y
+        elseif a.dungeonID and b.dungeonID then
+            if x == y then
+                return heroCount
+            end
+            return x > y
+        end
+        return heroCount
+    end)
 
     -- the current selection of instance and difficulty
     local currentInstance ---@type DropDownUtilDynamicMenuOption?
@@ -15968,24 +16419,29 @@ if IS_RETAIL then
 
     local function updateDataProvider()
         dataProvider:Flush()
-        if not currentInstance or not currentDifficulty then
+        if not compiledPlayerProfile or not currentInstance or not currentDifficulty then
             return
         end
-        local index = currentInstance.arg2 ---@type number
-        local difficulty = currentDifficulty.arg1 ---@type number
-        ---@type BuildsDataProviderBuildElementData[]
-        local collection = {}
-        local idx = 0
-        for i = 1, 50 do
-            if i == index * difficulty then
-                idx = idx + 1
-                collection[idx] = { index = i, left = format("Left text %d", i), right = format("Right text %d", i) } -- TODO: read from the db file and populate
+        local instanceType = currentInstance.arg1 ---@type "raid"|"dungeon"
+        local instanceID = currentInstance.arg2 ---@type "all"|number
+        local encounterID = currentInstance.arg3 ---@type "all"|number
+        local difficulty = currentDifficulty.arg1 ---@type "all"|string
+        local relevantBuilds = util:TableFilter(
+            compiledPlayerProfile.builds,
+            function(build)
+                if instanceType == "raid" and (instanceID == "all" or build.raidID == instanceID) and build.encounterID == encounterID then
+                    return difficulty == "all" or build.encounterDiff == difficulty
+                end
+                if instanceType == "dungeon" and build.dungeonID == instanceID then
+                    return difficulty == "all" or build.dungeonBracket == difficulty
+                end
+                return false
             end
-        end
-        dataProvider:InsertTable(collection)
+        )
+        dataProvider:InsertTable(relevantBuilds)
     end
 
-    local frame ---@type BuildsFrame?
+    local frame ---@type TalentBuildsFrame?
     local updatingMenus = false
 
     ---@param owner WowStyle1DropdownTemplatePolyfill
@@ -16013,70 +16469,138 @@ if IS_RETAIL then
         end
     end
 
-    ---@param button BuildsDataProviderBuildButton
+    ---@param build TalentBuildsCompiledProfileBuild
+    local function getHeroTitleText(build)
+        return format(L.BUILDS_PROFILE_HERO_FORMAT, build.popPctl * 100, FormatLargeNumber(build.heroCount))
+    end
+
+    local starSymbolTextureMarkup = ns.CUSTOM_ICONS.icons.RAIDERIO_COLOR_CIRCLE("TextureMarkup")
+
+    ---@param build TalentBuildsCompiledProfileBuild
+    local function getBuildTitleText(build)
+        local title = build.recBuildIndex and L.BUILDS_PROFILE_RECOMMENDED or L.BUILDS_PROFILE_DEFAULT
+        if build.encounterID == "all" or build.dungeonID == "all" then
+            title = format("%s %s", starSymbolTextureMarkup, title)
+        end
+        return title
+    end
+
+    ---@param build TalentBuildsCompiledProfileBuild
+    local function getBuildStatsText(build)
+        if build.recBuildIndex then
+            return format(L.BUILDS_PROFILE_STATS_FORMAT, build.buildPopText, build.scoreText, FormatLargeNumber(build.recBuildRuns))
+        end
+        return format(L.BUILDS_PROFILE_STATS_FORMAT, build.buildPopText, build.scoreText, FormatLargeNumber(build.defBuildRuns))
+    end
+
+    ---@param button TalentBuildsDataProviderBuildButton
     local function updateBuildButton(button)
         local elementData = button.elementData
-        button.LeftLabel:SetText(elementData.left) -- TODO
-        button.RightLabel:SetText(elementData.right) -- TODO
+        local info = util:GetSpecializationSubTreeInfo(elementData.heroID)
+        if info then
+            button.HeroTexture:Show()
+            button.HeroTexture:SetAtlas(info.iconElementID)
+            button.HeroTitle:SetText(info.name)
+        else
+            button.HeroTexture:Hide()
+            button.HeroTitle:SetFormattedText("Hero Tree #%d", elementData.heroID)
+        end
+        button.HeroText:SetFormattedText("|cff999999%s|r", getHeroTitleText(elementData))
+        button.BuildTitle:SetText(getBuildTitleText(elementData))
+        button.BuildText:SetFormattedText("|cff999999%s|r", getBuildStatsText(elementData))
     end
 
     local buildsButtonHeight = 60
 
-    ---@param button BuildsDataProviderBuildButton
-    ---@param elementData BuildsDataProviderBuildElementData
+    ---@param button TalentBuildsDataProviderBuildButton
+    ---@param elementData TalentBuildsDataProviderBuildElementData
     local function createBuild(button, elementData)
-        ---@class BuildsDataProviderBuildButton
+        ---@class TalentBuildsDataProviderBuildButton
         local button = button
         button.elementData = elementData
         if not button.isInit then
             button.isInit = true
             button:SetHeight(buildsButtonHeight)
-            button.Bg = button:CreateTexture(nil, "BACKGROUND")
-            button.Bg:SetAllPoints()
-            button.Bg:SetColorTexture(random(128, 255)/255, random(128, 255)/255, random(128, 255)/255, 0.25) -- TODO
-            ---@param self BuildsDataProviderBuildButton
+            Mixin(button, BackdropTemplateMixin)
+            button:OnBackdropLoaded()
+            button:SetBackdrop({
+                bgFile = "Interface\\Buttons\\WHITE8X8",
+                edgeFile = "Interface\\Buttons\\WHITE8X8",
+                edgeSize = 1,
+                insets = { left = 0, right = 0, top = 0, bottom = 0 },
+            })
+            button:SetBackdropColor(0, 0, 0, 0.67)
+            button:SetBackdropBorderColor(1, 1, 1, 0)
+            function button:SetBackdropFocus()
+                self:SetBackdropColor(0.1, 0.1, 0.1, 0.67)
+                self:SetBackdropBorderColor(1, 1, 1, 0.67)
+            end
+            function button:ClearBackdropFocus()
+                self:SetBackdropColor(0, 0, 0, 0.67)
+                self:SetBackdropBorderColor(1, 1, 1, 0)
+            end
+            ---@param self TalentBuildsDataProviderBuildButton
             local function OnClick(self)
-                local elementData = self.elementData
-                print(format("Clicked Button %d", elementData.index)) -- TODO
+                -- local elementData = self.elementData
             end
-            ---@param self BuildsDataProviderBuildButton
+            ---@param self TalentBuildsDataProviderBuildButton
             local function OnEnter(self)
-                local elementData = self.elementData
-                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                GameTooltip:AddLine(format("Button %d", elementData.index), 1, 1, 1, false) -- TODO
-                GameTooltip:Show()
+                -- local elementData = self.elementData
+                -- GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                -- GameTooltip:AddLine(format("%.2f%% popularity", elementData.popPctl * 100), 1, 1, 1, false) -- TODO
+                -- GameTooltip:Show()
+                self:SetBackdropFocus()
             end
-            ---@param self BuildsDataProviderBuildButton
+            ---@param self TalentBuildsDataProviderBuildButton
             local function OnLeave(self)
-                GameTooltip:Hide()
+                -- GameTooltip:Hide()
+                self:ClearBackdropFocus()
+            end
+            ---@param self TalentBuildsDataProviderBuildButton
+            local function OnShow(self)
+                self:ClearBackdropFocus()
+            end
+            ---@param self TalentBuildsDataProviderBuildButton
+            local function OnHide(self)
+                self:ClearBackdropFocus()
             end
             button:SetScript("OnClick", OnClick)
             button:SetScript("OnEnter", OnEnter)
             button:SetScript("OnLeave", OnLeave)
-            button.RightLabel = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-            button.RightLabel:SetWordWrap(false)
-            button.RightLabel:SetJustifyH("RIGHT")
-            button.RightLabel:SetHeight(buildsButtonHeight)
-            button.RightLabel:SetPoint("RIGHT", -5, 0)
-            button.LeftLabel = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-            button.LeftLabel:SetWordWrap(false)
-            button.LeftLabel:SetJustifyH("LEFT")
-            button.LeftLabel:SetHeight(buildsButtonHeight)
-            button.LeftLabel:SetPoint("LEFT", 24 - 20, 0)
-            button.LeftLabel:SetPoint("RIGHT", button.RightLabel, "LEFT", -5, 0)
+            button:SetScript("OnShow", OnShow)
+            button:SetScript("OnHide", OnHide)
+            button.HeroTexture = button:CreateTexture(nil, "ARTWORK", nil, 2)
+            button.HeroTexture:SetSize(buildsButtonHeight - 10, buildsButtonHeight - 10)
+            button.HeroTexture:SetPoint("LEFT", button, "LEFT", 10, 0)
+            button.HeroTexturePlaceholder = util:CreateTextureFromIcon(button, ns.CUSTOM_ICONS.icons.RAIDERIO_COLOR_CIRCLE, "ARTWORK", 1)
+            button.HeroTexturePlaceholder:SetAllPoints(button.HeroTexture)
+            button.HeroTitle = button:CreateFontString(nil, "OVERLAY", "Game16Font")
+            button.HeroTitle:SetPoint("TOPLEFT", button.HeroTexture, "TOPRIGHT", 10, -8)
+            button.HeroTitle:SetJustifyH("LEFT")
+            button.HeroText = button:CreateFontString(nil, "OVERLAY", "Game16Font")
+            button.HeroText:SetPoint("BOTTOMLEFT", button.HeroTexture, "BOTTOMRIGHT", 10, 8)
+            button.HeroText:SetJustifyH("LEFT")
+            button.BuildTitle = button:CreateFontString(nil, "OVERLAY", "Game16Font")
+            button.BuildTitle:SetPoint("TOPLEFT", button.HeroTexture, "TOPRIGHT", 10 + 200, -8)
+            button.BuildTitle:SetJustifyH("LEFT")
+            button.BuildText = button:CreateFontString(nil, "OVERLAY", "Game16Font")
+            button.BuildText:SetPoint("BOTTOMLEFT", button.HeroTexture, "BOTTOMRIGHT", 10 + 200, 8)
+            button.BuildText:SetJustifyH("LEFT")
+            button.HeroTitle:SetPoint("TOPRIGHT", button.BuildTitle, "TOPLEFT", -10, 0)
+            button.HeroText:SetPoint("TOPRIGHT", button.BuildText, "TOPLEFT", -10, 0)
         end
         updateBuildButton(button)
     end
 
-    ---@param frame BuildsFrame
+    ---@param frame TalentBuildsFrame
     local function onLoad(frame)
-        ---@class BuildsFrame
+        ---@class TalentBuildsFrame
         local self = frame
         self:EnableMouse(true)
-        self:SetSize(545, 500)
+        self:SetSize(640, 480)
         self:SetPoint("CENTER", 0, 0)
-        self:SetFrameStrata("HIGH")
-        self:SetTitle(L.BUILDS_TITLE)
+        self:SetFrameStrata("DIALOG")
+        self:SetTitle(format("%s %s", L.RAIDERIO, L.BUILDS_TITLE))
         ButtonFrameTemplate_HidePortrait(self)
         if PanelDragBarMixin then
             self.TitleContainer:SetPoint("TOPLEFT", self, "TOPLEFT", 25, -1)
@@ -16094,80 +16618,54 @@ if IS_RETAIL then
         ---@type DropDownUtilDynamicMenuOption[]
         local instanceOptions = {
             {
-                text = "Raids", -- TODO
+                text = L.BUILDS_RAIDS,
                 unclickable = true,
             },
             {
-                text = "Imperator Averzin", -- TODO
+                text = L.BUILDS_RAIDS_ALL,
                 radiogroup = "instance",
                 radioselected = true,
                 arg1 = "raid",
-                arg2 = 1, -- TODO
-            },
-            {
-                text = "Vorasius", -- TODO
-                radiogroup = "instance",
-                arg1 = "raid",
-                arg2 = 2, -- TODO
-            },
-            {
-                text = "Fallen-King Salhadaar", -- TODO
-                radiogroup = "instance",
-                arg1 = "raid",
-                arg2 = 3, -- TODO
-            },
-            {
-                text = "Vaelgor & Ezzorak", -- TODO
-                radiogroup = "instance",
-                arg1 = "raid",
-                arg2 = 4, -- TODO
-            },
-            {
-                text = "Lightblinded Vanguard", -- TODO
-                radiogroup = "instance",
-                arg1 = "raid",
-                arg2 = 5, -- TODO
-            },
-            {
-                text = "Crown of the Cosmos", -- TODO
-                radiogroup = "instance",
-                arg1 = "raid",
-                arg2 = 6, -- TODO
-            },
-            {
-                text = "Chimaerus the Undreamt God",
-                radiogroup = "instance",
-                arg1 = "raid",
-                arg2 = 7, -- TODO
-            },
-            {
-                text = "Belo'ren, Child of Al'ar", -- TODO
-                radiogroup = "instance",
-                arg1 = "raid",
-                arg2 = 8, -- TODO
-            },
-            {
-                text = "Midnight Falls", -- TODO
-                radiogroup = "instance",
-                arg1 = "raid",
-                arg2 = 9, -- TODO
+                arg2 = "all",
+                arg3 = "all",
             },
         }
+        for _, raid in ipairs(relevantRaids) do
+            local encounters = relevantEncounters[raid.id]
+            if encounters then
+                for _, encounterID in ipairs(encounters) do
+                    local journalEncounterID = getJournalEncounterIDFromEncounterID(encounterID)
+                    instanceOptions[#instanceOptions + 1] = {
+                        text = EJ_GetEncounterInfo(journalEncounterID),
+                        radiogroup = "instance",
+                        arg1 = "raid",
+                        arg2 = raid.id,
+                        arg3 = encounterID,
+                    }
+                end
+            end
+        end
         instanceOptions[#instanceOptions + 1] = {
-            text = "Mythic+", -- TODO
+            text = L.BUILDS_DUNGEONS,
             unclickable = true,
         }
-        for _, dungeon in ipairs(util:GetSortedDungeons()) do
+        instanceOptions[#instanceOptions + 1] = {
+            text = L.BUILDS_DUNGEONS_ALL,
+            radiogroup = "instance",
+            arg1 = "dungeon",
+            arg2 = "all",
+        }
+        for _, dungeon in ipairs(relevantDungeons) do
             instanceOptions[#instanceOptions + 1] = {
-                text = format("%s (%s)", dungeon.shortNameLocale, dungeon.name), -- TODO
+                text = format("%s (%s)", dungeon.shortNameLocale, dungeon.name),
                 radiogroup = "instance",
                 arg1 = "dungeon",
-                arg2 = dungeon.index, -- TODO
+                arg2 = dungeon.id,
             }
         end
         self.InstanceMenu = DropDownUtil:CreateDynamicMenu(self, instanceOptions)
-        self.InstanceMenu:SetDefaultText("Select instance...") -- TODO
-        self.InstanceMenu:SetWidth(255 + 115)
+        self.InstanceMenu:SetDefaultText(L.BUILDS_SELECT_INSTANCE)
+        self.InstanceMenu:SetWidth(450)
         self.InstanceMenu:SetPoint("LEFT", self.TopTileStreaks, "LEFT", 10, 0)
         self.InstanceMenu:RegisterCallback(self.InstanceMenu.Event.OnUpdate, updateDifficultyMenuAndDataProvider, self.InstanceMenu)
         local function getSelectedInstance()
@@ -16181,58 +16679,41 @@ if IS_RETAIL then
             local selectedInstance = getSelectedInstance()
             return selectedInstance and selectedInstance.arg1 == "dungeon" and true or false
         end
-        self.DifficultyMenu = DropDownUtil:CreateDynamicMenu(self, {
-            {
-                text = "Normal", -- TODO
+        ---@type DropDownUtilDynamicMenuOption[]
+        local difficultyOptions = {}
+        local isFirstDefaultRadioSelected = false
+        for _, difficulty in ipairs(relevantEncounterDifficulties) do
+            difficultyOptions[#difficultyOptions + 1] = {
+                text = difficulty.text,
                 show = isSelectedInstanceRaid,
                 radiogroup = "raid",
-                radioselected = true,
-                arg1 = 1, -- TODO
-            },
-            {
-                text = "Heroic", -- TODO
-                show = isSelectedInstanceRaid,
-                radiogroup = "raid",
-                arg1 = 2, -- TODO
-            },
-            {
-                text = "Mythic", -- TODO
-                show = isSelectedInstanceRaid,
-                radiogroup = "raid",
-                arg1 = 3, -- TODO
-            },
-            {
-                text = "+2 to +9", -- TODO
+                arg1 = difficulty.key,
+            }
+            if not isFirstDefaultRadioSelected then
+                isFirstDefaultRadioSelected = true
+                difficultyOptions[#difficultyOptions].radioselected = true
+            end
+        end
+        isFirstDefaultRadioSelected = false
+        for _, bracket in ipairs(relevantDungeonBrackets) do
+            difficultyOptions[#difficultyOptions + 1] = {
+                text = bracket.text,
                 show = isSelectedInstanceDungeon,
                 radiogroup = "dungeon",
-                radioselected = true,
-                arg1 = 1, -- TODO
-            },
-            {
-                text = "+10 to +15", -- TODO
-                show = isSelectedInstanceDungeon,
-                radiogroup = "dungeon",
-                arg1 = 2, -- TODO
-            },
-            {
-                text = "+16 to +19", -- TODO
-                show = isSelectedInstanceDungeon,
-                radiogroup = "dungeon",
-                arg1 = 3, -- TODO
-            },
-            {
-                text = "+20 and above", -- TODO
-                show = isSelectedInstanceDungeon,
-                radiogroup = "dungeon",
-                arg1 = 4, -- TODO
-            },
-        })
-        self.DifficultyMenu:SetDefaultText("Difficulty") -- TODO
-        self.DifficultyMenu:SetWidth(140)
+                arg1 = bracket.key,
+            }
+            if not isFirstDefaultRadioSelected then
+                isFirstDefaultRadioSelected = true
+                difficultyOptions[#difficultyOptions].radioselected = true
+            end
+        end
+        self.DifficultyMenu = DropDownUtil:CreateDynamicMenu(self, difficultyOptions)
+        self.DifficultyMenu:SetDefaultText(L.BUILDS_SELECT_DIFFICULTY)
+        self.DifficultyMenu:SetWidth(150)
         self.DifficultyMenu:SetPoint("LEFT", self.InstanceMenu, "RIGHT", 10, 0)
         self.DifficultyMenu:RegisterCallback(self.DifficultyMenu.Event.OnUpdate, updateDifficultyMenuAndDataProvider, self.DifficultyMenu)
         local function closeFrame()
-            builds:HideBuildsFrame()
+            talentbuilds:HideFrame()
         end
         self.CloseButton:HookScript("OnClick", closeFrame)
         self.CancelButton = CreateFrame("Button", nil, self, "SharedButtonSmallTemplate")
@@ -16259,53 +16740,88 @@ if IS_RETAIL then
         if frame then
             return frame
         end
-        frame = CreateFrame("Frame", format("%s_BuildsFrame", addonName), UIParent, "ButtonFrameTemplate") ---@type BuildsFrame
+        frame = CreateFrame("Frame", format("%s_TalentBuildsFrame", addonName), UIParent, "ButtonFrameTemplate") ---@type TalentBuildsFrame
         frame:Hide()
         onLoad(frame)
         return frame
     end
 
-    function builds:IsBuildsFrameShown()
+    function talentbuilds:IsFrameShown()
         return frame and frame:IsShown()
     end
 
-    function builds:ShowBuildsFrame()
+    function talentbuilds:ShowFrame()
         if not frame then
             frame = getFrame()
         end
         frame:Show()
     end
 
-    function builds:HideBuildsFrame()
+    function talentbuilds:HideFrame()
         if frame then
             frame:Hide()
         end
     end
 
-    function builds:ToggleBuildsFrame()
-        if self:IsBuildsFrameShown() then
-            self:HideBuildsFrame()
+    function talentbuilds:ToggleFrame()
+        if self:IsFrameShown() then
+            self:HideFrame()
         else
-            self:ShowBuildsFrame()
+            self:ShowFrame()
         end
     end
 
+    function talentbuilds:HasBuilds()
+        return not dataProvider:IsEmpty()
+    end
+
     -- TODO
-    function builds:GetActiveBuild()
-        local activeBuildImportString = 1
+    function talentbuilds:GetActiveBuild()
+        local activeBuildImportString = "" -- TODO
         return dataProvider:FindElementDataByPredicate(function(elementData)
-            return elementData.index == activeBuildImportString
+            return elementData.recImportString == activeBuildImportString or elementData.defImportString == activeBuildImportString
         end)
     end
 
-    function builds:CanLoad()
+    function talentbuilds:CanLoad()
         return config:IsEnabled()
     end
 
-    function builds:OnLoad()
-        self:Enable()
+    local function OnPlayerSpecializationChange()
+        compileTalentBuilds()
         updateDataProvider()
-        self:ShowBuildsFrame() -- DEBUG
+    end
+
+    local onChangeHandler ---@type FunctionContainer?
+
+    local function OnPlayerSpecializationChangeDelayed()
+        if onChangeHandler then
+            onChangeHandler:Cancel()
+        end
+        onChangeHandler = C_Timer.NewTimer(0.2, OnPlayerSpecializationChange)
+    end
+
+    local SpecChangeEvents = {
+        "ACTIVE_PLAYER_SPECIALIZATION_CHANGED",
+        "ACTIVE_TALENT_GROUP_CHANGED",
+        "PLAYER_TALENT_UPDATE",
+    }
+
+    function talentbuilds:OnLoad()
+        self:Enable()
+        -- self:ShowFrame() -- DEBUG
+    end
+
+    function talentbuilds:OnEnable()
+        OnPlayerSpecializationChangeDelayed()
+        callback:RegisterUnitEvent(OnPlayerSpecializationChangeDelayed, "PLAYER_SPECIALIZATION_CHANGED", "player")
+        callback:RegisterEvent(OnPlayerSpecializationChangeDelayed, unpack(SpecChangeEvents))
+    end
+
+    function talentbuilds:OnDisable()
+        callback:UnregisterEvent(OnPlayerSpecializationChangeDelayed, "PLAYER_SPECIALIZATION_CHANGED")
+        callback:UnregisterEvent(OnPlayerSpecializationChangeDelayed, unpack(SpecChangeEvents))
+        self:HideFrame()
     end
 
 end
@@ -16322,7 +16838,7 @@ do
     local profile = ns:GetModule("Profile") ---@type ProfileModule
     local search = ns:GetModule("Search") ---@type SearchModule
     local settings = ns:GetModule("Settings") ---@type SettingsModule
-    local builds = ns:GetModule("Builds", true) ---@type BuildsModule?
+    local talentbuilds = ns:GetModule("TalentBuilds", true) ---@type TalentBuildsModule?
 
     local LDB = LibStub("LibDataBroker-1.1", true)
     local LDBI = LibStub("LibDBIcon-1.0", true)
@@ -16392,21 +16908,21 @@ do
     end
 
     local function ToggleBuildsFrame()
-        if not builds or not builds:IsEnabled() then
+        if not talentbuilds or not talentbuilds:IsEnabled() then
             return
         end
-        builds:ToggleBuildsFrame()
+        talentbuilds:ToggleFrame()
     end
 
     local function AreBuildsAvailable()
-        return builds and builds:IsEnabled() and true or false
+        return talentbuilds and talentbuilds:IsEnabled() and talentbuilds:HasBuilds() and true or false
     end
 
     local function GetActiveBuild()
         if not AreBuildsAvailable() then
             return
         end
-        return builds and builds:GetActiveBuild()
+        return talentbuilds and talentbuilds:GetActiveBuild()
     end
 
     local function HasActiveBuild()
@@ -16419,7 +16935,8 @@ do
         if not build then
             return
         end
-        print(build.index, build.left, build.right)
+        print(build.recImportString) -- TODO
+        print(build.defImportString) -- TODO
     end
 
     ---@param frame Frame
@@ -16485,7 +17002,7 @@ do
                         unclickable = true,
                     },
                     {
-                        text = "SEAT +22 (Auto)", -- TODO
+                        text = "SEAT +99 (Recommended)", -- TODO
                         show = HasActiveBuild,
                         unclickable = true,
                     },
@@ -16582,7 +17099,7 @@ do
     end
 
     function shortcuts:CanLoad()
-        return config:IsEnabled() and profile:IsEnabled() and search:IsEnabled() and settings:IsEnabled() and (not builds or builds:IsEnabled())
+        return config:IsEnabled() and profile:IsEnabled() and search:IsEnabled() and settings:IsEnabled() and (not talentbuilds or talentbuilds:IsEnabled())
     end
 
     function shortcuts:OnLoad()
