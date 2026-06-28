@@ -16772,7 +16772,7 @@ if IS_RETAIL then
     end
 
     function talentbuilds:HasBuilds()
-        return not dataProvider:IsEmpty()
+        return compiledPlayerProfile and #compiledPlayerProfile.builds > 0
     end
 
     -- TODO
