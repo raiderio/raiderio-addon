@@ -15642,9 +15642,6 @@ if IS_RETAIL then
 
         self.ScrollBox:SetDataProvider(dataProvider)
 
-        self.ScrollBox:RegisterEvent("TRAIT_NODE_CHANGED")
-        self.ScrollBox:RegisterEvent("TRAIT_TREE_CURRENCY_INFO_UPDATED")
-
         local function forceUpdate()
             self.ScrollBox:ForEachFrame(updateBuildButton)
         end
@@ -15658,7 +15655,17 @@ if IS_RETAIL then
             onChangeHandler = C_Timer.NewTimer(0.5, forceUpdate)
         end
 
-        self.ScrollBox:HookScript("OnEvent", function(_, event)
+        self:HookScript("OnShow", function()
+            self:RegisterEvent("TRAIT_NODE_CHANGED")
+            self:RegisterEvent("TRAIT_TREE_CURRENCY_INFO_UPDATED")
+        end)
+
+        self:HookScript("OnHide", function()
+            self:UnregisterEvent("TRAIT_NODE_CHANGED")
+            self:UnregisterEvent("TRAIT_TREE_CURRENCY_INFO_UPDATED")
+        end)
+
+        self:HookScript("OnEvent", function(_, event)
             if event == "TRAIT_NODE_CHANGED" or event == "TRAIT_TREE_CURRENCY_INFO_UPDATED" then
                 forceUpdateDelayed()
             end
