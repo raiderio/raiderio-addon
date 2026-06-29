@@ -15656,6 +15656,7 @@ if IS_RETAIL then
         end
 
         self:HookScript("OnShow", function()
+            forceUpdateDelayed()
             self:RegisterEvent("TRAIT_NODE_CHANGED")
             self:RegisterEvent("TRAIT_TREE_CURRENCY_INFO_UPDATED")
         end)
