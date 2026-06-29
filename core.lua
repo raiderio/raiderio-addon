@@ -513,7 +513,7 @@ local DropDownUtil do
     ---@field public func? fun(option: DropDownUtilDynamicMenuOption)
     ---@field public show? boolean | fun(option: DropDownUtilDynamicMenuOption): boolean?
     ---@field public separator? boolean
-    ---@field public unclickable? boolean
+    ---@field public unclickable? boolean | fun(option: DropDownUtilDynamicMenuOption): boolean?
     ---@field public checkable? boolean
     ---@field public checked? boolean
     ---@field public radiogroup? string
@@ -564,8 +564,12 @@ local DropDownUtil do
                         if option.separator then
                             rootDescription:CreateDivider()
                         else
+                            local unclickable = option.unclickable
+                            if type(unclickable) == "function" then
+                                unclickable = unclickable(option)
+                            end
                             local text = GetDynamicMenuOptionText(option)
-                            if option.unclickable then
+                            if unclickable then
                                 text = format("|cffFFFFFF%s|r", text)
                                 rootDescription:CreateTitle(text)
                             elseif option.checkable then
@@ -639,7 +643,11 @@ local DropDownUtil do
                         else
                             info.text = GetDynamicMenuOptionText(option)
                         end
-                        info.notClickable = option.separator or option.unclickable
+                        local unclickable = option.unclickable
+                        if type(unclickable) == "function" then
+                            unclickable = unclickable(option)
+                        end
+                        info.notClickable = option.separator or unclickable
                         info.notCheckable = true
                         info.disabled = false
                         UIDropDownMenu_AddButton(info, level)
@@ -13854,6 +13862,8 @@ if IS_RETAIL then
     ---@field public HasScrollableExtent fun(self: WowScrollBoxListPolyfill): boolean
     ---@field public ScrollToEnd fun(self: WowScrollBoxListPolyfill)
     ---@field public SetDataProvider fun(self: WowScrollBoxListPolyfill, dataProvider: any)
+    ---@field public ForEachFrame fun(self: WowScrollBoxListPolyfill, func: fun(frame: Frame))
+    ---@field public Update fun(self: WowScrollBoxListPolyfill, forceLayout?: boolean)
 
     ---@class WowTrimScrollBarPolyfill : Frame
     ---@field public OnLoad fun(self: WowTrimScrollBarPolyfill)
@@ -15201,6 +15211,11 @@ if IS_RETAIL then
         button.HeroText:SetFormattedText("|cff999999%s|r", getHeroTitleText(build))
         button.BuildTitle:SetText(getBuildTitleText(build))
         button.BuildText:SetFormattedText("|cff999999%s|r", getBuildStatsText(build))
+        if talentbuilds:IsBuildActiveAsLoadout(build) then
+            button.ActionMenuToggle.Icon:SetVertexColor(0, 1, 0)
+        else
+            button.ActionMenuToggle.Icon:SetVertexColor(1, 1, 1)
+        end
     end
 
     local buildsButtonHeight = 50
@@ -15297,32 +15312,71 @@ if IS_RETAIL then
         button.HeroTitle = button:CreateFontString(nil, "OVERLAY", "System15Font")
         button.HeroTitle:SetPoint("TOPLEFT", button.HeroTexture, "TOPRIGHT", buildsButtonSharedPaddingX, -buildsButtonTextOffsetY)
         button.HeroTitle:SetJustifyH("LEFT")
+        button.HeroTitle:SetWordWrap(false)
+        button.HeroTitle:SetMaxLines(1)
         button.HeroText = button:CreateFontString(nil, "OVERLAY", "System15Font")
         button.HeroText:SetPoint("BOTTOMLEFT", button.HeroTexture, "BOTTOMRIGHT", buildsButtonSharedPaddingX, buildsButtonTextOffsetY)
         button.HeroText:SetJustifyH("LEFT")
+        button.HeroText:SetWordWrap(false)
+        button.HeroText:SetMaxLines(1)
         button.BuildTitle = button:CreateFontString(nil, "OVERLAY", "System15Font")
         button.BuildTitle:SetPoint("TOPLEFT", button.HeroTexture, "TOPRIGHT", buildsButtonSharedPaddingX + buildsButtonSecondColumnOffsetX, -buildsButtonTextOffsetY)
         button.BuildTitle:SetJustifyH("LEFT")
+        button.BuildTitle:SetWordWrap(false)
+        button.BuildTitle:SetMaxLines(1)
         button.BuildText = button:CreateFontString(nil, "OVERLAY", "System15Font")
         button.BuildText:SetPoint("BOTTOMLEFT", button.HeroTexture, "BOTTOMRIGHT", buildsButtonSharedPaddingX + buildsButtonSecondColumnOffsetX, buildsButtonTextOffsetY)
         button.BuildText:SetJustifyH("LEFT")
+        button.BuildText:SetWordWrap(false)
+        button.BuildText:SetMaxLines(1)
         button.HeroTitle:SetPoint("TOPRIGHT", button.BuildTitle, "TOPLEFT", -buildsButtonSharedPaddingX, 0)
         button.HeroText:SetPoint("TOPRIGHT", button.BuildText, "TOPLEFT", -buildsButtonSharedPaddingX, 0)
         util:SetupAutoScalingFontString(button.HeroTitle, button.HeroText, button.BuildTitle, button.BuildText)
         button.ActionMenu = DropDownUtil:CreateDynamicMenu(button, {
             {
-                text = L.BUILDS_PROFILE_LOAD_LOADOUT_ACTION_TITLE,
-                func = function() talentbuilds:LoadBuild(build) end,
+                show = function(option) option.arg1 = talentbuilds:IsBuildActiveAsLoadout(button.elementData) return option.arg1 end,
+                icon = "|A:perks-owned-small:15:17:2:0|a ",
+                text = L.BUILDS_PROFILE_ACTIVE_LOADOUT_TITLE,
+                unclickable = true,
+            },
+            {
+                show = function(option) option.arg1 = talentbuilds:IsBuildActiveAsLoadout(button.elementData) return true end,
+                text = function(option) return format("|cff%s%s|r", option.arg1 and "999999" or "ffffff", L.BUILDS_PROFILE_LOAD_LOADOUT_ACTION_TITLE) end,
+                func = function()
+                    talentbuilds:LoadBuild(
+                        button.elementData,
+                        function(success, errorText)
+                            -- if success then
+                            -- TODO: play an animation on the `button` to indicate this has loaded
+                            -- end
+                            if errorText then
+                                print(format("|cffFFFF55%s:|r %s", L.RAIDERIO, errorText))
+                            end
+                            return true
+                        end
+                    )
+                end,
+                unclickable = function(option) return option.arg1 end,
             },
             {
                 text = L.BUILDS_PROFILE_COPY_LOADOUT_ACTION_TITLE,
-                func = function() talentbuilds:ExportBuild(build) end,
+                func = function() talentbuilds:ExportBuild(button.elementData) end,
             },
             {
-                text = L.BUILDS_PROFILE_COPY_COMPARELINK_ACTION_TITLE,
-                func = function() talentbuilds:CopyCompareLink(build) end,
+                text = L.BUILDS_PROFILE_COPY_LOADOUT_LINK_ACTION_TITLE,
+                func = function() talentbuilds:CopyBuildLink(button.elementData) end,
+            },
+            {
+                show = function(option) option.arg1 = talentbuilds:IsBuildActiveAsLoadout(button.elementData) return true end,
+                text = function(option) return format("|cff%s%s|r", option.arg1 and "999999" or "ffffff", L.BUILDS_PROFILE_COPY_COMPARELINK_ACTION_TITLE) end,
+                func = function() talentbuilds:CopyCompareLink(button.elementData) end,
+                unclickable = function(option) return option.arg1 end,
             },
         })
+        ---@class TalentBuildsDataProviderBuildButtonActionMenuToggle
+        ---@field public OnLoad fun(self: TalentBuildsDataProviderBuildButtonActionMenuToggle)
+        ---@field public Icon Texture
+        ---@class TalentBuildsDataProviderBuildButtonActionMenuToggle : Button
         button.ActionMenuToggle = CreateFrame("Button", nil, button, "SquareIconButtonTemplate")
         button.ActionMenuToggle.iconAtlas = "common-dropdown-icon-next"
         button.ActionMenuToggle.useIconAsHighlight = true
@@ -15487,6 +15541,23 @@ if IS_RETAIL then
         view:SetPadding(pad, pad, pad, pad, spacing)
         ScrollUtil.InitScrollBoxListWithScrollBar(self.ScrollBox, self.ScrollBar, view)
         self.ScrollBox:SetDataProvider(dataProvider)
+        self.ScrollBox:RegisterEvent("TRAIT_NODE_CHANGED")
+        self.ScrollBox:RegisterEvent("TRAIT_TREE_CURRENCY_INFO_UPDATED")
+        local function forceUpdate()
+            self.ScrollBox:ForEachFrame(updateBuildButton)
+        end
+        local onChangeHandler ---@type FunctionContainer?
+        local function forceUpdateDelayed()
+            if onChangeHandler then
+                onChangeHandler:Cancel()
+            end
+            onChangeHandler = C_Timer.NewTimer(0.5, forceUpdate)
+        end
+        self.ScrollBox:HookScript("OnEvent", function(_, event)
+            if event == "TRAIT_NODE_CHANGED" or event == "TRAIT_TREE_CURRENCY_INFO_UPDATED" then
+                forceUpdateDelayed()
+            end
+        end)
     end
 
     local function getFrame()
@@ -15529,8 +15600,37 @@ if IS_RETAIL then
     end
 
     ---@param build TalentBuildsCompiledProfileBuild
+    ---@param importString string
+    ---@param strictStringCompare? boolean Default is to consider the build matched if the `suffixImportString` parts are identical, otherwise the entire `importString` will be compared.
+    ---@return boolean equal, boolean strictEqual
+    function talentbuilds:IsBuildAndImportStringEqual(build, importString, strictStringCompare)
+        if build.importString == importString then
+            return true, true
+        end
+        if not strictStringCompare and build.suffixImportString == importString:sub(build.prefixImportString:len() + 1) then
+            return true, false
+        end
+        return false, false
+    end
+
+    ---@param build TalentBuildsCompiledProfileBuild
+    function talentbuilds:IsBuildActiveAsLoadout(build)
+        local importString = classTalentImportExport:ExportLoadout()
+        if not importString then
+            return
+        end
+        return (talentbuilds:IsBuildAndImportStringEqual(build, importString))
+    end
+
+    ---@param build TalentBuildsCompiledProfileBuild
     ---@param callback? fun(success: boolean, errorText?: string): boolean?
     function talentbuilds:LoadBuild(build, callback)
+        if talentbuilds:IsBuildActiveAsLoadout(build) then
+            if callback then
+                callback(true)
+            end
+            return
+        end
         local accepted, errorText = classTalentImportExport:ImportLoadout(
             build.importString,
             function(success)
@@ -15559,6 +15659,11 @@ if IS_RETAIL then
     ---@param build TalentBuildsCompiledProfileBuild
     function talentbuilds:ExportBuild(build)
         util:ShowCopyRaiderIOPopup(L.BUILDS_PROFILE_COPY_LOADOUT_POPUP_TITLE, build.importString)
+    end
+
+    ---@param build TalentBuildsCompiledProfileBuild
+    function talentbuilds:CopyBuildLink(build)
+        util:ShowCopyRaiderIOTalentLoadoutPopup(L.BUILDS_PROFILE_COPY_LOADOUT_LINK_POPUP_TITLE, build.importString)
     end
 
     ---@param build TalentBuildsCompiledProfileBuild
@@ -15592,7 +15697,7 @@ if IS_RETAIL then
             builds[i] = build
         end
         for _, build in ipairs(checkBuilds) do
-            if build.importString == importString or (not strictStringCompare and build.suffixImportString == importString:sub(build.prefixImportString:len() + 1)) then
+            if talentbuilds:IsBuildAndImportStringEqual(build, importString, strictStringCompare) then
                 append(build)
             end
             if resultLimit and i >= resultLimit then
@@ -17351,7 +17456,7 @@ do
         if not importString then
             return
         end
-        local title = GetCurrentSpecAndClassName() or L.BUILDS_PROFILE_EXPORT_ACTION_TITLE
+        local title = GetCurrentSpecAndClassName() or L.BUILDS_PROFILE_COPY_LOADOUT_LINK_POPUP_TITLE
         local icon = GetCurrentSpecIcon()
         title = icon and format("%s%s", icon, title) or title
         util:ShowCopyRaiderIOTalentLoadoutPopup(title, importString)
