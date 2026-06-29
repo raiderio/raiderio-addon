@@ -15358,6 +15358,7 @@ if IS_RETAIL then
         button.SetBackdropFocus = buildsButtonSetBackdropFocus
         button.ClearBackdropFocus = buildsButtonClearBackdropFocus
         button.UpdateBackdropFocus = buildsButtonUpdateBackdropFocus
+        button:ClearBackdropFocus()
 
         button:SetScript("OnEnter", buildsButtonOnEnter)
         button:SetScript("OnLeave", buildsButtonOnLeave)
