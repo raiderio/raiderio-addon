@@ -4053,31 +4053,39 @@ if IS_RETAIL then
         if not expectedSpecID then
             expectedSpecID = util:GetSpecialization()
         end
+
         if not expectedSpecID then
             return nil, "Missing player spec ID."
         end
+
         local activeConfigID = configID or C_ClassTalents.GetActiveConfigID()
         if not activeConfigID then
             return nil, "Missing active config ID."
         end
+
         ---@type boolean, ImportDataStreamPolyfill?
         local success, importStream = pcall(ExportUtil.MakeImportDataStream, importString)
         if not success or not importStream then
             return nil, "Unable to unpack import string."
         end
+
         if not EnsureClassTalentImportExport() then
             return nil, "Unable to load ClassTalentImportExportMixin."
         end
+
         local headerValid, serializationVersion, specID, treeHash = ClassTalentImportExport:ReadLoadoutHeader(importStream)
         if not headerValid then
             return nil, "Invalid import string."
         end
+
         if serializationVersion ~= C_Traits.GetLoadoutSerializationVersion() then
             return nil, "Invalid serialization version."
         end
+
         if specID ~= expectedSpecID then
             return nil, format("Invalid active spec ID. Found %s but expected %s.", tostringall(specID, expectedSpecID))
         end
+
         local loadoutContent = ClassTalentImportExport:ReadLoadoutContent(importStream, treeID)
         return ClassTalentImportExport:ConvertToImportLoadoutEntryInfo(activeConfigID, treeID, loadoutContent)
     end
@@ -4092,7 +4100,9 @@ if IS_RETAIL then
     local function ApplyLoadout(configID, treeID, loadoutEntryInfos, callback)
         globalUniqueApplyLoadoutID = globalUniqueApplyLoadoutID + 1
         local currentUniqueApplyLoadoutID = globalUniqueApplyLoadoutID
+
         C_Traits.ResetTree(configID, treeID)
+
         local sortedNodes = C_Traits.GetTreeNodes(treeID)
         table.sort(sortedNodes, function(a, b)
             local x = C_Traits.GetNodeInfo(configID, a)
@@ -4102,21 +4112,29 @@ if IS_RETAIL then
             end
             return x.posY < y.posY
         end)
+
         local i = 0
         local numSortedNodes = #sortedNodes
         local successProgress = 0
+
         local function next()
+
             if currentUniqueApplyLoadoutID ~= globalUniqueApplyLoadoutID then
                 return
             end
+
             local processed = 0
             while processed < maxIterationsPerCycle and i <= numSortedNodes do
+
                 i = i + 1
                 processed = processed + 1
+
                 local nodeID = sortedNodes[i]
                 local loadoutEntryInfo, loadoutEntryInfoIndex = util:TableFind(loadoutEntryInfos, function(loadoutEntryInfo) return loadoutEntryInfo.nodeID == nodeID end)
+
                 if loadoutEntryInfo and loadoutEntryInfoIndex then
-                    local success = false
+                    local success = not loadoutEntryInfo.ranksPurchased
+
                     if loadoutEntryInfo.ranksPurchased then
                         local nodeInfo = C_Traits.GetNodeInfo(configID, nodeID)
                         if nodeInfo.type == Enum.TraitNodeType.Selection or nodeInfo.type == Enum.TraitNodeType.SubTreeSelection then
@@ -4132,16 +4150,19 @@ if IS_RETAIL then
                             if numPendingRanks == 0 then
                                 success = true
                             end
+                        else
+                            success = false
                         end
-                    else
-                        success = true
                     end
+
                     if success then
                         successProgress = successProgress + 1
                         table.remove(loadoutEntryInfos, loadoutEntryInfoIndex)
                     end
                 end
+
             end
+
             local pending = i <= numSortedNodes or successProgress > 0
             if pending then
                 if successProgress > 0 then
@@ -4152,7 +4173,9 @@ if IS_RETAIL then
             elseif callback then
                 callback(#loadoutEntryInfos == 0)
             end
+
         end
+
         next()
     end
 
@@ -4177,22 +4200,35 @@ if IS_RETAIL then
         if not canChange then
             return nil, changeError or "Can't change talents."
         end
+
+        -- TODO: we need to add support for various strategies
+        -- - importing a loadout by a name
+        --   - updating the existing config by that name
+        --     - run the code as this function does, where it updates the choices to match the import string choices
+        --     - afterward we have to save the config (so it isn't just in pending approval state) this saves and makes the user spec into the loadout
+        --   - creating a new config by that name
+        --     - this can use the other API to make a new profile with the name, import string, and apply it all in the same action (I hope)
+
         local configID = C_ClassTalents.GetActiveConfigID()
         if not configID then
             return nil, "Missing active talent config."
         end
+
         local treeID = util:GetSpecializationTreeID(configID)
         if not treeID then
             return nil, "Missing tree ID."
         end
+
         local specID = util:GetSpecialization()
         local loadoutEntryInfos, errorText = UnpackImportString(importString, treeID, specID, configID)
         if not loadoutEntryInfos or errorText then
             return nil, errorText or "Can't import build."
         end
+
         -- HOTFIX: the tier nodes and the math we perform later on the "ranksPurchased" value won't work, unless we flatten these tier-nodes into one node
         -- since we just spam click to apply the points on the node, and the tier-node must be clicked to unlock the later ranks, they all share the same nodeID
         loadoutEntryInfos = FlattenTierLoadoutEntryInfos(loadoutEntryInfos)
+
         ApplyLoadout(configID, treeID, loadoutEntryInfos, callback)
         return true
     end
@@ -4203,14 +4239,18 @@ if IS_RETAIL then
         if not EnsureClassTalentImportExport() then
             return
         end
+
         if not configID then
             configID = C_ClassTalents.GetActiveConfigID()
         end
+
         if not configID then
             return
         end
+
         ClassTalentImportExport:SetConfigID(configID, true)
         ClassTalentImportExport:UpdateTreeInfo(true)
+
         return ClassTalentImportExport:GetLoadoutExportString()
     end
 
@@ -14900,18 +14940,23 @@ if IS_RETAIL then
 
     local function compileTalentBuilds()
         compiledPlayerProfile = nil
+
         local playerSpecID = util:GetSpecialization()
         if not playerSpecID then
             return
         end
+
         for specId, specData in pairs(talentBuilds.specs) do
             local specID = tonumber(specId)
+
             if specID and specID == playerSpecID then
+
                 ---@type TalentBuildsCompiledProfile
                 local profile = {
                     specID = specID,
                     builds = {},
                 }
+
                 ---@param buildType "raid"|"dungeon"
                 ---@param difficultyKey TalentBuildsRaidDifficultyKey|TalentBuildsDungeonDifficultyKey
                 ---@param instanceID number
@@ -14962,6 +15007,7 @@ if IS_RETAIL then
                     end
                     profile.builds[#profile.builds + 1] = build
                 end
+
                 ---@param buildType "raid"|"dungeon"
                 ---@param difficultyKey TalentBuildsRaidDifficultyKey|TalentBuildsDungeonDifficultyKey
                 ---@param instanceID number
@@ -14974,6 +15020,7 @@ if IS_RETAIL then
                         appendBuild(buildType, difficultyKey, instanceID, encounterID, heroID, popPctl, heroCount, defBuildIndex, defBuildRuns, defScore, false)
                     end
                 end
+
                 for raidKey, data in pairs(specData.raid) do
                     local raidID = tonumber(raidKey)
                     if raidID then
@@ -14987,6 +15034,7 @@ if IS_RETAIL then
                         end
                     end
                 end
+
                 local dungeonKeys = util:TableKeys(specData.mplus)
                 for _, dungeonKey in pairs(dungeonKeys) do
                     local dungeonID = dungeonKey == "all" and "all" or tonumber(dungeonKey) or nil
@@ -14997,8 +15045,10 @@ if IS_RETAIL then
                         end
                     end
                 end
+
                 compiledPlayerProfile = profile
                 break
+
             end
         end
     end
@@ -15096,6 +15146,7 @@ if IS_RETAIL then
     ---@type DataProviderPolyfill<TalentBuildsDataProviderBuildElementData>
     local dataProvider = CreateDataProvider()
 
+    -- controls how the builds are sorted
     dataProvider:SetSortComparator(function(a, b)
         local aAll = (a.encounterID == "all" and 1 or 0) or (a.dungeonID == "all" and 1 or 0)
         local bAll = (b.encounterID == "all" and 1 or 0) or (b.dungeonID == "all" and 1 or 0)
@@ -15125,13 +15176,16 @@ if IS_RETAIL then
 
     local function updateDataProvider()
         dataProvider:Flush()
+
         if not compiledPlayerProfile or not currentInstance or not currentDifficulty then
             return
         end
+
         local instanceType = currentInstance.arg1 ---@type "raid"|"dungeon"
         local instanceID = currentInstance.arg2 ---@type "all"|number
         local encounterID = currentInstance.arg3 ---@type "all"|number
         local difficulty = currentDifficulty.arg1 ---@type "all"|string
+
         local relevantBuilds = util:TableFilter(
             compiledPlayerProfile.builds,
             function(build)
@@ -15144,6 +15198,7 @@ if IS_RETAIL then
                 return false
             end
         )
+
         dataProvider:InsertTable(relevantBuilds)
     end
 
@@ -15283,55 +15338,68 @@ if IS_RETAIL then
     ---@param button TalentBuildsDataProviderBuildButton
     ---@param build TalentBuildsDataProviderBuildElementData
     local function createBuild(button, build)
+
         ---@class TalentBuildsDataProviderBuildButton
         local button = button
         button.elementData = build
+
         if button.isInit then
             updateBuildButton(button)
             return
         end
+
         button.isInit = true
         button:SetHeight(buildsButtonHeight)
+
         Mixin(button, BackdropTemplateMixin)
         button:OnBackdropLoaded()
         button:SetBackdrop(buildsButtonBackdrop)
-        button:SetBackdropColor(0, 0, 0, 0.67)
-        button:SetBackdropBorderColor(1, 1, 1, 0)
+
         button.SetBackdropFocus = buildsButtonSetBackdropFocus
         button.ClearBackdropFocus = buildsButtonClearBackdropFocus
         button.UpdateBackdropFocus = buildsButtonUpdateBackdropFocus
+
         button:SetScript("OnEnter", buildsButtonOnEnter)
         button:SetScript("OnLeave", buildsButtonOnLeave)
         button:SetScript("OnShow", buildsButtonOnShow)
         button:SetScript("OnHide", buildsButtonOnHide)
+
         button.HeroTexture = button:CreateTexture(nil, "ARTWORK", nil, 2)
         button.HeroTexture:SetSize(buildsButtonHeight - buildsButtonSharedPaddingX, buildsButtonHeight - buildsButtonSharedPaddingY)
         button.HeroTexture:SetPoint("LEFT", button, "LEFT", buildsButtonSharedPaddingX, 0)
+
         button.HeroTexturePlaceholder = util:CreateTextureFromIcon(button, ns.CUSTOM_ICONS.icons.RAIDERIO_COLOR_CIRCLE, "ARTWORK", 1)
         button.HeroTexturePlaceholder:SetAllPoints(button.HeroTexture)
+
         button.HeroTitle = button:CreateFontString(nil, "OVERLAY", "System15Font")
         button.HeroTitle:SetPoint("TOPLEFT", button.HeroTexture, "TOPRIGHT", buildsButtonSharedPaddingX, -buildsButtonTextOffsetY)
         button.HeroTitle:SetJustifyH("LEFT")
         button.HeroTitle:SetWordWrap(false)
         button.HeroTitle:SetMaxLines(1)
+
         button.HeroText = button:CreateFontString(nil, "OVERLAY", "System15Font")
         button.HeroText:SetPoint("BOTTOMLEFT", button.HeroTexture, "BOTTOMRIGHT", buildsButtonSharedPaddingX, buildsButtonTextOffsetY)
         button.HeroText:SetJustifyH("LEFT")
         button.HeroText:SetWordWrap(false)
         button.HeroText:SetMaxLines(1)
+
         button.BuildTitle = button:CreateFontString(nil, "OVERLAY", "System15Font")
         button.BuildTitle:SetPoint("TOPLEFT", button.HeroTexture, "TOPRIGHT", buildsButtonSharedPaddingX + buildsButtonSecondColumnOffsetX, -buildsButtonTextOffsetY)
         button.BuildTitle:SetJustifyH("LEFT")
         button.BuildTitle:SetWordWrap(false)
         button.BuildTitle:SetMaxLines(1)
+
         button.BuildText = button:CreateFontString(nil, "OVERLAY", "System15Font")
         button.BuildText:SetPoint("BOTTOMLEFT", button.HeroTexture, "BOTTOMRIGHT", buildsButtonSharedPaddingX + buildsButtonSecondColumnOffsetX, buildsButtonTextOffsetY)
         button.BuildText:SetJustifyH("LEFT")
         button.BuildText:SetWordWrap(false)
         button.BuildText:SetMaxLines(1)
+
         button.HeroTitle:SetPoint("TOPRIGHT", button.BuildTitle, "TOPLEFT", -buildsButtonSharedPaddingX, 0)
         button.HeroText:SetPoint("TOPRIGHT", button.BuildText, "TOPLEFT", -buildsButtonSharedPaddingX, 0)
+
         util:SetupAutoScalingFontString(button.HeroTitle, button.HeroText, button.BuildTitle, button.BuildText)
+
         button.ActionMenu = DropDownUtil:CreateDynamicMenu(button, {
             {
                 show = function(option) option.arg1 = talentbuilds:IsBuildActiveAsLoadout(button.elementData) return option.arg1 end,
@@ -15373,9 +15441,11 @@ if IS_RETAIL then
                 unclickable = function(option) return option.arg1 end,
             },
         })
+
         ---@class TalentBuildsDataProviderBuildButtonActionMenuToggle
         ---@field public OnLoad fun(self: TalentBuildsDataProviderBuildButtonActionMenuToggle)
         ---@field public Icon Texture
+
         ---@class TalentBuildsDataProviderBuildButtonActionMenuToggle : Button
         button.ActionMenuToggle = CreateFrame("Button", nil, button, "SquareIconButtonTemplate")
         button.ActionMenuToggle.iconAtlas = "common-dropdown-icon-next"
@@ -15391,38 +15461,49 @@ if IS_RETAIL then
         button.ActionMenuToggle:SetMouseClickEnabled(true)
         button.ActionMenuToggle:RegisterForClicks("LeftButtonUp")
         button.ActionMenuToggle:SetScript("OnClick", function() buildsButtonActionMenuToggle(button) end)
+
         button.BuildTitle:SetPoint("BOTTOMRIGHT", button.ActionMenuToggle, "LEFT", -buildsButtonSharedPaddingX, 0)
         button.BuildText:SetPoint("TOPRIGHT", button.ActionMenuToggle, "LEFT", -buildsButtonSharedPaddingX, 0)
+
         local function updateBackdropFocus()
             button:UpdateBackdropFocus()
         end
+
         button.ActionMenuToggle:SetScript("OnEnter", updateBackdropFocus)
         button.ActionMenuToggle:SetScript("OnLeave", updateBackdropFocus)
         button.ActionMenu:RegisterCallback(button.ActionMenu.Event.OnMenuClose, updateBackdropFocus, button.ActionMenu)
+
         updateBuildButton(button)
     end
 
     ---@param frame TalentBuildsFrame
     local function onLoad(frame)
+
         ---@class TalentBuildsFrame
         local self = frame
+
         self:EnableMouse(true)
         self:SetToplevel(true)
         self:SetMovable(true)
         self:SetClampedToScreen(true)
+
         local frameWidth, frameHeight = 640, 20 + 43 + (buildsButtonHeight * 8) + 22
         self:SetSize(frameWidth, frameHeight)
         self:SetPoint("CENTER", 0, 0)
         self:SetFrameStrata("HIGH")
+
         self:SetTitle(format("%s %s", L.RAIDERIO, L.BUILDS_TITLE))
         ButtonFrameTemplate_HidePortrait(self)
+
         self:RegisterForDrag("LeftButton")
         self:HookScript("OnDragStart", function() self:StartMoving() end)
         self:HookScript("OnDragStop", function() self:StopMovingOrSizing() end)
         self:SetResizable(true)
+
         self.ResizeButton = CreateFrame("Button", "$parent_ResizeButton", self, "PanelResizeButtonTemplate")
         self.ResizeButton:SetPoint("BOTTOMRIGHT", -4, 4)
         self.ResizeButton:Init(self, frameWidth, frameHeight, frameWidth, frameHeight*2)
+
         ---@type DropDownUtilDynamicMenuOption[]
         local instanceOptions = {
             {
@@ -15438,6 +15519,7 @@ if IS_RETAIL then
                 arg3 = "all",
             },
         }
+
         for _, raid in ipairs(relevantRaids) do
             local encounters = relevantEncounters[raid.id]
             if encounters then
@@ -15455,16 +15537,19 @@ if IS_RETAIL then
                 end
             end
         end
+
         instanceOptions[#instanceOptions + 1] = {
             text = L.BUILDS_DUNGEONS,
             unclickable = true,
         }
+
         instanceOptions[#instanceOptions + 1] = {
             text = L.BUILDS_DUNGEONS_ALL,
             radiogroup = "instance",
             arg1 = "dungeon",
             arg2 = "all",
         }
+
         for _, dungeon in ipairs(relevantDungeons) do
             local name = format("%s (%s)", dungeon.shortNameLocale, dungeon.name)
             local journalInstanceID = C_EncounterJournal.GetInstanceForGameMap(dungeon.instance_map_ids[1])
@@ -15476,24 +15561,30 @@ if IS_RETAIL then
                 arg2 = dungeon.id,
             }
         end
+
         self.InstanceMenu = DropDownUtil:CreateDynamicMenu(self, instanceOptions)
         self.InstanceMenu:SetDefaultText(L.BUILDS_SELECT_INSTANCE)
         self.InstanceMenu:SetWidth(450)
         self.InstanceMenu:SetPoint("LEFT", self.TopTileStreaks, "LEFT", 10, 0)
         self.InstanceMenu:RegisterCallback(self.InstanceMenu.Event.OnUpdate, updateDifficultyMenuAndDataProvider, self.InstanceMenu)
+
         local function getSelectedInstance()
             return self.InstanceMenu:DynamicMenuCollectSelectionOptions()[1]
         end
+
         local function isSelectedInstanceRaid()
             local selectedInstance = getSelectedInstance()
             return selectedInstance and selectedInstance.arg1 == "raid" and true or false
         end
+
         local function isSelectedInstanceDungeon()
             local selectedInstance = getSelectedInstance()
             return selectedInstance and selectedInstance.arg1 == "dungeon" and true or false
         end
+
         ---@type DropDownUtilDynamicMenuOption[]
         local difficultyOptions = {}
+
         local isFirstDefaultRadioSelected = false
         for _, difficulty in ipairs(relevantEncounterDifficulties) do
             difficultyOptions[#difficultyOptions + 1] = {
@@ -15507,6 +15598,7 @@ if IS_RETAIL then
                 difficultyOptions[#difficultyOptions].radioselected = true
             end
         end
+
         isFirstDefaultRadioSelected = false
         for _, bracket in ipairs(relevantDungeonBrackets) do
             difficultyOptions[#difficultyOptions + 1] = {
@@ -15520,44 +15612,58 @@ if IS_RETAIL then
                 difficultyOptions[#difficultyOptions].radioselected = true
             end
         end
+
         self.DifficultyMenu = DropDownUtil:CreateDynamicMenu(self, difficultyOptions)
         self.DifficultyMenu:SetDefaultText(L.BUILDS_SELECT_DIFFICULTY)
         self.DifficultyMenu:SetWidth(150)
         self.DifficultyMenu:SetPoint("LEFT", self.InstanceMenu, "RIGHT", 10, 0)
         self.DifficultyMenu:RegisterCallback(self.DifficultyMenu.Event.OnUpdate, updateDifficultyMenuAndDataProvider, self.DifficultyMenu)
+
         self.CloseButton:HookScript("OnClick", function() talentbuilds:HideFrame() end)
+
         self.ScrollBox = CreateFrame("Frame", "$parent_ScrollBox", self, "WowScrollBoxList") ---@type WowScrollBoxListPolyfill
         self.ScrollBox:SetPoint("TOPLEFT", self.Inset, "TOPLEFT", 6, -6)
         self.ScrollBox:SetPoint("BOTTOMRIGHT", self.Inset, "BOTTOMRIGHT", -22, -12) -- -22, 6
-        self.Inset:Hide()
+
         self.ScrollBar = CreateFrame("EventFrame", "$parent_ScrollBar", self, "MinimalScrollBar") ---@type MinimalScrollBarPolyfill
         self.ScrollBar:SetPoint("TOPLEFT", self.ScrollBox, "TOPRIGHT", 4, -3)
         self.ScrollBar:SetPoint("BOTTOMLEFT", self.ScrollBox, "BOTTOMRIGHT", 4, 2)
+
+        self.Inset:Hide()
         self.Bg:SetColorTexture(0, 0, 0, 0.8)
+
         local view = CreateScrollBoxListLinearView()
         view:SetElementExtent(buildsButtonHeight)
         view:SetElementInitializer("Button", function(button, build) createBuild(button, build) end)
+
         local pad, spacing = 2, nil
         view:SetPadding(pad, pad, pad, pad, spacing)
         ScrollUtil.InitScrollBoxListWithScrollBar(self.ScrollBox, self.ScrollBar, view)
+
         self.ScrollBox:SetDataProvider(dataProvider)
+
         self.ScrollBox:RegisterEvent("TRAIT_NODE_CHANGED")
         self.ScrollBox:RegisterEvent("TRAIT_TREE_CURRENCY_INFO_UPDATED")
+
         local function forceUpdate()
             self.ScrollBox:ForEachFrame(updateBuildButton)
         end
+
         local onChangeHandler ---@type FunctionContainer?
+
         local function forceUpdateDelayed()
             if onChangeHandler then
                 onChangeHandler:Cancel()
             end
             onChangeHandler = C_Timer.NewTimer(0.5, forceUpdate)
         end
+
         self.ScrollBox:HookScript("OnEvent", function(_, event)
             if event == "TRAIT_NODE_CHANGED" or event == "TRAIT_TREE_CURRENCY_INFO_UPDATED" then
                 forceUpdateDelayed()
             end
         end)
+
     end
 
     local function getFrame()
@@ -15631,6 +15737,7 @@ if IS_RETAIL then
             end
             return
         end
+
         local accepted, errorText = classTalentImportExport:ImportLoadout(
             build.importString,
             function(success)
@@ -15644,6 +15751,7 @@ if IS_RETAIL then
                 end
             end
         )
+
         if not accepted then
             if callback then
                 if callback(false, errorText) then
@@ -15682,12 +15790,15 @@ if IS_RETAIL then
         if not importString then
             return
         end
+
         local checkBuilds = useDataProvider and dataProvider:GetCollection() or (compiledPlayerProfile and compiledPlayerProfile.builds)
         if not checkBuilds then
             return
         end
+
         local builds ---@type TalentBuildsCompiledProfileBuild[]?
         local i = 0
+
         ---@param build TalentBuildsCompiledProfileBuild
         local function append(build)
             if not builds then
@@ -15696,6 +15807,7 @@ if IS_RETAIL then
             i = i + 1
             builds[i] = build
         end
+
         for _, build in ipairs(checkBuilds) do
             if talentbuilds:IsBuildAndImportStringEqual(build, importString, strictStringCompare) then
                 append(build)
@@ -15704,6 +15816,7 @@ if IS_RETAIL then
                 break
             end
         end
+
         return builds
     end
 
@@ -17508,6 +17621,7 @@ do
             settings:Toggle()
             return
         end
+
         if IsFrameMinimapButton(frame) then
             if not self.DynamicMenu then
                 self.DynamicMenu = DropDownUtil:CreateDynamicMenu(frame, {
@@ -17539,7 +17653,9 @@ do
             DropDownUtil:ToggleDynamicMenu(self.DynamicMenu)
             return
         end
+
         ToggleSearchFrame()
+
         if frame:IsVisible() then
             self:OnButtonEnter(frame)
         end
