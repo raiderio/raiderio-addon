@@ -3357,6 +3357,16 @@ do
         return format("|T982414:%d:%d:0:0:64:64:0:1:0:1|t", height or 1, width)
     end
 
+    ---@param chr string
+    local function encodeURIComponent(chr)
+        return format("%%%02X", chr:byte())
+    end
+
+    ---@param text string
+    function util:EncodeURIComponent(text)
+        return (text:gsub("[^%w%-_%.~]", encodeURIComponent))
+    end
+
     ---@param ... string
     ---@return string? url, string? name, string? realm, string? realmSlug
     function util:GetRaiderIOProfileUrl(...)
@@ -3435,7 +3445,7 @@ do
     end
 
     ---@type InternalStaticPopupDialog
-    local COPY_PROFILE_URL_POPUP = {
+    local COPY_TEXT_POPUP = {
         id = "RAIDERIO_COPY_URL",
         text = "%s",
         button2 = CLOSE,
@@ -3476,7 +3486,7 @@ do
             local editBox = ChatFrame_OpenChat(url, DEFAULT_CHAT_FRAME)
             editBox:HighlightText()
         else
-            util:ShowStaticPopupDialog(COPY_PROFILE_URL_POPUP, format("%s (%s)", name, realm), url)
+            util:ShowStaticPopupDialog(COPY_TEXT_POPUP, format("%s (%s)", name, realm), url)
         end
     end
 
@@ -3491,7 +3501,7 @@ do
             local editBox = ChatFrame_OpenChat(url, DEFAULT_CHAT_FRAME)
             editBox:HighlightText()
         else
-            util:ShowStaticPopupDialog(COPY_PROFILE_URL_POPUP, format("%s (%s)", name, realm), url)
+            util:ShowStaticPopupDialog(COPY_TEXT_POPUP, format("%s (%s)", name, realm), url)
         end
     end
 
@@ -3502,7 +3512,28 @@ do
             local editBox = ChatFrame_OpenChat(url, DEFAULT_CHAT_FRAME)
             editBox:HighlightText()
         else
-            util:ShowStaticPopupDialog(COPY_PROFILE_URL_POPUP, title, url)
+            util:ShowStaticPopupDialog(COPY_TEXT_POPUP, title, url)
+        end
+    end
+
+    ---@param title string
+    ---@param importString string
+    ---@param compareAgainstImportString? string
+    function util:ShowCopyRaiderIOTalentLoadoutPopup(title, importString, compareAgainstImportString)
+        local url ---@type string?
+        if importString and compareAgainstImportString then
+            url = format("https://raider.io/specs/compare?loadoutA=%s&loadoutB=%s", util:EncodeURIComponent(importString), util:EncodeURIComponent(compareAgainstImportString))
+        elseif importString then
+            url = format("https://raider.io/specs/compare?loadoutA=%s", util:EncodeURIComponent(importString))
+        end
+        if not url then
+            return
+        end
+        if IsModifiedClick("CHATLINK") then
+            local editBox = ChatFrame_OpenChat(url, DEFAULT_CHAT_FRAME)
+            editBox:HighlightText()
+        else
+            util:ShowStaticPopupDialog(COPY_TEXT_POPUP, title, url)
         end
     end
 
@@ -3927,6 +3958,245 @@ do
         return level >= heroSpecUnlockLevel
     end
 
+end
+
+-- classtalentimportexport.lua
+-- dependencies: module, util
+if IS_RETAIL then
+
+    ---@class ClassTalentImportExportModule : Module
+    local classTalentImportExport = ns:NewModule("ClassTalentImportExport") ---@type ClassTalentImportExportModule
+    local util = ns:GetModule("Util") ---@type UtilModule
+
+    ---@class ImportDataStreamPolyfill
+    ---@field public Init fun(self: ImportDataStreamPolyfill, exportString: string)
+    ---@field public ExtractValue fun(self: ImportDataStreamPolyfill, bitWidth: number): number
+    ---@field public GetNumberOfBits fun(self: ImportDataStreamPolyfill): number
+
+    ---@class LoadoutContentPolyfill
+    ---@field public isNodeSelected boolean
+    ---@field public isNodeGranted boolean
+    ---@field public isPartiallyRanked boolean
+    ---@field public partialRanksPurchased boolean
+    ---@field public isChoiceNode boolean
+    ---@field public choiceNodeSelection number
+
+    ---@class ImportLoadoutEntryInfoPolyfill
+    ---@field public nodeID number
+    ---@field public ranksGranted number
+    ---@field public ranksPurchased number
+    ---@field public selectionEntryID number
+
+    ---@class TalentFrameBaseMixinPolyfill
+    ---@field public SetConfigID fun(self: TalentFrameBaseMixinPolyfill, configID: number, forceUpdate?: boolean)
+    ---@field public GetConfigID fun(self: TalentFrameBaseMixinPolyfill): number
+    ---@field public SetTalentTreeID fun(self: TalentFrameBaseMixinPolyfill, talentTreeID: number, forceUpdate?: boolean): success: boolean
+    ---@field public GetTreeInfo fun(self: TalentFrameBaseMixinPolyfill)
+    ---@field public UpdateTreeInfo fun(self: TalentFrameBaseMixinPolyfill, skipButtonUpdates?: boolean)
+
+    ---@class ClassTalentImportExportMixinPolyfill
+    ---@field public bitWidthHeaderVersion 8
+    ---@field public bitWidthSpecID 16
+    ---@field public bitWidthRanksPurchased 6
+    ---@field public ReadLoadoutHeader fun(self: ClassTalentImportExportMixinPolyfill, importStream: ImportDataStreamPolyfill): headerValid: boolean, serializationVersion: string, specID: number, treeHash: string
+    ---@field public ReadLoadoutContent fun(self: ClassTalentImportExportMixinPolyfill, importStream: ImportDataStreamPolyfill, treeID: number): loadoutContent: LoadoutContentPolyfill[]
+    ---@field public ConvertToImportLoadoutEntryInfo fun(self: ClassTalentImportExportMixinPolyfill, configID: number, treeID: number, loadoutContent: LoadoutContentPolyfill[]): loadoutEntryInfos: ImportLoadoutEntryInfoPolyfill[]
+    ---@field public ImportLoadout fun(self: ClassTalentImportExportMixinPolyfill, importText: string, loadoutName: string): success: boolean Import a loadout string to a new loadout name.
+    ---@field public GetLoadoutExportString fun(self: ClassTalentImportExportMixinPolyfill): importString: string Export the current active loadout to a import string.
+
+    ---@class ClassTalentImportExport : TalentFrameBaseMixinPolyfill, ClassTalentImportExportMixinPolyfill, Frame
+    ---@field public OnLoad fun(self: ClassTalentImportExport)
+    ---@field public excludeStagedChangesForCurrencies boolean
+
+    -- It's important to call and handle the success flag from `EnsureClassTalentImportExport` before using this variable.
+    -- We don't wish to initialize it before needing to use it, and we only need to use it to import or export a talent loadout.
+    ---@type ClassTalentImportExport
+    local ClassTalentImportExport
+
+    ---@return boolean success
+    local function EnsureClassTalentImportExport()
+        if ClassTalentImportExport then
+            return true
+        end
+        C_AddOns.LoadAddOn("Blizzard_PlayerSpells")
+        if TalentFrameBaseMixin and ClassTalentImportExportMixin then
+            ClassTalentImportExport = Mixin(CreateFrame("Frame", nil, nil, "TalentFrameBaseTemplate"), ClassTalentImportExportMixin) ---@type ClassTalentImportExport
+            ClassTalentImportExport:Hide()
+        end
+        return ClassTalentImportExport and true or false
+    end
+
+    ---@param importString string
+    ---@param treeID number
+    ---@param expectedSpecID? number
+    ---@param configID? number
+    ---@return ImportLoadoutEntryInfoPolyfill[]? loadoutEntryInfos, string? errorText
+    local function UnpackImportString(importString, treeID, expectedSpecID, configID)
+        if not expectedSpecID then
+            expectedSpecID = util:GetSpecialization()
+        end
+        if not expectedSpecID then
+            return nil, "Missing player spec ID."
+        end
+        local activeConfigID = configID or C_ClassTalents.GetActiveConfigID()
+        if not activeConfigID then
+            return nil, "Missing active config ID."
+        end
+        ---@type boolean, ImportDataStreamPolyfill?
+        local success, importStream = pcall(ExportUtil.MakeImportDataStream, importString)
+        if not success or not importStream then
+            return nil, "Unable to unpack import string."
+        end
+        if not EnsureClassTalentImportExport() then
+            return nil, "Unable to load ClassTalentImportExportMixin."
+        end
+        local headerValid, serializationVersion, specID, treeHash = ClassTalentImportExport:ReadLoadoutHeader(importStream)
+        if not headerValid then
+            return nil, "Invalid import string."
+        end
+        if serializationVersion ~= C_Traits.GetLoadoutSerializationVersion() then
+            return nil, "Invalid serialization version."
+        end
+        if specID ~= expectedSpecID then
+            return nil, format("Invalid active spec ID. Found %s but expected %s.", tostringall(specID, expectedSpecID))
+        end
+        local loadoutContent = ClassTalentImportExport:ReadLoadoutContent(importStream, treeID)
+        return ClassTalentImportExport:ConvertToImportLoadoutEntryInfo(activeConfigID, treeID, loadoutContent)
+    end
+
+    local globalUniqueApplyLoadoutID = 0
+    local maxIterationsPerCycle = 100
+
+    ---@param configID number
+    ---@param treeID number
+    ---@param loadoutEntryInfos ImportLoadoutEntryInfoPolyfill[]
+    ---@param callback? fun(success: boolean)
+    local function ApplyLoadout(configID, treeID, loadoutEntryInfos, callback)
+        globalUniqueApplyLoadoutID = globalUniqueApplyLoadoutID + 1
+        local currentUniqueApplyLoadoutID = globalUniqueApplyLoadoutID
+        C_Traits.ResetTree(configID, treeID)
+        local sortedNodes = C_Traits.GetTreeNodes(treeID)
+        table.sort(sortedNodes, function(a, b)
+            local x = C_Traits.GetNodeInfo(configID, a)
+            local y = C_Traits.GetNodeInfo(configID, b)
+            if x.posY == y.posY then
+                return x.posX < y.posX
+            end
+            return x.posY < y.posY
+        end)
+        local i = 0
+        local numSortedNodes = #sortedNodes
+        local successProgress = 0
+        local function next()
+            if currentUniqueApplyLoadoutID ~= globalUniqueApplyLoadoutID then
+                return
+            end
+            local processed = 0
+            while processed < maxIterationsPerCycle and i <= numSortedNodes do
+                i = i + 1
+                processed = processed + 1
+                local nodeID = sortedNodes[i]
+                local loadoutEntryInfo, loadoutEntryInfoIndex = util:TableFind(loadoutEntryInfos, function(loadoutEntryInfo) return loadoutEntryInfo.nodeID == nodeID end)
+                if loadoutEntryInfo and loadoutEntryInfoIndex then
+                    local success = false
+                    if loadoutEntryInfo.ranksPurchased then
+                        local nodeInfo = C_Traits.GetNodeInfo(configID, nodeID)
+                        if nodeInfo.type == Enum.TraitNodeType.Selection or nodeInfo.type == Enum.TraitNodeType.SubTreeSelection then
+                            success = C_Traits.SetSelection(configID, loadoutEntryInfo.nodeID, loadoutEntryInfo.selectionEntryID)
+                        elseif nodeInfo.type == Enum.TraitNodeType.Single or nodeInfo.type == Enum.TraitNodeType.Tiered then
+                            local numMissingRanks = loadoutEntryInfo.ranksPurchased - nodeInfo.ranksPurchased
+                            local numPendingRanks = numMissingRanks
+                            for _ = 1, numMissingRanks do
+                                if C_Traits.PurchaseRank(configID, loadoutEntryInfo.nodeID) then
+                                    numPendingRanks = numPendingRanks - 1
+                                end
+                            end
+                            if numPendingRanks == 0 then
+                                success = true
+                            end
+                        end
+                    else
+                        success = true
+                    end
+                    if success then
+                        successProgress = successProgress + 1
+                        table.remove(loadoutEntryInfos, loadoutEntryInfoIndex)
+                    end
+                end
+            end
+            local pending = i <= numSortedNodes or successProgress > 0
+            if pending then
+                if successProgress > 0 then
+                    i = 0
+                    successProgress = 0
+                end
+                C_Timer.After(0, next)
+            elseif callback then
+                callback(#loadoutEntryInfos == 0)
+            end
+        end
+        next()
+    end
+
+    ---@param loadoutEntryInfos ImportLoadoutEntryInfoPolyfill[]
+    local function FlattenTierLoadoutEntryInfos(loadoutEntryInfos)
+        local loadoutEntryInfosGrouped = util:TableGroup(loadoutEntryInfos, "nodeID")
+        return util:TableMap(loadoutEntryInfosGrouped, function(loadoutEntryInfosGroup)
+            local first = loadoutEntryInfosGroup[1]
+            for i = 2, #loadoutEntryInfosGroup do
+                local temp = loadoutEntryInfosGroup[i]
+                first.ranksPurchased = first.ranksPurchased + temp.ranksPurchased
+            end
+            return first
+        end)
+    end
+
+    ---@param importString string
+    ---@param callback? fun(success: boolean)
+    ---@return boolean? accepted, string? errorText
+    function classTalentImportExport:ImportLoadout(importString, callback)
+        local canChange, _, changeError = C_ClassTalents.CanChangeTalents()
+        if not canChange then
+            return nil, changeError or "Can't change talents."
+        end
+        local configID = C_ClassTalents.GetActiveConfigID()
+        if not configID then
+            return nil, "Missing active talent config."
+        end
+        local treeID = util:GetSpecializationTreeID(configID)
+        if not treeID then
+            return nil, "Missing tree ID."
+        end
+        local specID = util:GetSpecialization()
+        local loadoutEntryInfos, errorText = UnpackImportString(importString, treeID, specID, configID)
+        if not loadoutEntryInfos or errorText then
+            return nil, errorText or "Can't import build."
+        end
+        -- HOTFIX: the tier nodes and the math we perform later on the "ranksPurchased" value won't work, unless we flatten these tier-nodes into one node
+        -- since we just spam click to apply the points on the node, and the tier-node must be clicked to unlock the later ranks, they all share the same nodeID
+        loadoutEntryInfos = FlattenTierLoadoutEntryInfos(loadoutEntryInfos)
+        ApplyLoadout(configID, treeID, loadoutEntryInfos, callback)
+        return true
+    end
+
+    ---@param configID? number Defaults to active config, otherwise specify the one you wish to export.
+    ---@return string? importString
+    function classTalentImportExport:ExportLoadout(configID)
+        if not EnsureClassTalentImportExport() then
+            return
+        end
+        if not configID then
+            configID = C_ClassTalents.GetActiveConfigID()
+        end
+        if not configID then
+            return
+        end
+        ClassTalentImportExport:SetConfigID(configID, true)
+        ClassTalentImportExport:UpdateTreeInfo(true)
+        return ClassTalentImportExport:GetLoadoutExportString()
+    end
+
+    classTalentImportExport:Enable()
 end
 
 -- json.lua
@@ -14495,7 +14765,7 @@ do
 end
 
 -- talentbuilds.lua
--- dependencies: module, callback, config, util
+-- dependencies: module, callback, config, util, classTalentImportExport
 if IS_RETAIL then
 
     ---@class TalentBuildsModule : Module
@@ -14503,6 +14773,7 @@ if IS_RETAIL then
     local callback = ns:GetModule("Callback") ---@type CallbackModule
     local config = ns:GetModule("Config") ---@type ConfigModule
     local util = ns:GetModule("Util") ---@type UtilModule
+    local classTalentImportExport = ns:GetModule("ClassTalentImportExport") ---@type ClassTalentImportExportModule
 
     ---@class TitledPanelMixinPolyfill
     ---@field public SetTitleColor fun(self: TitledPanelMixinPolyfill, color: ColorMixin)
@@ -14604,6 +14875,8 @@ if IS_RETAIL then
     ---@field public buildIndex number `stat[4]` or `stat[7]`
     ---@field public buildRuns number `stat[5]` or `stat[8]`
     ---@field public score number `stat[6]` or `stat[9]`
+    ---@field public prefixImportString string
+    ---@field public suffixImportString string
     ---@field public importString string
     ---@field public buildPopText string
     ---@field public scoreText string
@@ -14654,6 +14927,8 @@ if IS_RETAIL then
                         heroCount = heroCount,
                         buildIndex = buildIndex,
                         buildRuns = buildRuns,
+                        prefixImportString = specData.prefix,
+                        suffixImportString = specData.builds[buildIndex],
                         importString = format("%s%s", specData.prefix, specData.builds[buildIndex]),
                         isRecommended = isRecommended,
                         score = score,
@@ -14915,29 +15190,29 @@ if IS_RETAIL then
 
     ---@param button TalentBuildsDataProviderBuildButton
     local function updateBuildButton(button)
-        local elementData = button.elementData
-        local info = util:GetSpecializationSubTreeInfo(elementData.heroID)
+        local build = button.elementData
+        local info = util:GetSpecializationSubTreeInfo(build.heroID)
         if info then
             button.HeroTexture:Show()
             button.HeroTexture:SetAtlas(info.iconElementID)
             button.HeroTitle:SetText(info.name)
         else
             button.HeroTexture:Hide()
-            button.HeroTitle:SetFormattedText("Hero Tree #%d", elementData.heroID)
+            button.HeroTitle:SetFormattedText("Hero Tree #%d", build.heroID)
         end
-        button.HeroText:SetFormattedText("|cff999999%s|r", getHeroTitleText(elementData))
-        button.BuildTitle:SetText(getBuildTitleText(elementData))
-        button.BuildText:SetFormattedText("|cff999999%s|r", getBuildStatsText(elementData))
+        button.HeroText:SetFormattedText("|cff999999%s|r", getHeroTitleText(build))
+        button.BuildTitle:SetText(getBuildTitleText(build))
+        button.BuildText:SetFormattedText("|cff999999%s|r", getBuildStatsText(build))
     end
 
     local buildsButtonHeight = 60
 
     ---@param button TalentBuildsDataProviderBuildButton
-    ---@param elementData TalentBuildsDataProviderBuildElementData
-    local function createBuild(button, elementData)
+    ---@param build TalentBuildsDataProviderBuildElementData
+    local function createBuild(button, build)
         ---@class TalentBuildsDataProviderBuildButton
         local button = button
-        button.elementData = elementData
+        button.elementData = build
         if not button.isInit then
             button.isInit = true
             button:SetHeight(buildsButtonHeight)
@@ -14961,25 +15236,14 @@ if IS_RETAIL then
             end
             ---@param self TalentBuildsDataProviderBuildButton
             local function OnClick(self)
-                local elementData = self.elementData
-                local success, errorText = talentbuilds:LoadBuild(
-                    elementData,
-                    function(success)
-                        if success then
-                            return
-                        end
-                        print("Failed applying the desired build.") -- TODO
-                    end
-                )
-                if not success and errorText then
-                    print(errorText) -- TODO
-                end
+                local build = self.elementData
+                talentbuilds:LoadBuild(build)
             end
             ---@param self TalentBuildsDataProviderBuildButton
             local function OnEnter(self)
-                -- local elementData = self.elementData
+                -- local build = self.elementData
                 -- GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                -- GameTooltip:AddLine(format("%.2f%% popularity", elementData.popPctl * 100), 1, 1, 1, false) -- TODO
+                -- GameTooltip:AddLine(format("%.2f%% popularity", build.popPctl * 100), 1, 1, 1, false) -- TODO
                 -- GameTooltip:Show()
                 self:SetBackdropFocus()
             end
@@ -15035,7 +15299,7 @@ if IS_RETAIL then
         local frameWidth, frameHeight = 640, 480
         self:SetSize(frameWidth, frameHeight)
         self:SetPoint("CENTER", 0, 0)
-        self:SetFrameStrata("MEDIUM")
+        self:SetFrameStrata("HIGH")
         self:SetTitle(format("%s %s", L.RAIDERIO, L.BUILDS_TITLE))
         ButtonFrameTemplate_HidePortrait(self)
         self:RegisterForDrag("LeftButton")
@@ -15158,7 +15422,7 @@ if IS_RETAIL then
         self.Bg:SetColorTexture(0, 0, 0, 0.8)
         local view = CreateScrollBoxListLinearView()
         view:SetElementExtent(buildsButtonHeight)
-        view:SetElementInitializer("Button", function(button, elementData) createBuild(button, elementData) end)
+        view:SetElementInitializer("Button", function(button, build) createBuild(button, build) end)
         local pad, spacing = 2, nil
         view:SetPadding(pad, pad, pad, pad, spacing)
         ScrollUtil.InitScrollBoxListWithScrollBar(self.ScrollBox, self.ScrollBar, view)
@@ -15204,198 +15468,67 @@ if IS_RETAIL then
         return compiledPlayerProfile and #compiledPlayerProfile.builds > 0
     end
 
-    ---@class ImportDataStreamPolyfill
-    ---@field public Init fun(self: ImportDataStreamPolyfill, exportString: string)
-    ---@field public ExtractValue fun(self: ImportDataStreamPolyfill, bitWidth: number): number
-    ---@field public GetNumberOfBits fun(self: ImportDataStreamPolyfill): number
-
-    ---@class LoadoutContentPolyfill
-    ---@field public isNodeSelected boolean
-    ---@field public isNodeGranted boolean
-    ---@field public isPartiallyRanked boolean
-    ---@field public partialRanksPurchased boolean
-    ---@field public isChoiceNode boolean
-    ---@field public choiceNodeSelection number
-
-    ---@class ImportLoadoutEntryInfoPolyfill
-    ---@field public nodeID number
-    ---@field public ranksGranted number
-    ---@field public ranksPurchased number
-    ---@field public selectionEntryID number
-
-    ---@class ClassTalentImportExportPolyfill
-    ---@field public bitWidthHeaderVersion 8
-    ---@field public bitWidthSpecID 16
-    ---@field public bitWidthRanksPurchased 6
-    ---@field public ReadLoadoutHeader fun(self: ClassTalentImportExportPolyfill, importStream: ImportDataStreamPolyfill): headerValid: boolean, serializationVersion: string, specID: number, treeHash: string
-    ---@field public ReadLoadoutContent fun(self: ClassTalentImportExportPolyfill, importStream: ImportDataStreamPolyfill, treeID: number): loadoutContent: LoadoutContentPolyfill[]
-    ---@field public ConvertToImportLoadoutEntryInfo fun(self: ClassTalentImportExportPolyfill, configID: number, treeID: number, loadoutContent: LoadoutContentPolyfill[]): loadoutEntryInfos: ImportLoadoutEntryInfoPolyfill[]
-
-    ---@type ClassTalentImportExportPolyfill?
-    local ClassTalentImportExport
-
-    ---@param importString string
-    ---@param treeID number
-    ---@param expectedSpecID? number
-    ---@param configID? number
-    ---@return ImportLoadoutEntryInfoPolyfill[]? loadoutEntryInfos, string? errorText
-    local function UnpackImportString(importString, treeID, expectedSpecID, configID)
-        if not expectedSpecID then
-            expectedSpecID = util:GetSpecialization()
-        end
-        if not expectedSpecID then
-            return nil, "Missing player spec ID."
-        end
-        local activeConfigID = configID or C_ClassTalents.GetActiveConfigID()
-        if not activeConfigID then
-            return nil, "Missing active config ID."
-        end
-        ---@type boolean, ImportDataStreamPolyfill?
-        local success, importStream = pcall(ExportUtil.MakeImportDataStream, importString)
-        if not success or not importStream then
-            return nil, "Unable to unpack import string."
-        end
-        if not ClassTalentImportExport and ClassTalentImportExportMixin then
-            ClassTalentImportExport = Mixin({}, ClassTalentImportExportMixin)
-        end
-        if not ClassTalentImportExport then
-            return nil, "Unable to load ClassTalentImportExportMixin."
-        end
-        local headerValid, serializationVersion, specID, treeHash = ClassTalentImportExport:ReadLoadoutHeader(importStream)
-        if not headerValid then
-            return nil, "Invalid import string."
-        end
-        if serializationVersion ~= C_Traits.GetLoadoutSerializationVersion() then
-            return nil, "Invalid serialization version."
-        end
-        if specID ~= expectedSpecID then
-            return nil, format("Invalid active spec ID. Found %s but expected %s.", tostringall(specID, expectedSpecID))
-        end
-        local loadoutContent = ClassTalentImportExport:ReadLoadoutContent(importStream, treeID)
-        return ClassTalentImportExport:ConvertToImportLoadoutEntryInfo(activeConfigID, treeID, loadoutContent)
-    end
-
-    local globalUniqueApplyLoadoutID = 0
-    local maxNumIterations = 200
-
-    ---@param configID number
-    ---@param treeID number
-    ---@param loadoutEntryInfos ImportLoadoutEntryInfoPolyfill[]
-    ---@param callback? fun(success: boolean)
-    local function ApplyLoadout(configID, treeID, loadoutEntryInfos, callback)
-        globalUniqueApplyLoadoutID = globalUniqueApplyLoadoutID + 1
-        local currentUniqueApplyLoadoutID = globalUniqueApplyLoadoutID
-        C_Traits.ResetTree(configID, treeID)
-        local sortedNodes = C_Traits.GetTreeNodes(treeID)
-        table.sort(sortedNodes, function(a, b)
-            local x = C_Traits.GetNodeInfo(configID, a)
-            local y = C_Traits.GetNodeInfo(configID, b)
-            if x.posY == y.posY then
-                return x.posX < y.posX
-            end
-            return x.posY < y.posY
-        end)
-        local i = 0
-        local numSortedNodes = #sortedNodes
-        local successProgress = 0
-        local function next()
-            if currentUniqueApplyLoadoutID ~= globalUniqueApplyLoadoutID then
-                return
-            end
-            local processed = 0
-            while processed < maxNumIterations and i <= numSortedNodes do
-                i = i + 1
-                processed = processed + 1
-                local nodeID = sortedNodes[i]
-                local loadoutEntryInfo, loadoutEntryInfoIndex = util:TableFind(loadoutEntryInfos, function(loadoutEntryInfo) return loadoutEntryInfo.nodeID == nodeID end)
-                if loadoutEntryInfo and loadoutEntryInfoIndex then
-                    local success = false
-                    if loadoutEntryInfo.ranksPurchased then
-                        local nodeInfo = C_Traits.GetNodeInfo(configID, nodeID)
-                        if nodeInfo.type == Enum.TraitNodeType.Selection or nodeInfo.type == Enum.TraitNodeType.SubTreeSelection then
-                            success = C_Traits.SetSelection(configID, loadoutEntryInfo.nodeID, loadoutEntryInfo.selectionEntryID)
-                        elseif nodeInfo.type == Enum.TraitNodeType.Single or nodeInfo.type == Enum.TraitNodeType.Tiered then
-                            local numMissingRanks = loadoutEntryInfo.ranksPurchased - nodeInfo.ranksPurchased
-                            local numPendingRanks = numMissingRanks
-                            for _ = 1, numMissingRanks do
-                                if C_Traits.PurchaseRank(configID, loadoutEntryInfo.nodeID) then
-                                    numPendingRanks = numPendingRanks - 1
-                                end
-                            end
-                            if numPendingRanks == 0 then
-                                success = true
-                            end
-                        end
-                    else
-                        success = true
-                    end
-                    if success then
-                        successProgress = successProgress + 1
-                        table.remove(loadoutEntryInfos, loadoutEntryInfoIndex)
-                    end
-                end
-            end
-            local pending = i <= numSortedNodes or successProgress > 0
-            if pending then
-                if successProgress > 0 then
-                    i = 0
-                    successProgress = 0
-                end
-                C_Timer.After(0, next)
-            elseif callback then
-                callback(#loadoutEntryInfos == 0)
-            end
-        end
-        next()
-    end
-
-    ---@param loadoutEntryInfos ImportLoadoutEntryInfoPolyfill[]
-    local function FlattenTierLoadoutEntryInfos(loadoutEntryInfos)
-        local loadoutEntryInfosGrouped = util:TableGroup(loadoutEntryInfos, "nodeID")
-        return util:TableMap(loadoutEntryInfosGrouped, function(loadoutEntryInfosGroup)
-            local first = loadoutEntryInfosGroup[1]
-            for i = 2, #loadoutEntryInfosGroup do
-                local temp = loadoutEntryInfosGroup[i]
-                first.ranksPurchased = first.ranksPurchased + temp.ranksPurchased
-            end
-            return first
-        end)
-    end
-
     ---@param build TalentBuildsCompiledProfileBuild
-    ---@param callback? fun(success: boolean)
-    ---@return boolean? success, string? errorText
+    ---@param callback? fun(success: boolean, errorText?: string): boolean?
     function talentbuilds:LoadBuild(build, callback)
-        local canChange, _, changeError = C_ClassTalents.CanChangeTalents()
-        if not canChange then
-            return nil, changeError or "Can't change talents."
+        local accepted, errorText = classTalentImportExport:ImportLoadout(
+            build.importString,
+            function(success)
+                if callback then
+                    if callback(success) then
+                        return
+                    end
+                end
+                if not success then
+                    print("Failed applying the desired build.") -- TODO
+                end
+            end
+        )
+        if not accepted then
+            if callback then
+                if callback(false, errorText) then
+                    return
+                end
+            end
+            if errorText then
+                print(errorText) -- TODO
+            end
         end
-        local activeConfigID = C_ClassTalents.GetActiveConfigID()
-        if not activeConfigID then
-            return nil, "Missing active talent config."
-        end
-        local treeID = util:GetSpecializationTreeID(activeConfigID)
-        if not treeID then
-            return nil, "Missing tree ID."
-        end
-        local specID = util:GetSpecialization()
-        local loadoutEntryInfos, errorText = UnpackImportString(build.importString, treeID, specID, activeConfigID)
-        if not loadoutEntryInfos or errorText then
-            return nil, errorText or "Can't import build."
-        end
-        -- HOTFIX: the tier nodes and the math we perform later on the "ranksPurchased" value won't work, unless we flatten these tier-nodes into one node
-        -- since we just spam click to apply the points on the node, and the tier-node must be clicked to unlock the later ranks, they all share the same nodeID
-        loadoutEntryInfos = FlattenTierLoadoutEntryInfos(loadoutEntryInfos)
-        ApplyLoadout(activeConfigID, treeID, loadoutEntryInfos, callback)
-        return true
     end
 
-    -- TODO
-    function talentbuilds:GetActiveBuild()
-        local activeBuildImportString = "" -- TODO
-        return dataProvider:FindElementDataByPredicate(function(elementData)
-            return elementData.importString == activeBuildImportString
-        end)
+    -- Only returns `TalentBuildsCompiledProfileBuild[]` when the table isn't empty, otherwise it returns `nil`.
+    ---@param useDataProvider? boolean Default behavior is to use the complete talent builds database. Set to `true` to use the dataprovider used by the UI.
+    ---@param resultLimit? number Default is to return all matches, but you can define a upper limit.
+    ---@param strictStringCompare? boolean Default is to consider the build matched if the `suffixImportString` parts are identical, otherwise the entire `importString` will be compared.
+    ---@return TalentBuildsCompiledProfileBuild[]?
+    function talentbuilds:GetBuildsMatchingActiveLoadout(useDataProvider, resultLimit, strictStringCompare)
+        local importString = classTalentImportExport:ExportLoadout()
+        if not importString then
+            return
+        end
+        local checkBuilds = useDataProvider and dataProvider:GetCollection() or (compiledPlayerProfile and compiledPlayerProfile.builds)
+        if not checkBuilds then
+            return
+        end
+        local builds ---@type TalentBuildsCompiledProfileBuild[]?
+        local i = 0
+        ---@param build TalentBuildsCompiledProfileBuild
+        local function append(build)
+            if not builds then
+                builds = {}
+            end
+            i = i + 1
+            builds[i] = build
+        end
+        for _, build in ipairs(checkBuilds) do
+            if build.importString == importString or (not strictStringCompare and build.suffixImportString == importString:sub(build.prefixImportString:len() + 1)) then
+                append(build)
+            end
+            if resultLimit and i >= resultLimit then
+                break
+            end
+        end
+        return builds
     end
 
     function talentbuilds:CanLoad()
@@ -15424,7 +15557,6 @@ if IS_RETAIL then
 
     function talentbuilds:OnLoad()
         self:Enable()
-        -- self:ShowFrame() -- DEBUG
     end
 
     function talentbuilds:OnEnable()
@@ -17051,7 +17183,7 @@ do
 end
 
 -- shortcuts.lua
--- dependencies: module, callback, config, util, profile, search, settings, builds, LibDataBroker + LibDBIcon
+-- dependencies: module, callback, config, util, profile, search, settings, classTalentImportExport, talentbuilds, LibDataBroker + LibDBIcon
 do
 
     ---@class ShortcutsModule : Module
@@ -17062,6 +17194,7 @@ do
     local profile = ns:GetModule("Profile") ---@type ProfileModule
     local search = ns:GetModule("Search") ---@type SearchModule
     local settings = ns:GetModule("Settings") ---@type SettingsModule
+    local classTalentImportExport = ns:GetModule("ClassTalentImportExport") ---@type ClassTalentImportExportModule
     local talentbuilds = ns:GetModule("TalentBuilds", true) ---@type TalentBuildsModule?
 
     local LDB = LibStub("LibDataBroker-1.1", true)
@@ -17142,24 +17275,15 @@ do
         return talentbuilds and talentbuilds:IsEnabled() and talentbuilds:HasBuilds() and true or false
     end
 
-    local function GetActiveBuild()
-        if not AreBuildsAvailable() then
+    local function ShowCopyActiveLoadout()
+        local importString = classTalentImportExport:ExportLoadout()
+        if not importString then
             return
         end
-        return talentbuilds and talentbuilds:GetActiveBuild()
-    end
-
-    local function HasActiveBuild()
-        return GetActiveBuild() ~= nil
-    end
-
-    -- TODO
-    local function ShowCopyActiveBuild()
-        local build = GetActiveBuild()
-        if not build then
-            return
-        end
-        print(build.importString) -- TODO
+        local title = GetCurrentSpecAndClassName() or L.COPY_RAIDERIO_URL -- TODO: fallback
+        local icon = GetCurrentSpecIcon()
+        title = icon and format("%s%s", icon, title) or title
+        util:ShowCopyRaiderIOTalentLoadoutPopup(title, importString)
     end
 
     ---@param frame Frame
@@ -17225,19 +17349,14 @@ do
                         unclickable = true,
                     },
                     {
-                        text = "SEAT +99 (Recommended)", -- TODO
-                        show = HasActiveBuild,
-                        unclickable = true,
-                    },
-                    {
-                        text = L.MINIMAP_SHORTCUT_MENU_COPY_BUILD,
-                        show = HasActiveBuild,
-                        func = ShowCopyActiveBuild,
-                    },
-                    {
                         text = L.MINIMAP_SHORTCUT_MENU_BUILDS,
                         show = AreBuildsAvailable,
                         func = ToggleBuildsFrame,
+                    },
+                    {
+                        text = L.MINIMAP_SHORTCUT_MENU_COPY_BUILD,
+                        show = function() return classTalentImportExport:IsEnabled() end,
+                        func = ShowCopyActiveLoadout,
                     },
                 })
             end
