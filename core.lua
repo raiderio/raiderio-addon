@@ -3357,6 +3357,21 @@ do
         return format("|T982414:%d:%d:0:0:64:64:0:1:0:1|t", height or 1, width)
     end
 
+    ---@class AutoScalingFontStringMixinPolyfill : FontString
+    ---@field public minLineHeight number
+    ---@field public SetMinLineHeight fun(self: AutoScalingFontStringMixinPolyfill, minLineHeight: number)
+    ---@field public ScaleTextToFit fun(self: AutoScalingFontStringMixinPolyfill)
+
+    -- Inherits the `AutoScalingFontStringMixin` which adds a custom `SetText` and `SetFormattedText` methods to the `FontString`.
+    ---@param ... FontString
+    function util:SetupAutoScalingFontString(...)
+        local temp = {...}
+        for _, fontString in ipairs(temp) do
+            fontString = Mixin(fontString, AutoScalingFontStringMixin) ---@type AutoScalingFontStringMixinPolyfill
+            fontString:SetMinLineHeight(1)
+        end
+    end
+
     ---@param chr string
     local function encodeURIComponent(chr)
         return format("%%%02X", chr:byte())
@@ -3506,13 +3521,13 @@ do
     end
 
     ---@param title string
-    ---@param url string
-    function util:ShowCopyRaiderIOReplayPopup(title, url)
+    ---@param text string
+    function util:ShowCopyRaiderIOPopup(title, text)
         if IsModifiedClick("CHATLINK") then
-            local editBox = ChatFrame_OpenChat(url, DEFAULT_CHAT_FRAME)
+            local editBox = ChatFrame_OpenChat(text, DEFAULT_CHAT_FRAME)
             editBox:HighlightText()
         else
-            util:ShowStaticPopupDialog(COPY_TEXT_POPUP, title, url)
+            util:ShowStaticPopupDialog(COPY_TEXT_POPUP, title, text)
         end
     end
 
@@ -3529,12 +3544,7 @@ do
         if not url then
             return
         end
-        if IsModifiedClick("CHATLINK") then
-            local editBox = ChatFrame_OpenChat(url, DEFAULT_CHAT_FRAME)
-            editBox:HighlightText()
-        else
-            util:ShowStaticPopupDialog(COPY_TEXT_POPUP, title, url)
-        end
+        util:ShowCopyRaiderIOPopup(title, url)
     end
 
     --- Dynamically check the `profile` values for any entry with the `hasRenderableData` property set.
@@ -9495,18 +9505,6 @@ if IS_RETAIL then
     ---@type table<number, boolean?>
     local ActiveEncounters = {}
 
-    ---@class AutoScalingFontStringMixin : FontString
-    ---@field public minLineHeight number
-
-    ---@param ... FontString
-    local function SetupAutoScalingFontStringMixin(...)
-        local temp = {...}
-        for _, fontString in ipairs(temp) do
-            fontString = Mixin(fontString, AutoScalingFontStringMixin) ---@type AutoScalingFontStringMixin
-            fontString.minLineHeight = 1
-        end
-    end
-
     ---@param ms number
     ---@return number roundedSeconds
     local function ConvertMillisecondsToSeconds(ms)
@@ -9938,7 +9936,7 @@ if IS_RETAIL then
         obj:HookScript("OnEnter", obj.OnEnter)
         obj:HookScript("OnLeave", obj.OnLeave)
         obj:SetMouseClickEnabled(false)
-        SetupAutoScalingFontStringMixin(obj.Name, obj.InfoL, obj.InfoR)
+        util:SetupAutoScalingFontString(obj.Name, obj.InfoL, obj.InfoR)
     end
 
     ---@param self BossFramePool
@@ -10520,7 +10518,7 @@ if IS_RETAIL then
 
         ---@param replay Replay
         function ReplayFrameConfigButtonMixin:OnMenuCopyReplayUrlClick(replay)
-            util:ShowCopyRaiderIOReplayPopup(replay.title, replay.run_url)
+            util:ShowCopyRaiderIOPopup(replay.title, replay.run_url)
             self:Close()
         end
 
@@ -10670,7 +10668,7 @@ if IS_RETAIL then
         function ReplayFrameConfigButtonMixin:OnDropDownCopyReplayUrlClick()
             local dropDownMenu = self.arg1
             local value = self.arg2 ---@type Replay
-            util:ShowCopyRaiderIOReplayPopup(value.title, value.run_url)
+            util:ShowCopyRaiderIOPopup(value.title, value.run_url)
             dropDownMenu:Close()
         end
 
@@ -11076,7 +11074,7 @@ if IS_RETAIL then
                 RF:SetPoint("TOPLEFT", MF, "TOPRIGHT", 0, 0)
                 RF:SetJustifyH("LEFT")
                 RF:SetJustifyV("MIDDLE")
-                SetupAutoScalingFontStringMixin(LF, MF, RF)
+                util:SetupAutoScalingFontString(LF, MF, RF)
                 return LF, MF, RF
             end
 
@@ -11159,7 +11157,7 @@ if IS_RETAIL then
                 RF:SetPoint("TOPLEFT", LF, "TOPRIGHT", self.edgePaddingMDI + middlePadding, 0)
                 RF:SetJustifyH("LEFT")
                 RF:SetJustifyV("MIDDLE")
-                SetupAutoScalingFontStringMixin(LF, RF)
+                util:SetupAutoScalingFontString(LF, RF)
                 return LF, RF
             end
 
@@ -15205,7 +15203,67 @@ if IS_RETAIL then
         button.BuildText:SetFormattedText("|cff999999%s|r", getBuildStatsText(build))
     end
 
-    local buildsButtonHeight = 60
+    local buildsButtonHeight = 50
+    local buildsButtonSharedPaddingX = 10
+    local buildsButtonSharedPaddingY = buildsButtonSharedPaddingX
+    local buildsButtonTextOffsetY = 5
+    local buildsButtonSecondColumnOffsetX = 200
+    local buildsButtonActionButtonSize = 20
+    local buildsButtonActionButtonOffsetX = 15
+
+    ---@type backdropInfo
+    local buildsButtonBackdrop = {
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Buttons\\WHITE8X8",
+        edgeSize = 1,
+        insets = { left = 0, right = 0, top = 0, bottom = 0 },
+    }
+
+    ---@param self TalentBuildsDataProviderBuildButton
+    local function buildsButtonSetBackdropFocus(self)
+        self:SetBackdropColor(0.1, 0.1, 0.1, 0.67)
+        self:SetBackdropBorderColor(1, 1, 1, 0.67)
+    end
+
+    ---@param self TalentBuildsDataProviderBuildButton
+    local function buildsButtonClearBackdropFocus(self)
+        self:SetBackdropColor(0, 0, 0, 0.67)
+        self:SetBackdropBorderColor(1, 1, 1, 0)
+    end
+
+    ---@param self TalentBuildsDataProviderBuildButton
+    local function buildsButtonUpdateBackdropFocus(self)
+        if self:IsMouseOver() then
+            self:SetBackdropFocus()
+        else
+            self:ClearBackdropFocus()
+        end
+    end
+
+    ---@param self TalentBuildsDataProviderBuildButton
+    local function buildsButtonOnEnter(self)
+        self:SetBackdropFocus()
+    end
+
+    ---@param self TalentBuildsDataProviderBuildButton
+    local function buildsButtonOnLeave(self)
+        self:ClearBackdropFocus()
+    end
+
+    ---@param self TalentBuildsDataProviderBuildButton
+    local function buildsButtonOnShow(self)
+        self:ClearBackdropFocus()
+    end
+
+    ---@param self TalentBuildsDataProviderBuildButton
+    local function buildsButtonOnHide(self)
+        self:ClearBackdropFocus()
+    end
+
+    ---@param self TalentBuildsDataProviderBuildButton
+    local function buildsButtonActionMenuToggle(self)
+        DropDownUtil:ToggleDynamicMenu(self.ActionMenu, "TOPLEFT", self.ActionMenuToggle, "TOPRIGHT")
+    end
 
     ---@param button TalentBuildsDataProviderBuildButton
     ---@param build TalentBuildsDataProviderBuildElementData
@@ -15213,78 +15271,80 @@ if IS_RETAIL then
         ---@class TalentBuildsDataProviderBuildButton
         local button = button
         button.elementData = build
-        if not button.isInit then
-            button.isInit = true
-            button:SetHeight(buildsButtonHeight)
-            Mixin(button, BackdropTemplateMixin)
-            button:OnBackdropLoaded()
-            button:SetBackdrop({
-                bgFile = "Interface\\Buttons\\WHITE8X8",
-                edgeFile = "Interface\\Buttons\\WHITE8X8",
-                edgeSize = 1,
-                insets = { left = 0, right = 0, top = 0, bottom = 0 },
-            })
-            button:SetBackdropColor(0, 0, 0, 0.67)
-            button:SetBackdropBorderColor(1, 1, 1, 0)
-            function button:SetBackdropFocus()
-                self:SetBackdropColor(0.1, 0.1, 0.1, 0.67)
-                self:SetBackdropBorderColor(1, 1, 1, 0.67)
-            end
-            function button:ClearBackdropFocus()
-                self:SetBackdropColor(0, 0, 0, 0.67)
-                self:SetBackdropBorderColor(1, 1, 1, 0)
-            end
-            ---@param self TalentBuildsDataProviderBuildButton
-            local function OnClick(self)
-                local build = self.elementData
-                talentbuilds:LoadBuild(build)
-            end
-            ---@param self TalentBuildsDataProviderBuildButton
-            local function OnEnter(self)
-                -- local build = self.elementData
-                -- GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                -- GameTooltip:AddLine(format("%.2f%% popularity", build.popPctl * 100), 1, 1, 1, false) -- TODO
-                -- GameTooltip:Show()
-                self:SetBackdropFocus()
-            end
-            ---@param self TalentBuildsDataProviderBuildButton
-            local function OnLeave(self)
-                -- GameTooltip:Hide()
-                self:ClearBackdropFocus()
-            end
-            ---@param self TalentBuildsDataProviderBuildButton
-            local function OnShow(self)
-                self:ClearBackdropFocus()
-            end
-            ---@param self TalentBuildsDataProviderBuildButton
-            local function OnHide(self)
-                self:ClearBackdropFocus()
-            end
-            button:SetScript("OnClick", OnClick)
-            button:SetScript("OnEnter", OnEnter)
-            button:SetScript("OnLeave", OnLeave)
-            button:SetScript("OnShow", OnShow)
-            button:SetScript("OnHide", OnHide)
-            button.HeroTexture = button:CreateTexture(nil, "ARTWORK", nil, 2)
-            button.HeroTexture:SetSize(buildsButtonHeight - 10, buildsButtonHeight - 10)
-            button.HeroTexture:SetPoint("LEFT", button, "LEFT", 10, 0)
-            button.HeroTexturePlaceholder = util:CreateTextureFromIcon(button, ns.CUSTOM_ICONS.icons.RAIDERIO_COLOR_CIRCLE, "ARTWORK", 1)
-            button.HeroTexturePlaceholder:SetAllPoints(button.HeroTexture)
-            button.HeroTitle = button:CreateFontString(nil, "OVERLAY", "Game16Font")
-            button.HeroTitle:SetPoint("TOPLEFT", button.HeroTexture, "TOPRIGHT", 10, -8)
-            button.HeroTitle:SetJustifyH("LEFT")
-            button.HeroText = button:CreateFontString(nil, "OVERLAY", "Game16Font")
-            button.HeroText:SetPoint("BOTTOMLEFT", button.HeroTexture, "BOTTOMRIGHT", 10, 8)
-            button.HeroText:SetJustifyH("LEFT")
-            button.BuildTitle = button:CreateFontString(nil, "OVERLAY", "Game16Font")
-            button.BuildTitle:SetPoint("TOPLEFT", button.HeroTexture, "TOPRIGHT", 10 + 200, -8)
-            button.BuildTitle:SetJustifyH("LEFT")
-            button.BuildText = button:CreateFontString(nil, "OVERLAY", "Game16Font")
-            button.BuildText:SetPoint("BOTTOMLEFT", button.HeroTexture, "BOTTOMRIGHT", 10 + 200, 8)
-            button.BuildText:SetJustifyH("LEFT")
-            button.HeroTitle:SetPoint("TOPRIGHT", button.BuildTitle, "TOPLEFT", -10, 0)
-            button.HeroText:SetPoint("TOPRIGHT", button.BuildText, "TOPLEFT", -10, 0)
+        if button.isInit then
+            updateBuildButton(button)
+            return
         end
+        button.isInit = true
+        button:SetHeight(buildsButtonHeight)
+        Mixin(button, BackdropTemplateMixin)
+        button:OnBackdropLoaded()
+        button:SetBackdrop(buildsButtonBackdrop)
+        button:SetBackdropColor(0, 0, 0, 0.67)
+        button:SetBackdropBorderColor(1, 1, 1, 0)
+        button.SetBackdropFocus = buildsButtonSetBackdropFocus
+        button.ClearBackdropFocus = buildsButtonClearBackdropFocus
+        button.UpdateBackdropFocus = buildsButtonUpdateBackdropFocus
+        button:SetScript("OnEnter", buildsButtonOnEnter)
+        button:SetScript("OnLeave", buildsButtonOnLeave)
+        button:SetScript("OnShow", buildsButtonOnShow)
+        button:SetScript("OnHide", buildsButtonOnHide)
+        button.HeroTexture = button:CreateTexture(nil, "ARTWORK", nil, 2)
+        button.HeroTexture:SetSize(buildsButtonHeight - buildsButtonSharedPaddingX, buildsButtonHeight - buildsButtonSharedPaddingY)
+        button.HeroTexture:SetPoint("LEFT", button, "LEFT", buildsButtonSharedPaddingX, 0)
+        button.HeroTexturePlaceholder = util:CreateTextureFromIcon(button, ns.CUSTOM_ICONS.icons.RAIDERIO_COLOR_CIRCLE, "ARTWORK", 1)
+        button.HeroTexturePlaceholder:SetAllPoints(button.HeroTexture)
+        button.HeroTitle = button:CreateFontString(nil, "OVERLAY", "System15Font")
+        button.HeroTitle:SetPoint("TOPLEFT", button.HeroTexture, "TOPRIGHT", buildsButtonSharedPaddingX, -buildsButtonTextOffsetY)
+        button.HeroTitle:SetJustifyH("LEFT")
+        button.HeroText = button:CreateFontString(nil, "OVERLAY", "System15Font")
+        button.HeroText:SetPoint("BOTTOMLEFT", button.HeroTexture, "BOTTOMRIGHT", buildsButtonSharedPaddingX, buildsButtonTextOffsetY)
+        button.HeroText:SetJustifyH("LEFT")
+        button.BuildTitle = button:CreateFontString(nil, "OVERLAY", "System15Font")
+        button.BuildTitle:SetPoint("TOPLEFT", button.HeroTexture, "TOPRIGHT", buildsButtonSharedPaddingX + buildsButtonSecondColumnOffsetX, -buildsButtonTextOffsetY)
+        button.BuildTitle:SetJustifyH("LEFT")
+        button.BuildText = button:CreateFontString(nil, "OVERLAY", "System15Font")
+        button.BuildText:SetPoint("BOTTOMLEFT", button.HeroTexture, "BOTTOMRIGHT", buildsButtonSharedPaddingX + buildsButtonSecondColumnOffsetX, buildsButtonTextOffsetY)
+        button.BuildText:SetJustifyH("LEFT")
+        button.HeroTitle:SetPoint("TOPRIGHT", button.BuildTitle, "TOPLEFT", -buildsButtonSharedPaddingX, 0)
+        button.HeroText:SetPoint("TOPRIGHT", button.BuildText, "TOPLEFT", -buildsButtonSharedPaddingX, 0)
+        util:SetupAutoScalingFontString(button.HeroTitle, button.HeroText, button.BuildTitle, button.BuildText)
+        button.ActionMenu = DropDownUtil:CreateDynamicMenu(button, {
+            {
+                text = L.BUILDS_PROFILE_LOAD_LOADOUT_ACTION_TITLE,
+                func = function() talentbuilds:LoadBuild(build) end,
+            },
+            {
+                text = L.BUILDS_PROFILE_COPY_LOADOUT_ACTION_TITLE,
+                func = function() talentbuilds:ExportBuild(build) end,
+            },
+            {
+                text = L.BUILDS_PROFILE_COPY_COMPARELINK_ACTION_TITLE,
+                func = function() talentbuilds:CopyCompareLink(build) end,
+            },
+        })
+        button.ActionMenuToggle = CreateFrame("Button", nil, button, "SquareIconButtonTemplate")
+        button.ActionMenuToggle.iconAtlas = "common-dropdown-icon-next"
+        button.ActionMenuToggle.useIconAsHighlight = true
+        button.ActionMenuToggle.iconSize = buildsButtonActionButtonSize
+        button.ActionMenuToggle:OnLoad()
+        button.ActionMenuToggle:GetNormalTexture():SetAlpha(0)
+        button.ActionMenuToggle:GetPushedTexture():SetAlpha(0)
+        button.ActionMenuToggle:GetDisabledTexture():SetAlpha(0)
+        button.ActionMenuToggle:SetSize(buildsButtonActionButtonSize, buildsButtonActionButtonSize)
+        button.ActionMenuToggle:SetPoint("RIGHT", button, "RIGHT", -buildsButtonActionButtonOffsetX, 0)
+        button.ActionMenuToggle:EnableMouse(true)
+        button.ActionMenuToggle:SetMouseClickEnabled(true)
+        button.ActionMenuToggle:RegisterForClicks("LeftButtonUp")
+        button.ActionMenuToggle:SetScript("OnClick", function() buildsButtonActionMenuToggle(button) end)
+        button.BuildTitle:SetPoint("BOTTOMRIGHT", button.ActionMenuToggle, "LEFT", -buildsButtonSharedPaddingX, 0)
+        button.BuildText:SetPoint("TOPRIGHT", button.ActionMenuToggle, "LEFT", -buildsButtonSharedPaddingX, 0)
+        local function updateBackdropFocus()
+            button:UpdateBackdropFocus()
+        end
+        button.ActionMenuToggle:SetScript("OnEnter", updateBackdropFocus)
+        button.ActionMenuToggle:SetScript("OnLeave", updateBackdropFocus)
+        button.ActionMenu:RegisterCallback(button.ActionMenu.Event.OnMenuClose, updateBackdropFocus, button.ActionMenu)
         updateBuildButton(button)
     end
 
@@ -15296,7 +15356,7 @@ if IS_RETAIL then
         self:SetToplevel(true)
         self:SetMovable(true)
         self:SetClampedToScreen(true)
-        local frameWidth, frameHeight = 640, 480
+        local frameWidth, frameHeight = 640, 20 + 43 + (buildsButtonHeight * 8) + 22
         self:SetSize(frameWidth, frameHeight)
         self:SetPoint("CENTER", 0, 0)
         self:SetFrameStrata("HIGH")
@@ -15494,6 +15554,17 @@ if IS_RETAIL then
                 print(errorText) -- TODO
             end
         end
+    end
+
+    ---@param build TalentBuildsCompiledProfileBuild
+    function talentbuilds:ExportBuild(build)
+        util:ShowCopyRaiderIOPopup(L.BUILDS_PROFILE_COPY_LOADOUT_POPUP_TITLE, build.importString)
+    end
+
+    ---@param build TalentBuildsCompiledProfileBuild
+    function talentbuilds:CopyCompareLink(build)
+        local importString = classTalentImportExport:ExportLoadout()
+        util:ShowCopyRaiderIOTalentLoadoutPopup(L.BUILDS_PROFILE_COPY_COMPARELINK_POPUP_TITLE, importString, build.importString)
     end
 
     -- Only returns `TalentBuildsCompiledProfileBuild[]` when the table isn't empty, otherwise it returns `nil`.
@@ -17280,7 +17351,7 @@ do
         if not importString then
             return
         end
-        local title = GetCurrentSpecAndClassName() or L.COPY_RAIDERIO_URL -- TODO: fallback
+        local title = GetCurrentSpecAndClassName() or L.BUILDS_PROFILE_EXPORT_ACTION_TITLE
         local icon = GetCurrentSpecIcon()
         title = icon and format("%s%s", icon, title) or title
         util:ShowCopyRaiderIOTalentLoadoutPopup(title, importString)
