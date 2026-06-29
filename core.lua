@@ -3579,26 +3579,30 @@ do
         end
     end
 
-    ---@generic T
-    ---@alias TableMapFunc fun(value: T, index: number, tbl: T[], tbl2: T[]): any
+    ---@generic T, R
+    ---@alias TableMapFunc<R> fun(value: T, index: number, tbl: T[], tbl2: T[]): R
 
     ---@generic T, K
     ---@alias TableFilterFunc fun(value: T, index: K, tbl: T[], tbl2: T[]): boolean?
 
-    ---@generic T
+    ---@generic T, K
+    ---@alias TableFindFunc fun(value: T, index: K, tbl: T[]): boolean?
+
+    ---@generic T, R
     ---@param tbl T[]
-    ---@param func TableMapFunc
+    ---@param func TableMapFunc<R>
+    ---@return R[]
     function util:TableMap(tbl, func)
-        local temp = {} ---@type any[]
+        local temp = {}
         for k, v in pairs(tbl) do
             temp[k] = func(v, k, tbl, temp)
         end
         return temp
     end
 
-    ---@generic T
+    ---@generic T, R
     ---@param tbl T[]
-    ---@param func TableMapFunc
+    ---@param func TableMapFunc<R>
     ---@return string
     function util:TableMapConcat(tbl, func, delim)
         local temp = util:TableMap(tbl, func)
@@ -3712,6 +3716,42 @@ do
                 else
                     temp[k] = v
                 end
+            end
+        end
+        return temp
+    end
+
+    ---@generic T
+    ---@param tbl T[]
+    ---@param func TableFindFunc
+    ---@return T? value, number? index
+    function util:TableFind(tbl, func)
+        for k, v in ipairs(tbl) do
+            if func(v, k, tbl) then
+                return v, k
+            end
+        end
+    end
+
+    ---@generic T
+    ---@param tbl T[]
+    ---@param key string
+    ---@return T[][]
+    function util:TableGroup(tbl, key)
+        local temp = {}
+        for _, v in pairs(tbl) do
+            local keyValue = v[key]
+            local index ---@type number?
+            for i, group in ipairs(temp) do
+                if group[1][key] == keyValue then
+                    index = i
+                    break
+                end
+            end
+            if index then
+                temp[index][#temp[index] + 1] = v
+            else
+                temp[#temp + 1] = { v }
             end
         end
         return temp
@@ -3835,6 +3875,19 @@ do
         end
         local specId, name, _, icon, role = C_SpecializationInfo.GetSpecializationInfo(specIndex)
         return specId, name, icon, role
+    end
+
+    ---@param configID? number
+    ---@return number? treeID
+    function util:GetSpecializationTreeID(configID)
+        if not configID then
+            configID = C_ClassTalents.GetActiveConfigID()
+        end
+        local configInfo = C_Traits.GetConfigInfo(configID)
+        if not configInfo or not configInfo.treeIDs then
+            return
+        end
+        return configInfo.treeIDs[1]
     end
 
     ---@param subTreeID number
@@ -14908,7 +14961,19 @@ if IS_RETAIL then
             end
             ---@param self TalentBuildsDataProviderBuildButton
             local function OnClick(self)
-                -- local elementData = self.elementData
+                local elementData = self.elementData
+                local success, errorText = talentbuilds:LoadBuild(
+                    elementData,
+                    function(success)
+                        if success then
+                            return
+                        end
+                        print("Failed applying the desired build.") -- TODO
+                    end
+                )
+                if not success and errorText then
+                    print(errorText) -- TODO
+                end
             end
             ---@param self TalentBuildsDataProviderBuildButton
             local function OnEnter(self)
@@ -15137,6 +15202,192 @@ if IS_RETAIL then
 
     function talentbuilds:HasBuilds()
         return compiledPlayerProfile and #compiledPlayerProfile.builds > 0
+    end
+
+    ---@class ImportDataStreamPolyfill
+    ---@field public Init fun(self: ImportDataStreamPolyfill, exportString: string)
+    ---@field public ExtractValue fun(self: ImportDataStreamPolyfill, bitWidth: number): number
+    ---@field public GetNumberOfBits fun(self: ImportDataStreamPolyfill): number
+
+    ---@class LoadoutContentPolyfill
+    ---@field public isNodeSelected boolean
+    ---@field public isNodeGranted boolean
+    ---@field public isPartiallyRanked boolean
+    ---@field public partialRanksPurchased boolean
+    ---@field public isChoiceNode boolean
+    ---@field public choiceNodeSelection number
+
+    ---@class ImportLoadoutEntryInfoPolyfill
+    ---@field public nodeID number
+    ---@field public ranksGranted number
+    ---@field public ranksPurchased number
+    ---@field public selectionEntryID number
+
+    ---@class ClassTalentImportExportPolyfill
+    ---@field public bitWidthHeaderVersion 8
+    ---@field public bitWidthSpecID 16
+    ---@field public bitWidthRanksPurchased 6
+    ---@field public ReadLoadoutHeader fun(self: ClassTalentImportExportPolyfill, importStream: ImportDataStreamPolyfill): headerValid: boolean, serializationVersion: string, specID: number, treeHash: string
+    ---@field public ReadLoadoutContent fun(self: ClassTalentImportExportPolyfill, importStream: ImportDataStreamPolyfill, treeID: number): loadoutContent: LoadoutContentPolyfill[]
+    ---@field public ConvertToImportLoadoutEntryInfo fun(self: ClassTalentImportExportPolyfill, configID: number, treeID: number, loadoutContent: LoadoutContentPolyfill[]): loadoutEntryInfos: ImportLoadoutEntryInfoPolyfill[]
+
+    ---@type ClassTalentImportExportPolyfill?
+    local ClassTalentImportExport
+
+    ---@param importString string
+    ---@param treeID number
+    ---@param expectedSpecID? number
+    ---@param configID? number
+    ---@return ImportLoadoutEntryInfoPolyfill[]? loadoutEntryInfos, string? errorText
+    local function UnpackImportString(importString, treeID, expectedSpecID, configID)
+        if not expectedSpecID then
+            expectedSpecID = util:GetSpecialization()
+        end
+        if not expectedSpecID then
+            return nil, "Missing player spec ID."
+        end
+        local activeConfigID = configID or C_ClassTalents.GetActiveConfigID()
+        if not activeConfigID then
+            return nil, "Missing active config ID."
+        end
+        ---@type boolean, ImportDataStreamPolyfill?
+        local success, importStream = pcall(ExportUtil.MakeImportDataStream, importString)
+        if not success or not importStream then
+            return nil, "Unable to unpack import string."
+        end
+        if not ClassTalentImportExport and ClassTalentImportExportMixin then
+            ClassTalentImportExport = Mixin({}, ClassTalentImportExportMixin)
+        end
+        if not ClassTalentImportExport then
+            return nil, "Unable to load ClassTalentImportExportMixin."
+        end
+        local headerValid, serializationVersion, specID, treeHash = ClassTalentImportExport:ReadLoadoutHeader(importStream)
+        if not headerValid then
+            return nil, "Invalid import string."
+        end
+        if serializationVersion ~= C_Traits.GetLoadoutSerializationVersion() then
+            return nil, "Invalid serialization version."
+        end
+        if specID ~= expectedSpecID then
+            return nil, format("Invalid active spec ID. Found %s but expected %s.", tostringall(specID, expectedSpecID))
+        end
+        local loadoutContent = ClassTalentImportExport:ReadLoadoutContent(importStream, treeID)
+        return ClassTalentImportExport:ConvertToImportLoadoutEntryInfo(activeConfigID, treeID, loadoutContent)
+    end
+
+    local globalUniqueApplyLoadoutID = 0
+    local maxNumIterations = 200
+
+    ---@param configID number
+    ---@param treeID number
+    ---@param loadoutEntryInfos ImportLoadoutEntryInfoPolyfill[]
+    ---@param callback? fun(success: boolean)
+    local function ApplyLoadout(configID, treeID, loadoutEntryInfos, callback)
+        globalUniqueApplyLoadoutID = globalUniqueApplyLoadoutID + 1
+        local currentUniqueApplyLoadoutID = globalUniqueApplyLoadoutID
+        C_Traits.ResetTree(configID, treeID)
+        local sortedNodes = C_Traits.GetTreeNodes(treeID)
+        table.sort(sortedNodes, function(a, b)
+            local x = C_Traits.GetNodeInfo(configID, a)
+            local y = C_Traits.GetNodeInfo(configID, b)
+            if x.posY == y.posY then
+                return x.posX < y.posX
+            end
+            return x.posY < y.posY
+        end)
+        local i = 0
+        local numSortedNodes = #sortedNodes
+        local successProgress = 0
+        local function next()
+            if currentUniqueApplyLoadoutID ~= globalUniqueApplyLoadoutID then
+                return
+            end
+            local processed = 0
+            while processed < maxNumIterations and i <= numSortedNodes do
+                i = i + 1
+                processed = processed + 1
+                local nodeID = sortedNodes[i]
+                local loadoutEntryInfo, loadoutEntryInfoIndex = util:TableFind(loadoutEntryInfos, function(loadoutEntryInfo) return loadoutEntryInfo.nodeID == nodeID end)
+                if loadoutEntryInfo and loadoutEntryInfoIndex then
+                    local success = false
+                    if loadoutEntryInfo.ranksPurchased then
+                        local nodeInfo = C_Traits.GetNodeInfo(configID, nodeID)
+                        if nodeInfo.type == Enum.TraitNodeType.Selection or nodeInfo.type == Enum.TraitNodeType.SubTreeSelection then
+                            success = C_Traits.SetSelection(configID, loadoutEntryInfo.nodeID, loadoutEntryInfo.selectionEntryID)
+                        elseif nodeInfo.type == Enum.TraitNodeType.Single or nodeInfo.type == Enum.TraitNodeType.Tiered then
+                            local numMissingRanks = loadoutEntryInfo.ranksPurchased - nodeInfo.ranksPurchased
+                            local numPendingRanks = numMissingRanks
+                            for _ = 1, numMissingRanks do
+                                if C_Traits.PurchaseRank(configID, loadoutEntryInfo.nodeID) then
+                                    numPendingRanks = numPendingRanks - 1
+                                end
+                            end
+                            if numPendingRanks == 0 then
+                                success = true
+                            end
+                        end
+                    else
+                        success = true
+                    end
+                    if success then
+                        successProgress = successProgress + 1
+                        table.remove(loadoutEntryInfos, loadoutEntryInfoIndex)
+                    end
+                end
+            end
+            local pending = i <= numSortedNodes or successProgress > 0
+            if pending then
+                if successProgress > 0 then
+                    i = 0
+                    successProgress = 0
+                end
+                C_Timer.After(0, next)
+            elseif callback then
+                callback(#loadoutEntryInfos == 0)
+            end
+        end
+        next()
+    end
+
+    ---@param loadoutEntryInfos ImportLoadoutEntryInfoPolyfill[]
+    local function FlattenTierLoadoutEntryInfos(loadoutEntryInfos)
+        local loadoutEntryInfosGrouped = util:TableGroup(loadoutEntryInfos, "nodeID")
+        return util:TableMap(loadoutEntryInfosGrouped, function(loadoutEntryInfosGroup)
+            local first = loadoutEntryInfosGroup[1]
+            for i = 2, #loadoutEntryInfosGroup do
+                local temp = loadoutEntryInfosGroup[i]
+                first.ranksPurchased = first.ranksPurchased + temp.ranksPurchased
+            end
+            return first
+        end)
+    end
+
+    ---@param build TalentBuildsCompiledProfileBuild
+    ---@param callback? fun(success: boolean)
+    ---@return boolean? success, string? errorText
+    function talentbuilds:LoadBuild(build, callback)
+        local canChange, _, changeError = C_ClassTalents.CanChangeTalents()
+        if not canChange then
+            return nil, changeError or "Can't change talents."
+        end
+        local activeConfigID = C_ClassTalents.GetActiveConfigID()
+        if not activeConfigID then
+            return nil, "Missing active talent config."
+        end
+        local treeID = util:GetSpecializationTreeID(activeConfigID)
+        if not treeID then
+            return nil, "Missing tree ID."
+        end
+        local specID = util:GetSpecialization()
+        local loadoutEntryInfos, errorText = UnpackImportString(build.importString, treeID, specID, activeConfigID)
+        if not loadoutEntryInfos or errorText then
+            return nil, errorText or "Can't import build."
+        end
+        -- HOTFIX: the tier nodes and the math we perform later on the "ranksPurchased" value won't work, unless we flatten these tier-nodes into one node
+        -- since we just spam click to apply the points on the node, and the tier-node must be clicked to unlock the later ranks, they all share the same nodeID
+        loadoutEntryInfos = FlattenTierLoadoutEntryInfos(loadoutEntryInfos)
+        ApplyLoadout(activeConfigID, treeID, loadoutEntryInfos, callback)
+        return true
     end
 
     -- TODO
