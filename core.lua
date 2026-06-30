@@ -4023,8 +4023,8 @@ if IS_RETAIL then
     ---@field public GetLoadoutExportString fun(self: ClassTalentImportExportMixinPolyfill): importString: string Export the current active loadout to a import string.
 
     ---@class ClassTalentImportExport : TalentFrameBaseMixinPolyfill, ClassTalentImportExportMixinPolyfill, Frame
-    ---@field public OnLoad fun(self: ClassTalentImportExport)
     ---@field public excludeStagedChangesForCurrencies boolean
+    ---@field public OnLoad fun(self: ClassTalentImportExport)
 
     -- It's important to call and handle the success flag from `EnsureClassTalentImportExport` before using this variable.
     -- We don't wish to initialize it before needing to use it, and we only need to use it to import or export a talent loadout.
@@ -4038,8 +4038,10 @@ if IS_RETAIL then
         end
         C_AddOns.LoadAddOn("Blizzard_PlayerSpells")
         if TalentFrameBaseMixin and ClassTalentImportExportMixin then
-            ClassTalentImportExport = Mixin(CreateFrame("Frame", nil, nil, "TalentFrameBaseTemplate"), ClassTalentImportExportMixin) ---@type ClassTalentImportExport
+            ClassTalentImportExport = Mixin(CreateFrame("Frame", nil, nil, "TalentFrameBaseTemplate"), ClassTalentImportExportMixin) ---@class ClassTalentImportExport
             ClassTalentImportExport:Hide()
+            local function noop() end
+            ClassTalentImportExport.OnTraitConfigCreateStarted = noop
         end
         return ClassTalentImportExport and true or false
     end
@@ -4192,26 +4194,257 @@ if IS_RETAIL then
         end)
     end
 
+    -- Returns the real config ID of the currently active loadout.
+    ---@return number? configID
+    function classTalentImportExport:GetActiveLoadoutConfigID()
+        local specID = util:GetSpecialization()
+        local lastSelectedConfigID = specID and C_ClassTalents.GetLastSelectedSavedConfigID(specID)
+        local uiSelectedConfigID = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame and PlayerSpellsFrame.TalentsFrame.LoadSystem and PlayerSpellsFrame.TalentsFrame.LoadSystem.GetSelectionID and PlayerSpellsFrame.TalentsFrame.LoadSystem:GetSelectionID() ---@type number?
+        -- prioritize the default UI, then API, then active config ID, and nil is last resort and a complete failure
+        return uiSelectedConfigID or lastSelectedConfigID or C_ClassTalents.GetActiveConfigID()
+    end
+
+    ---@class LoadoutExtendedInfo : TraitConfigInfo
+    ---@field public index number
+
+    ---@alias LoadoutInfo LoadoutExtendedInfo|TraitConfigInfo
+    ---@alias LoadoutQuery LoadoutInfo|number|string
+
+    ---@generic T
+    ---@param predicate? fun(index: number, info: TraitConfigInfo): boolean?
+    ---@param converter? fun(index: number, info: TraitConfigInfo): T?
+    ---@param onlyOne? boolean
+    ---@return T[]
+    local function GetLoadouts(predicate, converter, onlyOne)
+        local results = {}
+        local i = 0
+        local configIDs = C_ClassTalents.GetConfigIDsBySpecID()
+        for index, configID in ipairs(configIDs) do
+            local info = C_Traits.GetConfigInfo(configID)
+            if info and (not predicate or predicate(index, info)) then
+                local result = info
+                if converter then
+                    result = converter(index, info)
+                end
+                if result ~= nil then
+                    i = i + 1
+                    results[i] = result
+                    if onlyOne then
+                        break
+                    end
+                end
+            end
+        end
+        return results
+    end
+
+    ---@param index number
+    ---@param info LoadoutExtendedInfo
+    ---@return LoadoutExtendedInfo
+    local function GetLoadoutsWithIndexConverter(index, info)
+        info.index = index
+        return info
+    end
+
+    ---@param predicate? fun(index: number, info: TraitConfigInfo): boolean?
+    ---@param onlyOne? boolean
+    ---@return LoadoutExtendedInfo[]
+    local function GetLoadoutsExtended(predicate, onlyOne)
+        return GetLoadouts(predicate, GetLoadoutsWithIndexConverter, onlyOne)
+    end
+
+    ---@param loadout LoadoutQuery
+    ---@return LoadoutExtendedInfo?
+    local function GetLoadoutsExtendedByQuery(loadout)
+        local t = type(loadout)
+        if t == "table" then
+            if not loadout.index then
+                local index = classTalentImportExport:GetLoadoutIndexByConfigID(loadout.ID)
+                loadout = GetLoadoutsWithIndexConverter(index, loadout)
+            end
+            return loadout
+        elseif t == "number" and loadout > 0 then
+            return GetLoadoutsExtended(function(index) return index == loadout end, true)[1]
+        elseif t == "string" then
+            return GetLoadoutsExtended(function(_, info) return info.name == loadout end, true)[1]
+        end
+    end
+
+    ---@param configID number
+    ---@return number? loadoutIndex
+    function classTalentImportExport:GetLoadoutIndexByConfigID(configID)
+        local configIDs = C_ClassTalents.GetConfigIDsBySpecID()
+        for index, id in ipairs(configIDs) do
+            if id == configID then
+                return index
+            end
+        end
+    end
+
+    ---@param index number
+    ---@return number? configID
+    function classTalentImportExport:GetLoadoutConfigIDByIndex(index)
+        local configIDs = C_ClassTalents.GetConfigIDsBySpecID()
+        for idx, configID in ipairs(configIDs) do
+            if idx == index then
+                return configID
+            end
+        end
+    end
+
+    -- Returns all the loadouts available to the player.
+    ---@return LoadoutExtendedInfo[]
+    function classTalentImportExport:GetLoadouts()
+        return GetLoadoutsExtended()
+    end
+
+    -- Accepts a `loadout object`, `index` or `name`.
+    ---@param loadout LoadoutQuery
+    ---@return LoadoutExtendedInfo?
+    function classTalentImportExport:GetLoadoutInfo(loadout)
+        return GetLoadoutsExtendedByQuery(loadout)
+    end
+
+    -- Accepts a `loadout object`, `index` or `name`.
+    ---@param loadout LoadoutQuery
+    function classTalentImportExport:SwitchToLoadout(loadout)
+        local info = classTalentImportExport:GetLoadoutInfo(loadout)
+        if not info then
+            return
+        end
+        C_Traits.RollbackConfig(info.ID)
+        if info.index and info.index > 0 then
+            ClassTalentHelper.SwitchToLoadoutByIndex(info.index)
+        else
+            ClassTalentHelper.SwitchToLoadoutByIndex(info.name)
+        end
+    end
+
+    -- Accepts a `loadout object`, `index` or `name`.
+    ---@param loadout LoadoutQuery
+    ---@return boolean? success
+    function classTalentImportExport:DeleteLoadout(loadout)
+        local info = classTalentImportExport:GetLoadoutInfo(loadout)
+        if not info then
+            return
+        end
+        return C_ClassTalents.DeleteConfig(info.ID)
+    end
+
+    -- Accepts a `loadout object`, `index` or `name`.
+    ---@param loadout LoadoutQuery
+    ---@param name? string
+    ---@return boolean? success
+    function classTalentImportExport:RenameLoadout(loadout, name)
+        if type(name) ~= "string" or name:len() == 0 then
+            return
+        end
+        local info = classTalentImportExport:GetLoadoutInfo(loadout)
+        if not info then
+            return
+        end
+        return C_ClassTalents.RenameConfig(info.ID, name)
+    end
+
+    -- This can either create a new loadout which is empty, or one where the import string gets automatically handled.
+    ---@param importString string
+    ---@param name string
+    ---@param usesSharedActionBars boolean
+    ---@param callback fun(info: LoadoutExtendedInfo, success: boolean, nameSuccess: boolean, usesSharedActionBarsSuccess: boolean)
+    ---@return boolean? accepted, string? errorText
+    function classTalentImportExport:CreateLoadout(importString, name, usesSharedActionBars, callback)
+        if not callback then
+            return nil, "Missing required callback."
+        end
+
+        if importString and not EnsureClassTalentImportExport() then
+            return nil, "Unable to load ClassTalentImportExportMixin."
+        end
+
+        if not C_ClassTalents.CanCreateNewConfig() then
+            return false, "Unable to create a new loadout."
+        end
+
+        -- if not importString then
+        --     local success = C_ClassTalents.RequestNewConfig(name)
+        --     if not success then
+        --         return false, "Request to create a new loadout failed."
+        --     end
+        --     return true
+        -- end
+
+        local configID = C_ClassTalents.GetActiveConfigID()
+        if not configID then
+            return nil, "Missing config ID."
+        end
+
+        local treeID = util:GetSpecializationTreeID(configID)
+        if not treeID then
+            return nil, "Missing tree ID."
+        end
+
+        ClassTalentImportExport:SetConfigID(configID, true)
+        ClassTalentImportExport:SetTalentTreeID(treeID, true)
+        ClassTalentImportExport:UpdateTreeInfo(true)
+
+        local success = ClassTalentImportExport:ImportLoadout(importString, name)
+        if not success then
+            return false, "Unable to import loadout."
+        end
+
+        ---@param info TraitConfigInfo
+        EventUtil.RegisterOnceFrameEventAndCallback("TRAIT_CONFIG_CREATED", function(info)
+            info = GetLoadoutsExtendedByQuery(info) ---@type LoadoutExtendedInfo
+            local nameSuccess = true
+            local usesSharedActionBarsSuccess = true
+            if info.name ~= name then
+                nameSuccess = classTalentImportExport:RenameLoadout(info, name)
+                if nameSuccess then
+                    info.name = name
+                end
+            end
+            if info.usesSharedActionBars ~= usesSharedActionBars then
+                usesSharedActionBarsSuccess = classTalentImportExport:UpdateLoadoutSharedActionBars(info, usesSharedActionBars)
+                if usesSharedActionBarsSuccess then
+                    info.usesSharedActionBars = usesSharedActionBars
+                end
+            end
+            local success = nameSuccess and usesSharedActionBarsSuccess
+            callback(info, success, nameSuccess, usesSharedActionBarsSuccess)
+        end)
+
+        return true
+    end
+
+    -- Accepts a `loadout object`, `index` or `name`.
+    ---@param loadout LoadoutQuery
+    ---@param usesSharedActionBars boolean
+    function classTalentImportExport:UpdateLoadoutSharedActionBars(loadout, usesSharedActionBars)
+        if usesSharedActionBars == nil then
+            return
+        end
+        local info = classTalentImportExport:GetLoadoutInfo(loadout)
+        if not info then
+            return
+        end
+        usesSharedActionBars = not not usesSharedActionBars
+        C_ClassTalents.SetUsesSharedActionBars(info.ID, usesSharedActionBars)
+        return true
+    end
+
+    -- This simply modifies the active loadout to match the desired import string choices.
     ---@param importString string
     ---@param callback? fun(success: boolean)
     ---@return boolean? accepted, string? errorText
-    function classTalentImportExport:ImportLoadout(importString, callback)
+    function classTalentImportExport:UpdateActiveLoadoutTalents(importString, callback)
         local canChange, _, changeError = C_ClassTalents.CanChangeTalents()
         if not canChange then
             return nil, changeError or "Can't change talents."
         end
 
-        -- TODO: we need to add support for various strategies
-        -- - importing a loadout by a name
-        --   - updating the existing config by that name
-        --     - run the code as this function does, where it updates the choices to match the import string choices
-        --     - afterward we have to save the config (so it isn't just in pending approval state) this saves and makes the user spec into the loadout
-        --   - creating a new config by that name
-        --     - this can use the other API to make a new profile with the name, import string, and apply it all in the same action (I hope)
-
         local configID = C_ClassTalents.GetActiveConfigID()
         if not configID then
-            return nil, "Missing active talent config."
+            return nil, "Missing config ID."
         end
 
         local treeID = util:GetSpecializationTreeID(configID)
@@ -4233,13 +4466,9 @@ if IS_RETAIL then
         return true
     end
 
-    ---@param configID? number Defaults to active config, otherwise specify the one you wish to export.
+    ---@param configID? number Defaults to active config.
     ---@return string? importString
     function classTalentImportExport:ExportLoadout(configID)
-        if not EnsureClassTalentImportExport() then
-            return
-        end
-
         if not configID then
             configID = C_ClassTalents.GetActiveConfigID()
         end
@@ -4248,10 +4477,93 @@ if IS_RETAIL then
             return
         end
 
-        ClassTalentImportExport:SetConfigID(configID, true)
-        ClassTalentImportExport:UpdateTreeInfo(true)
+        -- if EnsureClassTalentImportExport() then
+        --     ClassTalentImportExport:SetConfigID(configID, true)
+        --     ClassTalentImportExport:UpdateTreeInfo(true)
+        --     return ClassTalentImportExport:GetLoadoutExportString()
+        -- end
 
-        return ClassTalentImportExport:GetLoadoutExportString()
+        return C_Traits.GenerateImportString(configID)
+    end
+
+    ---@param configID? number Defaults to active config.
+    ---@param useImportString? stringView
+    ---@return ImportLoadoutEntryInfoPolyfill[]?
+    function classTalentImportExport:GetLoadoutEntryInfos(configID, useImportString)
+        if not configID then
+            configID = C_ClassTalents.GetActiveConfigID()
+        end
+        if not configID then
+            return
+        end
+
+        local importString = useImportString or classTalentImportExport:ExportLoadout(configID)
+        if not importString then
+            return
+        end
+
+        local treeID = util:GetSpecializationTreeID(configID)
+        if not treeID then
+            return
+        end
+
+        local specID = util:GetSpecialization()
+        local loadoutEntryInfos = UnpackImportString(importString, treeID, specID, configID)
+        return loadoutEntryInfos
+    end
+
+    ---@param loadoutEntryInfos ImportLoadoutEntryInfoPolyfill[]
+    local function FlattenNodeRanksPurchased(loadoutEntryInfos)
+        local map = {} ---@type table<number, number>
+        for _, info in ipairs(loadoutEntryInfos) do
+            local nodeID = info.nodeID
+            local ranksPurchased = info.ranksPurchased
+            map[nodeID] = (map[nodeID] or 0) + ranksPurchased
+        end
+        return map
+    end
+
+    ---@param configID? number Defaults to active config.
+    ---@param leftImportString? string
+    ---@param rightImportString string
+    ---@return boolean? areEqual
+    function classTalentImportExport:AreImportStringsEqual(configID, leftImportString, rightImportString)
+        local leftInfos = classTalentImportExport:GetLoadoutEntryInfos(configID, leftImportString)
+        if not leftInfos then
+            return
+        end
+        local rightInfos = classTalentImportExport:GetLoadoutEntryInfos(configID, rightImportString)
+        if not rightInfos then
+            return
+        end
+        local leftMap = FlattenNodeRanksPurchased(leftInfos)
+        local rightMap = FlattenNodeRanksPurchased(rightInfos)
+        local nodeIDs = {} ---@type number[]
+        local seenNodeIDs = {} ---@type table<number, true?>
+        local i = 0
+        ---@param nodeID number
+        local function appendID(nodeID)
+            if seenNodeIDs[nodeID] then
+                return
+            end
+            seenNodeIDs[nodeID] = true
+            i = i + 1
+            nodeIDs[i] = nodeID
+        end
+        for nodeID, _ in pairs(leftMap) do
+            appendID(nodeID)
+        end
+        for nodeID, _ in pairs(rightMap) do
+            appendID(nodeID)
+        end
+        for _, nodeID in ipairs(nodeIDs) do
+            local left = leftMap[nodeID] or 0
+            local right = rightMap[nodeID] or 0
+            if left ~= right then
+                return false
+            end
+        end
+        return true
     end
 
     classTalentImportExport:Enable()
@@ -15311,6 +15623,11 @@ if IS_RETAIL then
     end
 
     ---@param self TalentBuildsDataProviderBuildButton
+    local function buildsButtonPlaySuccessAnimation(self)
+        self.ActionMenuToggle.SuccessAnimation:Play()
+    end
+
+    ---@param self TalentBuildsDataProviderBuildButton
     local function buildsButtonOnEnter(self)
         self:SetBackdropFocus()
     end
@@ -15415,10 +15732,9 @@ if IS_RETAIL then
                     talentbuilds:LoadBuild(
                         button.elementData,
                         function(success, errorText)
-                            -- if success then
-                            -- TODO: play an animation on the `button` to indicate this has loaded
-                            -- end
-                            if errorText then
+                            if success then
+                                button:PlaySuccessAnimation()
+                            elseif errorText then
                                 print(format("|cffFFFF55%s:|r %s", L.RAIDERIO, errorText))
                             end
                             return true
@@ -15473,6 +15789,18 @@ if IS_RETAIL then
         button.ActionMenuToggle:SetScript("OnEnter", updateBackdropFocus)
         button.ActionMenuToggle:SetScript("OnLeave", updateBackdropFocus)
         button.ActionMenu:RegisterCallback(button.ActionMenu.Event.OnMenuClose, updateBackdropFocus, button.ActionMenu)
+
+        button.ActionMenuToggle.SuccessAnimation = button.ActionMenuToggle:CreateAnimationGroup()
+        button.ActionMenuToggle.SuccessAnimation:SetLooping("NONE")
+        local scale = button.ActionMenuToggle.SuccessAnimation:CreateAnimation("Scale")
+        scale:SetSmoothing("IN_OUT")
+        scale:SetTarget(button.ActionMenuToggle)
+        scale:SetDuration(1)
+        scale:SetOrigin("CENTER", 0, 0)
+        scale:SetScale(1, 1)
+        scale:SetScaleFrom(1.5, 1.5)
+        scale:SetScaleTo(1, 1)
+        button.PlaySuccessAnimation = buildsButtonPlaySuccessAnimation
 
         updateBuildButton(button)
     end
@@ -15643,6 +15971,14 @@ if IS_RETAIL then
 
         self.ScrollBox:SetDataProvider(dataProvider)
 
+        ---@type WowEvent[]
+        local forceUpdateEvents = {
+            "TRAIT_CONFIG_UPDATED",
+            "TRAIT_NODE_CHANGED",
+            "TRAIT_TREE_CHANGED",
+            "TRAIT_TREE_CURRENCY_INFO_UPDATED",
+        }
+
         local function forceUpdate()
             self.ScrollBox:ForEachFrame(updateBuildButton)
         end
@@ -15658,19 +15994,11 @@ if IS_RETAIL then
 
         self:HookScript("OnShow", function()
             forceUpdateDelayed()
-            self:RegisterEvent("TRAIT_NODE_CHANGED")
-            self:RegisterEvent("TRAIT_TREE_CURRENCY_INFO_UPDATED")
+            callback:RegisterEvent(forceUpdateDelayed, unpack(forceUpdateEvents))
         end)
 
         self:HookScript("OnHide", function()
-            self:UnregisterEvent("TRAIT_NODE_CHANGED")
-            self:UnregisterEvent("TRAIT_TREE_CURRENCY_INFO_UPDATED")
-        end)
-
-        self:HookScript("OnEvent", function(_, event)
-            if event == "TRAIT_NODE_CHANGED" or event == "TRAIT_TREE_CURRENCY_INFO_UPDATED" then
-                forceUpdateDelayed()
-            end
+            callback:UnregisterEvent(forceUpdateDelayed, unpack(forceUpdateEvents))
         end)
 
     end
@@ -15716,60 +16044,86 @@ if IS_RETAIL then
 
     ---@param build TalentBuildsCompiledProfileBuild
     ---@param importString string
-    ---@param strictStringCompare? boolean Default is to consider the build matched if the `suffixImportString` parts are identical, otherwise the entire `importString` will be compared.
-    ---@return boolean equal, boolean strictEqual
-    function talentbuilds:IsBuildAndImportStringEqual(build, importString, strictStringCompare)
+    ---@return boolean
+    function talentbuilds:IsBuildAndImportStringEqual(build, importString)
         if build.importString == importString then
-            return true, true
+            return true
         end
-        if not strictStringCompare and build.suffixImportString == importString:sub(build.prefixImportString:len() + 1) then
-            return true, false
-        end
-        return false, false
+        return classTalentImportExport:AreImportStringsEqual(nil, importString, build.importString)
     end
 
     ---@param build TalentBuildsCompiledProfileBuild
-    function talentbuilds:IsBuildActiveAsLoadout(build)
-        local importString = classTalentImportExport:ExportLoadout()
+    ---@param configID? number Defaults to active config.
+    function talentbuilds:IsBuildActiveAsLoadout(build, configID)
+        local importString = classTalentImportExport:ExportLoadout(configID)
         if not importString then
             return
         end
-        return (talentbuilds:IsBuildAndImportStringEqual(build, importString))
+        return talentbuilds:IsBuildAndImportStringEqual(build, importString)
     end
+
+    local defaultLoadoutName = L.BUILDS_PROFILE_LOADOUT_NAME
+    local defaultUsesSharedActionBars = true
 
     ---@param build TalentBuildsCompiledProfileBuild
     ---@param callback? fun(success: boolean, errorText?: string): boolean?
     function talentbuilds:LoadBuild(build, callback)
-        if talentbuilds:IsBuildActiveAsLoadout(build) then
+        ---@param success boolean
+        ---@param errorText? string
+        local function respond(success, errorText)
             if callback then
-                callback(true)
-            end
-            return
-        end
-
-        local accepted, errorText = classTalentImportExport:ImportLoadout(
-            build.importString,
-            function(success)
-                if callback then
-                    if callback(success) then
-                        return
-                    end
-                end
-                if not success then
-                    print("Failed applying the desired build.") -- TODO
-                end
-            end
-        )
-
-        if not accepted then
-            if callback then
-                if callback(false, errorText) then
+                if callback(success, errorText) then
                     return
                 end
             end
             if errorText then
                 print(errorText) -- TODO
             end
+        end
+
+        if talentbuilds:IsBuildActiveAsLoadout(build) then
+            respond(true, "Build is already active.") -- TODO
+            return
+        end
+
+        local activeLoadoutConfigID = classTalentImportExport:GetActiveLoadoutConfigID()
+        local existingLoadout = classTalentImportExport:GetLoadoutInfo(defaultLoadoutName)
+
+        if existingLoadout then
+
+            local existingLoadoutConfigID = existingLoadout.ID
+
+            if existingLoadoutConfigID == activeLoadoutConfigID and talentbuilds:IsBuildActiveAsLoadout(build, existingLoadoutConfigID) then
+                classTalentImportExport:SwitchToLoadout(existingLoadout)
+                respond(true, "Switching to correct loadout.") -- TODO
+                return
+            end
+
+            if not classTalentImportExport:DeleteLoadout(existingLoadout) then
+                respond(false, "Unable to delete old loadout.") -- TODO
+                return
+            end
+
+            -- defaultUsesSharedActionBars = existingLoadout.usesSharedActionBars
+
+        end
+
+        local accepted, errorText = classTalentImportExport:CreateLoadout(
+            build.importString,
+            defaultLoadoutName,
+            defaultUsesSharedActionBars,
+            function(info, success)
+                local function switchToLoadout()
+                    classTalentImportExport:SwitchToLoadout(info)
+                end
+                switchToLoadout()
+                EventUtil.RegisterOnceFrameEventAndCallback("TRAIT_CONFIG_UPDATED", switchToLoadout)
+                respond(success, not success and "Failed importing the desired build." or nil) -- TODO
+            end
+        )
+
+        if not accepted then
+            respond(false, errorText)
         end
     end
 
@@ -15786,15 +16140,17 @@ if IS_RETAIL then
     ---@param build TalentBuildsCompiledProfileBuild
     function talentbuilds:CopyCompareLink(build)
         local importString = classTalentImportExport:ExportLoadout()
+        if not importString then
+            return
+        end
         util:ShowCopyRaiderIOTalentLoadoutPopup(L.BUILDS_PROFILE_COPY_COMPARELINK_POPUP_TITLE, importString, build.importString)
     end
 
     -- Only returns `TalentBuildsCompiledProfileBuild[]` when the table isn't empty, otherwise it returns `nil`.
     ---@param useDataProvider? boolean Default behavior is to use the complete talent builds database. Set to `true` to use the dataprovider used by the UI.
     ---@param resultLimit? number Default is to return all matches, but you can define a upper limit.
-    ---@param strictStringCompare? boolean Default is to consider the build matched if the `suffixImportString` parts are identical, otherwise the entire `importString` will be compared.
     ---@return TalentBuildsCompiledProfileBuild[]?
-    function talentbuilds:GetBuildsMatchingActiveLoadout(useDataProvider, resultLimit, strictStringCompare)
+    function talentbuilds:GetBuildsMatchingActiveLoadout(useDataProvider, resultLimit)
         local importString = classTalentImportExport:ExportLoadout()
         if not importString then
             return
@@ -15818,7 +16174,7 @@ if IS_RETAIL then
         end
 
         for _, build in ipairs(checkBuilds) do
-            if talentbuilds:IsBuildAndImportStringEqual(build, importString, strictStringCompare) then
+            if talentbuilds:IsBuildAndImportStringEqual(build, importString) then
                 append(build)
             end
             if resultLimit and i >= resultLimit then
