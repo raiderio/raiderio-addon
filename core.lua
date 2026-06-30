@@ -399,6 +399,30 @@ local DropDownUtil do
         return selections[1]
     end
 
+    ---@alias DropDownUtilDynamicMenuSelectOptionOrPredicate fun(option: DropDownUtilDynamicMenuOption, menu: WowStyle1DropdownTemplatePolyfill): boolean?
+
+    ---@param menu WowStyle1DropdownTemplatePolyfill
+    ---@param optionOrPredicate DropDownUtilDynamicMenuSelectOptionOrPredicate
+    ---@return number numUpdated
+    local function dynamicMenuSelectOption(menu, optionOrPredicate)
+        local changed = 0
+        local args = menu.DynamicMenuArgs
+        if not args then
+            return changed
+        end
+        for _, option in ipairs(menu.DynamicMenuOptions) do
+            if option == optionOrPredicate or (type(optionOrPredicate) == "function" and optionOrPredicate(option, menu)) then
+                changed = changed + 1
+                if option.checkable then
+                    args.checkedIndice[option] = true
+                elseif option.radiogroup then
+                    args.radioGroupIndex[option.radiogroup] = option
+                end
+            end
+        end
+        return changed
+    end
+
     ---@generic T
     ---@param owner T
     ---@param generatorFunction fun(owner: T, rootDescription: WowStyle1DropdownTemplateRootDescriptionPolyfill)
@@ -412,6 +436,7 @@ local DropDownUtil do
         menu.DynamicMenuArgs = dynamicMenuArgs
         menu.DynamicMenuCollectSelectionOptions = dynamicMenuCollectSelectionOptions
         menu.DynamicMenuCollectSelectionOption = dynamicMenuCollectSelectionOption
+        menu.DynamicMenuSelectOption = dynamicMenuSelectOption
         menu:SetupMenu(generatorFunction)
         return menu
     end
@@ -1604,6 +1629,7 @@ do
 
     ---@class DungeonInstance
     ---@field public id number
+    ---@field public instance_map_id number @Deprecated, should use `instance_map_ids` instead.
     ---@field public instance_map_ids number[]
     ---@field public lfd_activity_ids number[]
     ---@field public name string
@@ -15195,45 +15221,101 @@ if IS_RETAIL then
 
     ---@class TalentBuildsFrame : ButtonFrameTemplatePolyfill
 
+    local talentBuilds = ns:GetTalentBuilds()
+
+    ---@type DungeonRaid[]
+    local relevantRaids = {}
+
+    for _, stringID in ipairs(talentBuilds.routes.raidOrder) do
+        local id = tonumber(stringID)
+        if id then
+            local raid = util:GetRaidByID(id)
+            if raid then
+                relevantRaids[#relevantRaids + 1] = raid
+            end
+        end
+    end
+
+    -- The first key is the `Raid ID`, then the sub-table is ordered `Encounter IDs`.
+    ---@type table<number, number[]>
+    local relevantEncounters = {}
+
+    for stringID, encounters in pairs(talentBuilds.routes.encounterOrder) do
+        local id = tonumber(stringID)
+        if id then
+            for _, stringEncounterID in ipairs(encounters) do
+                local encounterID = tonumber(stringEncounterID)
+                if encounterID then
+                    local temp = relevantEncounters[id]
+                    if not temp then
+                        temp =  {}
+                        relevantEncounters[id] = temp
+                    end
+                    temp[#temp + 1] = encounterID
+                end
+            end
+        end
+    end
+
+    -- The first key is the `Encounter ID`, the value is either `Journal Encounter ID`.
+    ---@type table<number, number>
+    local encounterIDToJournalEncounterID = {}
+
+    for encounterIDString, journalEncounterID in pairs(talentBuilds.routes.encounterJournalIds) do
+        local encounterID = tonumber(encounterIDString)
+        if encounterID then
+            encounterIDToJournalEncounterID[encounterID] = journalEncounterID
+        end
+    end
+
+    ---@type Dungeon[]
+    local relevantDungeons = {}
+
+    for _, stringID in ipairs(talentBuilds.routes.dungeonOrder) do
+        local id = tonumber(stringID)
+        if id then
+            local dungeon = util:GetDungeonByID(id)
+            if dungeon then
+                relevantDungeons[#relevantDungeons + 1] = dungeon
+            end
+        end
+    end
+
+    ---@type { key: TalentBuildsRaidDifficultyKey, text: string }[]
+    local relevantEncounterDifficulties = {
+        { key = "all", text = L.BUILDS_ENCOUNTER_DIFFICULY_all },
+        ["all"] = true,
+    }
+
+    ---@type { key: TalentBuildsDungeonDifficultyKey, text: string }[]
+    local relevantDungeonBrackets = {
+        { key = "all", text = L.BUILDS_DUNGEON_BRACKET_all },
+        ["all"] = true,
+    }
+
+    for _, difficultyKey in ipairs(talentBuilds.routes.difficultyOrder) do
+        if not relevantEncounterDifficulties[difficultyKey] then
+            relevantEncounterDifficulties[difficultyKey] = true
+            relevantEncounterDifficulties[#relevantEncounterDifficulties + 1] = {
+                key = difficultyKey,
+                text = L[format("BUILDS_ENCOUNTER_DIFFICULY_%s", difficultyKey)],
+            }
+        end
+    end
+
+    for _, difficultyKey in ipairs(talentBuilds.routes.bracketOrder) do
+        if not relevantDungeonBrackets[difficultyKey] then
+            relevantDungeonBrackets[difficultyKey] = true
+            relevantDungeonBrackets[#relevantDungeonBrackets + 1] = {
+                key = difficultyKey,
+                text = L[format("BUILDS_DUNGEON_BRACKET_%s", difficultyKey)],
+            }
+        end
+    end
+
     ---@class TalentBuildsDataProviderBuildButton : Button, BackdropTemplate
 
     ---@alias TalentBuildsDataProviderBuildElementData TalentBuildsCompiledProfileBuild
-
-    ---@generic T
-    ---@class DataProviderPolyfill<T>
-    ---@field public Enumerate fun(self: DataProviderPolyfill, indexBegin?: number, indexEnd?: number): fun(): index: number, elementData: T
-    ---@field public EnumerateEntireRange fun(self: DataProviderPolyfill): fun(): index: number, elementData: T
-    ---@field public ReverseEnumerate fun(self: DataProviderPolyfill, indexBegin?: number, indexEnd?: number): fun(): index: number, elementData: T
-    ---@field public ReverseEnumerateEntireRange fun(self: DataProviderPolyfill): fun(): index: number, elementData: T
-    ---@field public GetCollection fun(self: DataProviderPolyfill): T[]
-    ---@field public GetSize fun(self: DataProviderPolyfill): number
-    ---@field public IsEmpty fun(self: DataProviderPolyfill): boolean
-    ---@field public InsertAtIndex fun(self: DataProviderPolyfill, elementData: T, insertIndex: number)
-    ---@field public Insert fun(self: DataProviderPolyfill, ...: T)
-    ---@field public InsertTable fun(self: DataProviderPolyfill, tbl: T[])
-    ---@field public InsertTableRange fun(self: DataProviderPolyfill, tbl: T[], indexBegin: number, indexEnd: number)
-    ---@field public MoveElementDataToIndex fun(self: DataProviderPolyfill, elementData: T, newIndex: number)
-    ---@field public Remove fun(self: DataProviderPolyfill, ...: T)
-    ---@field public RemoveAllByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?)
-    ---@field public RemoveByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?)
-    ---@field public RemoveIndex fun(self: DataProviderPolyfill, index: number)
-    ---@field public RemoveIndexRange fun(self: DataProviderPolyfill, indexBegin: number, indexEnd: number)
-    ---@field public ReplaceAtIndex fun(self: DataProviderPolyfill, index: number, newElementData: T)
-    ---@field public SetSortComparator fun(self: DataProviderPolyfill, sortComparator: fun(a: T, b: T): boolean, skipSort: boolean?)
-    ---@field public ClearSortComparator fun(self: DataProviderPolyfill)
-    ---@field public HasSortComparator fun(self: DataProviderPolyfill): boolean
-    ---@field public Sort fun(sortComparator: fun(a: T, b: T): number)
-    ---@field public Find fun(self: DataProviderPolyfill, index: number): T
-    ---@field public FindLast fun(self: DataProviderPolyfill): elementData: T?
-    ---@field public FindIndex fun(self: DataProviderPolyfill, elementData: T): index: number?, elementData: T
-    ---@field public FindByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?): index: number?, elementData: T?
-    ---@field public FindElementDataByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?): elementData: T?
-    ---@field public FindIndexByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?): index: number?
-    ---@field public ForEach fun(self: DataProviderPolyfill, func: fun(elementData: T))
-    ---@field public ReverseForEach fun(self: DataProviderPolyfill, func: fun(elementData: T))
-    ---@field public Flush fun(self: DataProviderPolyfill)
-
-    local talentBuilds = ns:GetTalentBuilds()
 
     ---@class TalentBuildsCompiledProfile
     ---@field public specID number
@@ -15377,95 +15459,39 @@ if IS_RETAIL then
         end
     end
 
-    ---@type DungeonRaid[]
-    local relevantRaids = {}
-
-    for _, stringID in ipairs(talentBuilds.routes.raidOrder) do
-        local id = tonumber(stringID)
-        if id then
-            local raid = util:GetRaidByID(id)
-            if raid then
-                relevantRaids[#relevantRaids + 1] = raid
-            end
-        end
-    end
-
-    -- The first key is the `Raid ID`, then the sub-table is ordered `Encounter IDs`.
-    ---@type table<number, number[]>
-    local relevantEncounters = {}
-
-    for stringID, encounters in pairs(talentBuilds.routes.encounterOrder) do
-        local id = tonumber(stringID)
-        if id then
-            for _, stringEncounterID in ipairs(encounters) do
-                local encounterID = tonumber(stringEncounterID)
-                if encounterID then
-                    local temp = relevantEncounters[id]
-                    if not temp then
-                        temp =  {}
-                        relevantEncounters[id] = temp
-                    end
-                    temp[#temp + 1] = encounterID
-                end
-            end
-        end
-    end
-
-    -- The first key is the `Encounter ID`, the value is either `Journal Encounter ID`.
-    ---@type table<number, number>
-    local encounterIDToJournalEncounterID = {}
-
-    for encounterIDString, journalEncounterID in pairs(talentBuilds.routes.encounterJournalIds) do
-        local encounterID = tonumber(encounterIDString)
-        if encounterID then
-            encounterIDToJournalEncounterID[encounterID] = journalEncounterID
-        end
-    end
-
-    ---@type DungeonInstance[]
-    local relevantDungeons = {}
-
-    for _, stringID in ipairs(talentBuilds.routes.dungeonOrder) do
-        local id = tonumber(stringID)
-        if id then
-            local dungeon = util:GetDungeonByID(id)
-            if dungeon then
-                relevantDungeons[#relevantDungeons + 1] = dungeon
-            end
-        end
-    end
-
-    ---@type { key: TalentBuildsRaidDifficultyKey, text: string }[]
-    local relevantEncounterDifficulties = {
-        { key = "all", text = L.BUILDS_ENCOUNTER_DIFFICULY_all },
-        ["all"] = true,
-    }
-
-    ---@type { key: TalentBuildsDungeonDifficultyKey, text: string }[]
-    local relevantDungeonBrackets = {
-        { key = "all", text = L.BUILDS_DUNGEON_BRACKET_all },
-        ["all"] = true,
-    }
-
-    for _, difficultyKey in ipairs(talentBuilds.routes.difficultyOrder) do
-        if not relevantEncounterDifficulties[difficultyKey] then
-            relevantEncounterDifficulties[difficultyKey] = true
-            relevantEncounterDifficulties[#relevantEncounterDifficulties + 1] = {
-                key = difficultyKey,
-                text = L[format("BUILDS_ENCOUNTER_DIFFICULY_%s", difficultyKey)],
-            }
-        end
-    end
-
-    for _, difficultyKey in ipairs(talentBuilds.routes.bracketOrder) do
-        if not relevantDungeonBrackets[difficultyKey] then
-            relevantDungeonBrackets[difficultyKey] = true
-            relevantDungeonBrackets[#relevantDungeonBrackets + 1] = {
-                key = difficultyKey,
-                text = L[format("BUILDS_DUNGEON_BRACKET_%s", difficultyKey)],
-            }
-        end
-    end
+    ---@generic T
+    ---@class DataProviderPolyfill<T>
+    ---@field public Enumerate fun(self: DataProviderPolyfill, indexBegin?: number, indexEnd?: number): fun(): index: number, elementData: T
+    ---@field public EnumerateEntireRange fun(self: DataProviderPolyfill): fun(): index: number, elementData: T
+    ---@field public ReverseEnumerate fun(self: DataProviderPolyfill, indexBegin?: number, indexEnd?: number): fun(): index: number, elementData: T
+    ---@field public ReverseEnumerateEntireRange fun(self: DataProviderPolyfill): fun(): index: number, elementData: T
+    ---@field public GetCollection fun(self: DataProviderPolyfill): T[]
+    ---@field public GetSize fun(self: DataProviderPolyfill): number
+    ---@field public IsEmpty fun(self: DataProviderPolyfill): boolean
+    ---@field public InsertAtIndex fun(self: DataProviderPolyfill, elementData: T, insertIndex: number)
+    ---@field public Insert fun(self: DataProviderPolyfill, ...: T)
+    ---@field public InsertTable fun(self: DataProviderPolyfill, tbl: T[])
+    ---@field public InsertTableRange fun(self: DataProviderPolyfill, tbl: T[], indexBegin: number, indexEnd: number)
+    ---@field public MoveElementDataToIndex fun(self: DataProviderPolyfill, elementData: T, newIndex: number)
+    ---@field public Remove fun(self: DataProviderPolyfill, ...: T)
+    ---@field public RemoveAllByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?)
+    ---@field public RemoveByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?)
+    ---@field public RemoveIndex fun(self: DataProviderPolyfill, index: number)
+    ---@field public RemoveIndexRange fun(self: DataProviderPolyfill, indexBegin: number, indexEnd: number)
+    ---@field public ReplaceAtIndex fun(self: DataProviderPolyfill, index: number, newElementData: T)
+    ---@field public SetSortComparator fun(self: DataProviderPolyfill, sortComparator: fun(a: T, b: T): boolean, skipSort: boolean?)
+    ---@field public ClearSortComparator fun(self: DataProviderPolyfill)
+    ---@field public HasSortComparator fun(self: DataProviderPolyfill): boolean
+    ---@field public Sort fun(sortComparator: fun(a: T, b: T): number)
+    ---@field public Find fun(self: DataProviderPolyfill, index: number): T
+    ---@field public FindLast fun(self: DataProviderPolyfill): elementData: T?
+    ---@field public FindIndex fun(self: DataProviderPolyfill, elementData: T): index: number?, elementData: T
+    ---@field public FindByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?): index: number?, elementData: T?
+    ---@field public FindElementDataByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?): elementData: T?
+    ---@field public FindIndexByPredicate fun(self: DataProviderPolyfill, predicate: fun(elementData: T): boolean?): index: number?
+    ---@field public ForEach fun(self: DataProviderPolyfill, func: fun(elementData: T))
+    ---@field public ReverseForEach fun(self: DataProviderPolyfill, func: fun(elementData: T))
+    ---@field public Flush fun(self: DataProviderPolyfill)
 
     ---@type DataProviderPolyfill<TalentBuildsDataProviderBuildElementData>
     local dataProvider = CreateDataProvider()
@@ -16029,9 +16055,13 @@ if IS_RETAIL then
         return frame and frame:IsShown()
     end
 
-    function talentbuilds:ShowFrame()
+    ---@param instanceMenuSelection? DropDownUtilDynamicMenuSelectOptionOrPredicate
+    function talentbuilds:ShowFrame(instanceMenuSelection)
         if not frame then
             frame = getFrame()
+        end
+        if instanceMenuSelection then
+            frame.InstanceMenu:DynamicMenuSelectOption(instanceMenuSelection)
         end
         frame:Show()
     end
@@ -16042,16 +16072,97 @@ if IS_RETAIL then
         end
     end
 
-    function talentbuilds:ToggleFrame()
+    ---@param instanceMenuSelection? DropDownUtilDynamicMenuSelectOptionOrPredicate
+    function talentbuilds:ToggleFrame(instanceMenuSelection)
         if self:IsFrameShown() then
             self:HideFrame()
         else
-            self:ShowFrame()
+            self:ShowFrame(instanceMenuSelection)
         end
     end
 
     function talentbuilds:HasBuilds()
         return compiledPlayerProfile and #compiledPlayerProfile.builds > 0
+    end
+
+    ---@param journalInstanceID? number
+    ---@param journalEncounterID? number
+    ---@param journalDifficultyID? number
+    ---@return boolean?
+    function talentbuilds:HasBuildsForEncounterJournal(journalInstanceID, journalEncounterID, journalDifficultyID)
+        if not talentbuilds:HasBuilds() then
+            return
+        end
+        for _, raid in ipairs(relevantRaids) do
+            local encounters = relevantEncounters[raid.id]
+            if encounters then
+                for _, encounterID in ipairs(encounters) do
+                    local _journalEncounterID = encounterIDToJournalEncounterID[encounterID]
+                    if _journalEncounterID == journalEncounterID then
+                        return true
+                    end
+                    local _, _, _, _, _, _journalInstanceID = EJ_GetEncounterInfo(_journalEncounterID)
+                    if _journalInstanceID == journalInstanceID then
+                        return true
+                    end
+                end
+            end
+        end
+        local _, mapID ---@type _, number?
+        if journalInstanceID then
+            _, _, _, _, _, _, _, _, _, mapID = EJ_GetInstanceInfo(journalInstanceID)
+        end
+        if not mapID then
+            return false
+        end
+        for _, dungeon in ipairs(relevantDungeons) do
+            if util:TableContains(dungeon.instance_map_ids, mapID) then
+                return true
+            end
+        end
+        return false
+    end
+
+    ---@param journalInstanceID? number
+    ---@param journalEncounterID? number
+    ---@param journalDifficultyID? number
+    function talentbuilds:ToggleFrameFromEncounterJournal(journalInstanceID, journalEncounterID, journalDifficultyID)
+        local _, mapID, isRaid ---@type _, number?, boolean?
+        if journalInstanceID then
+            _, _, _, _, _, _, _, _, _, mapID, _, isRaid = EJ_GetInstanceInfo(journalInstanceID)
+        end
+        talentbuilds:ToggleFrame(
+            function(option)
+                if isRaid == true and option.arg1 == "raid" then
+                    local raidID = option.arg2 ---@type "all"|number
+                    local encounterID = option.arg3 ---@type "all"|number
+                    local _journalEncounterID = encounterIDToJournalEncounterID[encounterID] ---@type number?
+                    if not journalEncounterID and raidID == "all" then
+                        return true
+                    end
+                    if _journalEncounterID and _journalEncounterID == journalEncounterID then
+                        return true
+                    end
+                    return false
+                elseif isRaid == false and option.arg1 == "dungeon" then
+                    local dungeonID = option.arg2 ---@type "all"|number
+                    if not journalEncounterID and dungeonID == "all" then
+                        return true
+                    end
+                    if dungeonID == "all" or not mapID then
+                        return false
+                    end
+                    local dungeon = util:GetDungeonByID(dungeonID)
+                    if not dungeon then
+                        return false
+                    end
+                    if util:TableContains(dungeon.instance_map_ids, mapID) then
+                        return true
+                    end
+                    return false
+                end
+            end
+        )
     end
 
     ---@param build TalentBuildsCompiledProfileBuild
@@ -16197,6 +16308,88 @@ if IS_RETAIL then
         return builds
     end
 
+    local shortcutInit = false
+    local shortcutTalentFrameButton ---@type Button?
+    local shortcutEncounterJournalButton ---@type Button?
+
+    local function shortcutsInitialize()
+        if shortcutInit then
+            return
+        end
+        shortcutInit = true
+        local buttonSize = 20
+        local tooltipText = format("%s %s", L.RAIDERIO, L.BUILDS_TITLE)
+        ---@param self Button
+        local function showTooltip(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT", 20, 0)
+            GameTooltip:AddLine(tooltipText, 1, 1, 1, true)
+            GameTooltip:Show()
+        end
+        EventUtil.ContinueOnAddOnLoaded("Blizzard_PlayerSpells", function()
+            local loadoutDropdown = PlayerSpellsFrame and PlayerSpellsFrame.TalentsFrame and PlayerSpellsFrame.TalentsFrame.LoadSystem and PlayerSpellsFrame.TalentsFrame.LoadSystem.Dropdown ---@type Button?
+            if not loadoutDropdown then
+                return
+            end
+            shortcutTalentFrameButton = CreateFrame("Button", format("%s_TalentBuildsTalentFrameShortcut", addonName), loadoutDropdown, "SquareIconButtonTemplate")
+            shortcutTalentFrameButton:SetPoint("RIGHT", loadoutDropdown, "LEFT", -8, 0)
+            shortcutTalentFrameButton:SetSize(buttonSize, buttonSize)
+            util:SetButtonTextureFromIcon(shortcutTalentFrameButton, ns.CUSTOM_ICONS.icons.RAIDERIO_COLOR_CIRCLE)
+            shortcutTalentFrameButton:EnableMouse(true)
+            shortcutTalentFrameButton:RegisterForClicks("LeftButtonUp")
+            shortcutTalentFrameButton:SetScript("OnEnter", showTooltip)
+            shortcutTalentFrameButton:SetScript("OnLeave", GameTooltip_Hide)
+            shortcutTalentFrameButton:SetScript("OnClick", function()
+                talentbuilds:ToggleFrame()
+            end)
+        end)
+        EventUtil.ContinueOnAddOnLoaded("Blizzard_EncounterJournal", function()
+            local difficultyDropdown = EncounterJournalEncounterFrameInfoDifficulty ---@type Button?
+            if not difficultyDropdown then
+                return
+            end
+            shortcutEncounterJournalButton = CreateFrame("Button", format("%s_TalentBuildsEncounterJournalShortcut", addonName), difficultyDropdown, "SquareIconButtonTemplate")
+            shortcutEncounterJournalButton:SetPoint("LEFT", difficultyDropdown, "RIGHT", 2, 0)
+            shortcutEncounterJournalButton:SetSize(buttonSize, buttonSize)
+            util:SetButtonTextureFromIcon(shortcutEncounterJournalButton, ns.CUSTOM_ICONS.icons.RAIDERIO_COLOR_CIRCLE)
+            shortcutEncounterJournalButton:EnableMouse(true)
+            shortcutEncounterJournalButton:RegisterForClicks("LeftButtonUp")
+            shortcutEncounterJournalButton:SetScript("OnEnter", showTooltip)
+            shortcutEncounterJournalButton:SetScript("OnLeave", GameTooltip_Hide)
+            ---@return number?, number?, number?
+            local function getJournalInfo()
+                return EncounterJournal and EncounterJournal.instanceID, EncounterJournal and EncounterJournal.encounterID, EJ_GetDifficulty()
+            end
+            shortcutEncounterJournalButton:SetScript("OnClick", function()
+                talentbuilds:ToggleFrameFromEncounterJournal(getJournalInfo())
+            end)
+            local function update()
+                local hasBuilds = talentbuilds:HasBuildsForEncounterJournal(getJournalInfo())
+                shortcutEncounterJournalButton:SetShown(hasBuilds)
+            end
+            hooksecurefunc("EncounterJournal_DisplayEncounter", update)
+            hooksecurefunc("EncounterJournal_DisplayInstance", update)
+        end)
+    end
+
+    function talentbuilds:ShowShortcuts()
+        shortcutsInitialize()
+        if shortcutTalentFrameButton then
+            shortcutTalentFrameButton:Show()
+        end
+        if shortcutEncounterJournalButton then
+            shortcutEncounterJournalButton:Show()
+        end
+    end
+
+    function talentbuilds:HideShortcuts()
+        if shortcutTalentFrameButton then
+            shortcutTalentFrameButton:Hide()
+        end
+        if shortcutEncounterJournalButton then
+            shortcutEncounterJournalButton:Hide()
+        end
+    end
+
     function talentbuilds:CanLoad()
         return config:IsEnabled()
     end
@@ -16229,11 +16422,13 @@ if IS_RETAIL then
         OnPlayerSpecializationChangeDelayed()
         callback:RegisterUnitEvent(OnPlayerSpecializationChangeDelayed, "PLAYER_SPECIALIZATION_CHANGED", "player")
         callback:RegisterEvent(OnPlayerSpecializationChangeDelayed, unpack(SpecChangeEvents))
+        self:ShowShortcuts()
     end
 
     function talentbuilds:OnDisable()
         callback:UnregisterEvent(OnPlayerSpecializationChangeDelayed, "PLAYER_SPECIALIZATION_CHANGED")
         callback:UnregisterEvent(OnPlayerSpecializationChangeDelayed, unpack(SpecChangeEvents))
+        self:HideShortcuts()
         self:HideFrame()
     end
 

@@ -63,6 +63,8 @@
         "CreateScrollBoxListLinearView",
         "DEFAULT_CHAT_FRAME",
         "DropDownList1",
+        "EncounterJournalEncounterFrameInfoDifficulty",
+        "EncounterJournal",
         "ERR_FRIEND_NOT_FOUND",
         "EventUtil",
         "ExportUtil",
