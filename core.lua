@@ -4515,12 +4515,19 @@ if IS_RETAIL then
     ---@param loadoutEntryInfos ImportLoadoutEntryInfoPolyfill[]
     local function FlattenNodeRanksPurchased(loadoutEntryInfos)
         local map = {} ---@type table<number, number>
+        local choiceMap = {} ---@type table<number, number>
         for _, info in ipairs(loadoutEntryInfos) do
             local nodeID = info.nodeID
             local ranksPurchased = info.ranksPurchased
-            map[nodeID] = (map[nodeID] or 0) + ranksPurchased
+            local selectionEntryID = info.selectionEntryID
+            if ranksPurchased and ranksPurchased > 0 then
+                map[nodeID] = (map[nodeID] or 0) + ranksPurchased
+            end
+            if selectionEntryID and selectionEntryID > 0 then
+                choiceMap[nodeID] = selectionEntryID
+            end
         end
-        return map
+        return map, choiceMap
     end
 
     ---@param configID? number Defaults to active config.
@@ -4536,8 +4543,8 @@ if IS_RETAIL then
         if not rightInfos then
             return
         end
-        local leftMap = FlattenNodeRanksPurchased(leftInfos)
-        local rightMap = FlattenNodeRanksPurchased(rightInfos)
+        local leftMap, leftChoiceMap = FlattenNodeRanksPurchased(leftInfos)
+        local rightMap, rightChoiceMap = FlattenNodeRanksPurchased(rightInfos)
         local nodeIDs = {} ---@type number[]
         local seenNodeIDs = {} ---@type table<number, true?>
         local i = 0
@@ -4560,6 +4567,11 @@ if IS_RETAIL then
             local left = leftMap[nodeID] or 0
             local right = rightMap[nodeID] or 0
             if left ~= right then
+                return false
+            end
+            local leftChoice = leftChoiceMap[nodeID] or 0
+            local rightChoice = rightChoiceMap[nodeID] or 0
+            if leftChoice ~= rightChoice then
                 return false
             end
         end
